@@ -277,7 +277,7 @@ export default function RoomPage() {
           {/* Players */}
           <div className="card mb-6">
             <h3 className="font-bold mb-4">
-              Players ({players.length}/{room.config.maxPlayers})
+              Players ({players.length}/{room.config?.maxPlayers ?? 8})
             </h3>
             <PlayerList />
           </div>
@@ -293,19 +293,19 @@ export default function RoomPage() {
               <div>
                 <span className="text-gray-500">Timer:</span>{' '}
                 <span className="font-medium capitalize">
-                  {room.config.timerMode}
+                  {room.config?.timerMode ?? 'none'}
                 </span>
               </div>
               <div>
                 <span className="text-gray-500">Hints:</span>{' '}
                 <span className="font-medium">
-                  {room.config.hintsEnabled ? 'Enabled' : 'Disabled'}
+                  {room.config?.hintsEnabled ? 'Enabled' : 'Disabled'}
                 </span>
               </div>
               <div>
                 <span className="text-gray-500">Visibility:</span>{' '}
                 <span className="font-medium">
-                  {room.config.isPublic ? 'Public' : 'Private'}
+                  {room.config?.isPublic ? 'Public' : 'Private'}
                 </span>
               </div>
             </div>

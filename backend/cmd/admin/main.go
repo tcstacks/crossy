@@ -100,6 +100,9 @@ func main() {
 		qualityCmd.Parse(os.Args[2:])
 		runQuality(*qualityFile, *qualityID)
 
+	case "config":
+		runConfig()
+
 	case "help":
 		printUsage()
 
@@ -124,6 +127,7 @@ Commands:
   publish     Publish a draft puzzle
   list        List puzzles in the database
   quality     Analyze puzzle quality
+  config      Show current LLM configuration
 
 Examples:
   admin generate -difficulty monday -size mini -output puzzle.json
@@ -131,19 +135,70 @@ Examples:
   admin week -start 2024-01-01 -save
   admin quality -file puzzle.json
   admin publish -id abc123 -date 2024-01-15
+  admin config
 
-Environment Variables:
-  ANTHROPIC_API_KEY  Required for puzzle generation
+LLM Configuration (Environment Variables):
+  LLM_PROVIDER       Provider type: "openai" (local LLMs) or "anthropic"
+  LLM_API_URL        API endpoint URL
+                     - LMStudio: http://localhost:1234/v1/chat/completions
+                     - Ollama:   http://localhost:11434/v1/chat/completions
+  LLM_API_KEY        API key (optional for local LLMs)
+  LLM_MODEL          Model name to use
+  LLM_TIMEOUT        Request timeout (default: 120s)
+  LLM_MAX_TOKENS     Max tokens (default: 4096)
+
+Database Configuration:
   DATABASE_URL       PostgreSQL connection string (for save/publish)
-  REDIS_URL          Redis connection string (optional)`)
+  REDIS_URL          Redis connection string (optional)
+
+Legacy (backward compatible):
+  ANTHROPIC_API_KEY  Falls back if LLM_API_KEY not set`)
 }
 
 func getAPIKey() string {
-	apiKey := os.Getenv("ANTHROPIC_API_KEY")
-	if apiKey == "" {
-		log.Fatal("ANTHROPIC_API_KEY environment variable is required")
+	// First check the new LLM_API_KEY
+	apiKey := os.Getenv("LLM_API_KEY")
+	if apiKey != "" {
+		return apiKey
+	}
+	// Fall back to legacy ANTHROPIC_API_KEY
+	apiKey = os.Getenv("ANTHROPIC_API_KEY")
+	// For local LLMs, API key is optional
+	provider := os.Getenv("LLM_PROVIDER")
+	if apiKey == "" && provider != "anthropic" {
+		// Local LLMs don't require an API key
+		return ""
+	}
+	if apiKey == "" && provider == "anthropic" {
+		log.Fatal("API key required for Anthropic provider. Set LLM_API_KEY or ANTHROPIC_API_KEY")
 	}
 	return apiKey
+}
+
+func runConfig() {
+	config := puzzle.DefaultLLMConfig()
+
+	fmt.Println("Current LLM Configuration")
+	fmt.Println("=========================")
+	fmt.Printf("Provider:   %s\n", config.Provider)
+	fmt.Printf("API URL:    %s\n", config.APIURL)
+	fmt.Printf("Model:      %s\n", config.Model)
+	fmt.Printf("Timeout:    %s\n", config.Timeout)
+	fmt.Printf("Max Tokens: %d\n", config.MaxTokens)
+
+	if config.APIKey != "" {
+		fmt.Printf("API Key:    %s...%s (set)\n", config.APIKey[:4], config.APIKey[len(config.APIKey)-4:])
+	} else {
+		fmt.Println("API Key:    (not set - OK for local LLMs)")
+	}
+
+	fmt.Println()
+	fmt.Println("Configuration Sources:")
+	fmt.Printf("  LLM_PROVIDER=%s\n", os.Getenv("LLM_PROVIDER"))
+	fmt.Printf("  LLM_API_URL=%s\n", os.Getenv("LLM_API_URL"))
+	fmt.Printf("  LLM_MODEL=%s\n", os.Getenv("LLM_MODEL"))
+	fmt.Printf("  LLM_TIMEOUT=%s\n", os.Getenv("LLM_TIMEOUT"))
+	fmt.Printf("  LLM_MAX_TOKENS=%s\n", os.Getenv("LLM_MAX_TOKENS"))
 }
 
 func getDatabase() *db.Database {

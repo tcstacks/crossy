@@ -346,7 +346,8 @@ export function CrosswordGrid({
       className="crossword-grid select-none"
       style={{
         gridTemplateColumns: `repeat(${puzzle.gridWidth}, minmax(0, 1fr))`,
-        maxWidth: `min(100%, ${puzzle.gridWidth * 40}px)`,
+        width: `min(100%, 70vh)`,
+        maxWidth: '600px',
       }}
       tabIndex={0}
     >

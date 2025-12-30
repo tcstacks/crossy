@@ -4,10 +4,24 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/Header';
+import { Mascot, MascotWithSpeech } from '@/components/Mascot';
 import { useGameStore } from '@/store/gameStore';
 import { api } from '@/lib/api';
-import { getDifficultyColor, getDifficultyLabel, formatDate } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 import type { Puzzle } from '@/types';
+
+const getDifficultyBadge = (difficulty: string) => {
+  switch (difficulty) {
+    case 'easy':
+      return { class: 'badge-easy', label: 'Easy' };
+    case 'medium':
+      return { class: 'badge-medium', label: 'Medium' };
+    case 'hard':
+      return { class: 'badge-hard', label: 'Hard' };
+    default:
+      return { class: 'badge-medium', label: 'Medium' };
+  }
+};
 
 export default function HomePage() {
   const router = useRouter();
@@ -48,43 +62,64 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen fun-bg">
       <Header />
 
       <main className="container mx-auto px-4 py-8">
         {/* Hero Section */}
-        <section className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
-            Crosswords, Together
+        <section className="text-center mb-12 relative">
+          {/* Floating decorative elements */}
+          <div className="absolute top-0 left-10 w-16 h-16 bg-candy-yellow rounded-full opacity-20 animate-float blur-xl" />
+          <div className="absolute top-20 right-20 w-20 h-20 bg-candy-pink rounded-full opacity-20 animate-float blur-xl" style={{ animationDelay: '1s' }} />
+          <div className="absolute bottom-0 left-1/4 w-12 h-12 bg-candy-blue rounded-full opacity-20 animate-float blur-xl" style={{ animationDelay: '0.5s' }} />
+
+          <div className="flex justify-center mb-6">
+            <MascotWithSpeech
+              size="xl"
+              mood="celebrating"
+              message="Let's solve some puzzles together!"
+            />
+          </div>
+
+          <h1 className="text-4xl md:text-6xl font-bold mb-4">
+            <span className="gradient-text">Crossy!</span>
           </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+          <p className="text-xl text-purple-700 max-w-2xl mx-auto font-medium">
             Solve puzzles with friends in real-time. Daily challenges,
-            multiplayer rooms, and endless fun.
+            multiplayer rooms, and endless fun!
           </p>
         </section>
 
         {/* Today's Puzzle Card */}
         <section className="max-w-2xl mx-auto mb-12">
-          <div className="card">
+          <div className="card relative overflow-hidden">
+            {/* Decorative corner */}
+            <div className="absolute -top-10 -right-10 w-32 h-32 bg-gradient-candy rounded-full opacity-10 blur-2xl" />
+
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-lg">Today&apos;s Puzzle</h2>
+              <h2 className="font-bold text-lg text-purple-900 flex items-center gap-2">
+                <span className="text-2xl">✨</span>
+                Today&apos;s Puzzle
+              </h2>
               {todayPuzzle?.date && (
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-purple-600 font-medium bg-purple-100 px-3 py-1 rounded-full">
                   {formatDate(todayPuzzle.date)}
                 </span>
               )}
             </div>
 
             {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="spinner w-8 h-8" />
+              <div className="flex flex-col items-center justify-center py-12 gap-4">
+                <div className="spinner w-10 h-10" />
+                <p className="text-purple-600 font-medium">Loading puzzle...</p>
               </div>
             ) : error ? (
-              <div className="text-center py-8 text-gray-500">
-                <p>{error}</p>
+              <div className="text-center py-8">
+                <Mascot size="md" mood="thinking" className="mx-auto mb-4" animate={false} />
+                <p className="text-purple-700 mb-4">{error}</p>
                 <button
                   onClick={() => window.location.reload()}
-                  className="mt-4 text-primary-600 hover:underline"
+                  className="text-primary-600 hover:text-primary-700 font-bold"
                 >
                   Try again
                 </button>
@@ -92,21 +127,17 @@ export default function HomePage() {
             ) : todayPuzzle ? (
               <>
                 <div className="mb-6">
-                  <h3 className="text-2xl font-bold mb-2">
+                  <h3 className="text-2xl font-bold mb-2 text-purple-900">
                     {todayPuzzle.title}
                   </h3>
-                  <div className="flex items-center gap-3 text-sm">
-                    <span className="text-gray-500">
+                  <div className="flex flex-wrap items-center gap-3 text-sm">
+                    <span className="text-purple-600 font-medium">
                       By {todayPuzzle.author}
                     </span>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${getDifficultyColor(
-                        todayPuzzle.difficulty
-                      )}`}
-                    >
-                      {getDifficultyLabel(todayPuzzle.difficulty)}
+                    <span className={`badge ${getDifficultyBadge(todayPuzzle.difficulty).class}`}>
+                      {getDifficultyBadge(todayPuzzle.difficulty).label}
                     </span>
-                    <span className="text-gray-500">
+                    <span className="text-purple-500 bg-purple-50 px-2 py-0.5 rounded-full font-medium">
                       {todayPuzzle.gridWidth}×{todayPuzzle.gridHeight}
                     </span>
                   </div>
@@ -115,21 +146,24 @@ export default function HomePage() {
                 <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     onClick={handlePlaySolo}
-                    className="btn btn-primary flex-1"
+                    className="btn btn-primary flex-1 flex items-center justify-center gap-2"
                   >
-                    Play Solo
+                    <span>Play Solo</span>
+                    <span className="text-lg">🎯</span>
                   </button>
                   <button
                     onClick={handleCreateRoom}
-                    className="btn btn-secondary flex-1"
+                    className="btn btn-secondary flex-1 flex items-center justify-center gap-2"
                   >
-                    Create Room
+                    <span>Create Room</span>
+                    <span className="text-lg">👥</span>
                   </button>
                 </div>
               </>
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                No puzzle available for today
+              <div className="text-center py-8">
+                <Mascot size="md" mood="thinking" className="mx-auto mb-4" animate={false} />
+                <p className="text-purple-600 font-medium">No puzzle available for today</p>
               </div>
             )}
           </div>
@@ -137,75 +171,42 @@ export default function HomePage() {
 
         {/* Quick Actions */}
         <section className="max-w-4xl mx-auto mb-12">
-          <h2 className="font-bold text-lg mb-4 text-center">Quick Start</h2>
+          <h2 className="font-bold text-xl mb-6 text-center text-purple-900 flex items-center justify-center gap-2">
+            <span className="text-2xl">🚀</span>
+            Quick Start
+          </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Link href="/room/join" className="card hover:shadow-lg transition-shadow">
+            <Link href="/room/join" className="card group">
               <div className="text-center">
-                <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <svg
-                    className="w-6 h-6 text-primary-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                    />
-                  </svg>
+                <div className="w-16 h-16 bg-gradient-to-br from-candy-pink to-candy-purple rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <span className="text-3xl">👋</span>
                 </div>
-                <h3 className="font-bold mb-1">Join a Room</h3>
-                <p className="text-sm text-gray-500">
+                <h3 className="font-bold mb-1 text-purple-900">Join a Room</h3>
+                <p className="text-sm text-purple-600">
                   Enter a code to join friends
                 </p>
               </div>
             </Link>
 
-            <Link href="/puzzle/random" className="card hover:shadow-lg transition-shadow">
+            <Link href="/puzzle/random" className="card group">
               <div className="text-center">
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <svg
-                    className="w-6 h-6 text-green-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                    />
-                  </svg>
+                <div className="w-16 h-16 bg-gradient-to-br from-candy-mint to-candy-blue rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <span className="text-3xl">🎲</span>
                 </div>
-                <h3 className="font-bold mb-1">Random Puzzle</h3>
-                <p className="text-sm text-gray-500">
+                <h3 className="font-bold mb-1 text-purple-900">Random Puzzle</h3>
+                <p className="text-sm text-purple-600">
                   Play a surprise puzzle
                 </p>
               </div>
             </Link>
 
-            <Link href="/archive" className="card hover:shadow-lg transition-shadow">
+            <Link href="/archive" className="card group">
               <div className="text-center">
-                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <svg
-                    className="w-6 h-6 text-purple-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
-                    />
-                  </svg>
+                <div className="w-16 h-16 bg-gradient-to-br from-candy-yellow to-candy-orange rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <span className="text-3xl">📚</span>
                 </div>
-                <h3 className="font-bold mb-1">Archive</h3>
-                <p className="text-sm text-gray-500">
+                <h3 className="font-bold mb-1 text-purple-900">Archive</h3>
+                <p className="text-sm text-purple-600">
                   Browse past puzzles
                 </p>
               </div>
@@ -215,101 +216,54 @@ export default function HomePage() {
 
         {/* Features Section */}
         <section className="max-w-4xl mx-auto">
-          <h2 className="font-bold text-2xl mb-8 text-center">
-            Why CrossPlay?
+          <h2 className="font-bold text-2xl mb-8 text-center text-purple-900 flex items-center justify-center gap-2">
+            <span className="text-2xl">💜</span>
+            Why Crossy?
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="flex gap-4">
-              <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                <svg
-                  className="w-5 h-5 text-primary-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
+            <div className="card flex gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-candy-pink to-candy-purple rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
+                <span className="text-xl">⚡</span>
               </div>
               <div>
-                <h3 className="font-bold mb-1">Real-Time Collaboration</h3>
-                <p className="text-sm text-gray-600">
+                <h3 className="font-bold mb-1 text-purple-900">Real-Time Collaboration</h3>
+                <p className="text-sm text-purple-600">
                   See your friends&apos; cursors and solve together in perfect sync.
                 </p>
               </div>
             </div>
 
-            <div className="flex gap-4">
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                <svg
-                  className="w-5 h-5 text-green-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
+            <div className="card flex gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-candy-mint to-candy-blue rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
+                <span className="text-xl">📅</span>
               </div>
               <div>
-                <h3 className="font-bold mb-1">Daily Puzzles</h3>
-                <p className="text-sm text-gray-600">
+                <h3 className="font-bold mb-1 text-purple-900">Daily Puzzles</h3>
+                <p className="text-sm text-purple-600">
                   Fresh puzzles every day, from easy Monday to challenging Saturday.
                 </p>
               </div>
             </div>
 
-            <div className="flex gap-4">
-              <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                <svg
-                  className="w-5 h-5 text-yellow-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
-                  />
-                </svg>
+            <div className="card flex gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-candy-yellow to-candy-orange rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
+                <span className="text-xl">📱</span>
               </div>
               <div>
-                <h3 className="font-bold mb-1">Mobile-First Design</h3>
-                <p className="text-sm text-gray-600">
+                <h3 className="font-bold mb-1 text-purple-900">Mobile-First Design</h3>
+                <p className="text-sm text-purple-600">
                   Optimized for touch, play anywhere on any device.
                 </p>
               </div>
             </div>
 
-            <div className="flex gap-4">
-              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                <svg
-                  className="w-5 h-5 text-purple-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                  />
-                </svg>
+            <div className="card flex gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-candy-purple to-candy-pink rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
+                <span className="text-xl">🏆</span>
               </div>
               <div>
-                <h3 className="font-bold mb-1">Stats & Streaks</h3>
-                <p className="text-sm text-gray-600">
+                <h3 className="font-bold mb-1 text-purple-900">Stats & Streaks</h3>
+                <p className="text-sm text-purple-600">
                   Track your progress and compete for the best times.
                 </p>
               </div>
@@ -319,18 +273,18 @@ export default function HomePage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t bg-white mt-12">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-primary-600 rounded flex items-center justify-center text-white text-xs font-bold">
-                C
+      <footer className="mt-12 py-8">
+        <div className="container mx-auto px-4">
+          <div className="card">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <Mascot size="sm" mood="happy" animate={false} />
+                <span className="font-bold text-purple-900">Crossy</span>
               </div>
-              <span className="font-medium">CrossPlay</span>
+              <p className="text-sm text-purple-600 font-medium flex items-center gap-2">
+                Made with <span className="text-candy-pink">💜</span> for puzzle enthusiasts
+              </p>
             </div>
-            <p className="text-sm text-gray-500">
-              Made with love for puzzle enthusiasts
-            </p>
           </div>
         </div>
       </footer>

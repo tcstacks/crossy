@@ -1,22 +1,16 @@
 package puzzle
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"sort"
 	"strings"
-	"time"
 )
 
 // ClueGenerator generates crossword clues using AI with difficulty calibration
 type ClueGenerator struct {
-	apiKey     string
-	apiURL     string
-	httpClient *http.Client
-	wordList   *WordListService
+	llmClient *LLMClient
+	wordList  *WordListService
 }
 
 // ClueStyle represents different clue writing styles
@@ -62,11 +56,23 @@ type GeneratedClue struct {
 
 // NewClueGenerator creates a new clue generator
 func NewClueGenerator(apiKey string, wordList *WordListService) *ClueGenerator {
+	// Use the new LLM client with environment configuration
+	config := DefaultLLMConfig()
+	// If apiKey is provided explicitly, use it (for backward compatibility)
+	if apiKey != "" && config.APIKey == "" {
+		config.APIKey = apiKey
+	}
 	return &ClueGenerator{
-		apiKey:     apiKey,
-		apiURL:     "https://api.anthropic.com/v1/messages",
-		httpClient: &http.Client{Timeout: 60 * time.Second},
-		wordList:   wordList,
+		llmClient: NewLLMClient(config),
+		wordList:  wordList,
+	}
+}
+
+// NewClueGeneratorWithClient creates a clue generator with a specific LLM client
+func NewClueGeneratorWithClient(client *LLMClient, wordList *WordListService) *ClueGenerator {
+	return &ClueGenerator{
+		llmClient: client,
+		wordList:  wordList,
 	}
 }
 
@@ -257,98 +263,17 @@ func (cg *ClueGenerator) getExamplesForDifficulty(day DayDifficulty, answer stri
 	return examples.String()
 }
 
-type clueAPIRequest struct {
-	Model     string              `json:"model"`
-	MaxTokens int                 `json:"max_tokens"`
-	Messages  []clueAPIMessage    `json:"messages"`
-}
-
-type clueAPIMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
-}
-
-type clueAPIResponse struct {
-	Content []struct {
-		Text string `json:"text"`
-	} `json:"content"`
-}
-
 func (cg *ClueGenerator) callAPI(prompt string) (string, error) {
-	reqBody := clueAPIRequest{
-		Model:     "claude-sonnet-4-20250514",
-		MaxTokens: 1024,
-		Messages: []clueAPIMessage{
-			{Role: "user", Content: prompt},
-		},
-	}
-
-	jsonBody, err := json.Marshal(reqBody)
-	if err != nil {
-		return "", err
-	}
-
-	req, err := http.NewRequest("POST", cg.apiURL, bytes.NewBuffer(jsonBody))
-	if err != nil {
-		return "", err
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-api-key", cg.apiKey)
-	req.Header.Set("anthropic-version", "2023-06-01")
-
-	resp, err := cg.httpClient.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("API error: %s", string(body))
-	}
-
-	var apiResp clueAPIResponse
-	if err := json.Unmarshal(body, &apiResp); err != nil {
-		return "", err
-	}
-
-	if len(apiResp.Content) == 0 {
-		return "", fmt.Errorf("empty response from API")
-	}
-
-	return apiResp.Content[0].Text, nil
+	return cg.llmClient.Complete(prompt)
 }
 
 func (cg *ClueGenerator) parseClueResponse(response string) ([]GeneratedClue, error) {
-	// Clean up response
-	response = strings.TrimSpace(response)
-	if strings.HasPrefix(response, "```json") {
-		response = strings.TrimPrefix(response, "```json")
-		response = strings.TrimSuffix(response, "```")
-	} else if strings.HasPrefix(response, "```") {
-		response = strings.TrimPrefix(response, "```")
-		response = strings.TrimSuffix(response, "```")
-	}
-	response = strings.TrimSpace(response)
+	// Clean up response using utility function
+	response = CleanJSONResponse(response)
 
 	var clues []GeneratedClue
 	if err := json.Unmarshal([]byte(response), &clues); err != nil {
-		// Try to extract JSON array from response
-		start := strings.Index(response, "[")
-		end := strings.LastIndex(response, "]")
-		if start >= 0 && end > start {
-			response = response[start : end+1]
-			if err := json.Unmarshal([]byte(response), &clues); err != nil {
-				return nil, fmt.Errorf("failed to parse JSON: %w", err)
-			}
-		} else {
-			return nil, fmt.Errorf("failed to parse JSON: %w", err)
-		}
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
 	return clues, nil
@@ -501,16 +426,8 @@ Return a JSON object with answers as keys:
 		return nil, err
 	}
 
-	// Parse response
-	response = strings.TrimSpace(response)
-	if strings.HasPrefix(response, "```json") {
-		response = strings.TrimPrefix(response, "```json")
-		response = strings.TrimSuffix(response, "```")
-	} else if strings.HasPrefix(response, "```") {
-		response = strings.TrimPrefix(response, "```")
-		response = strings.TrimSuffix(response, "```")
-	}
-	response = strings.TrimSpace(response)
+	// Parse response using utility function
+	response = CleanJSONResponse(response)
 
 	var results map[string][]GeneratedClue
 	if err := json.Unmarshal([]byte(response), &results); err != nil {

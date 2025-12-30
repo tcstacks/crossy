@@ -6,23 +6,23 @@ import { Providers } from './providers';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'CrossPlay - Multiplayer Crossword Puzzles',
+  title: 'Crossy - Fun Multiplayer Crossword Puzzles',
   description: 'Solve crossword puzzles together with friends in real-time. Daily puzzles, multiplayer rooms, and endless fun!',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'CrossPlay',
+    title: 'Crossy',
   },
   openGraph: {
-    title: 'CrossPlay - Multiplayer Crossword Puzzles',
+    title: 'Crossy - Fun Multiplayer Crossword Puzzles',
     description: 'Solve crossword puzzles together with friends in real-time.',
     type: 'website',
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0ea5e9',
+  themeColor: '#d946ef',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -40,7 +40,7 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>
-      <body className="min-h-screen bg-gray-50 antialiased">
+      <body className="min-h-screen antialiased">
         <Providers>{children}</Providers>
       </body>
     </html>

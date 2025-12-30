@@ -6,8 +6,12 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatTime(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
+  if (seconds == null || isNaN(seconds) || !isFinite(seconds)) {
+    return '0:00';
+  }
+  const totalSecs = Math.max(0, Math.floor(seconds));
+  const mins = Math.floor(totalSecs / 60);
+  const secs = totalSecs % 60;
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 

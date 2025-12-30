@@ -1,11 +1,8 @@
 package puzzle
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
 	"time"
 
@@ -15,17 +12,26 @@ import (
 
 // Generator handles puzzle generation using AI
 type Generator struct {
-	apiKey     string
-	apiURL     string
-	httpClient *http.Client
+	llmClient *LLMClient
 }
 
 // NewGenerator creates a new puzzle generator
 func NewGenerator(apiKey string) *Generator {
+	// Use the new LLM client with environment configuration
+	config := DefaultLLMConfig()
+	// If apiKey is provided explicitly, use it (for backward compatibility)
+	if apiKey != "" && config.APIKey == "" {
+		config.APIKey = apiKey
+	}
 	return &Generator{
-		apiKey:     apiKey,
-		apiURL:     "https://api.anthropic.com/v1/messages",
-		httpClient: &http.Client{Timeout: 120 * time.Second},
+		llmClient: NewLLMClient(config),
+	}
+}
+
+// NewGeneratorWithClient creates a generator with a specific LLM client
+func NewGeneratorWithClient(client *LLMClient) *Generator {
+	return &Generator{
+		llmClient: client,
 	}
 }
 
@@ -57,10 +63,10 @@ type ClueData struct {
 func (g *Generator) Generate(req *GenerationRequest) (*models.Puzzle, error) {
 	prompt := g.buildPrompt(req)
 
-	// Call Claude API
-	response, err := g.callClaudeAPI(prompt)
+	// Call LLM API
+	response, err := g.callLLMAPI(prompt)
 	if err != nil {
-		return nil, fmt.Errorf("failed to call Claude API: %w", err)
+		return nil, fmt.Errorf("failed to call LLM API: %w", err)
 	}
 
 	// Parse the response
@@ -128,84 +134,13 @@ Ensure the puzzle is complete, valid, and solvable.`,
 		req.GridWidth, req.GridHeight, req.Difficulty, difficultyDesc[req.Difficulty], themeInstr)
 }
 
-type claudeRequest struct {
-	Model     string           `json:"model"`
-	MaxTokens int              `json:"max_tokens"`
-	Messages  []claudeMessage  `json:"messages"`
-}
-
-type claudeMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
-}
-
-type claudeResponse struct {
-	Content []struct {
-		Text string `json:"text"`
-	} `json:"content"`
-}
-
-func (g *Generator) callClaudeAPI(prompt string) (string, error) {
-	reqBody := claudeRequest{
-		Model:     "claude-sonnet-4-20250514",
-		MaxTokens: 4096,
-		Messages: []claudeMessage{
-			{Role: "user", Content: prompt},
-		},
-	}
-
-	jsonBody, err := json.Marshal(reqBody)
-	if err != nil {
-		return "", err
-	}
-
-	req, err := http.NewRequest("POST", g.apiURL, bytes.NewBuffer(jsonBody))
-	if err != nil {
-		return "", err
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-api-key", g.apiKey)
-	req.Header.Set("anthropic-version", "2023-06-01")
-
-	resp, err := g.httpClient.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("API error: %s", string(body))
-	}
-
-	var claudeResp claudeResponse
-	if err := json.Unmarshal(body, &claudeResp); err != nil {
-		return "", err
-	}
-
-	if len(claudeResp.Content) == 0 {
-		return "", fmt.Errorf("empty response from API")
-	}
-
-	return claudeResp.Content[0].Text, nil
+func (g *Generator) callLLMAPI(prompt string) (string, error) {
+	return g.llmClient.Complete(prompt)
 }
 
 func (g *Generator) parseResponse(response string) (*GeneratedPuzzle, error) {
-	// Extract JSON from response (handle potential markdown formatting)
-	response = strings.TrimSpace(response)
-	if strings.HasPrefix(response, "```json") {
-		response = strings.TrimPrefix(response, "```json")
-		response = strings.TrimSuffix(response, "```")
-	} else if strings.HasPrefix(response, "```") {
-		response = strings.TrimPrefix(response, "```")
-		response = strings.TrimSuffix(response, "```")
-	}
-	response = strings.TrimSpace(response)
+	// Extract and clean JSON from response
+	response = CleanJSONResponse(response)
 
 	var generated GeneratedPuzzle
 	if err := json.Unmarshal([]byte(response), &generated); err != nil {

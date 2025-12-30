@@ -2,31 +2,29 @@
 
 import Link from 'next/link';
 import { useGameStore } from '@/store/gameStore';
-import { cn } from '@/lib/utils';
+import { Mascot } from './Mascot';
 
 export function Header() {
   const { user, isAuthenticated, logout } = useGameStore();
 
   return (
-    <header className="bg-white border-b sticky top-0 z-30">
+    <header className="sticky top-0 z-30 backdrop-blur-xl bg-white/80 border-b border-purple-50">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white font-bold">
-            C
-          </div>
-          <span className="font-bold text-xl">CrossPlay</span>
+        <Link href="/" className="flex items-center gap-2 group">
+          <Mascot size="sm" mood="happy" animate={false} className="group-hover:animate-wiggle" />
+          <span className="font-bold text-xl gradient-text">Crossy</span>
         </Link>
 
         <nav className="flex items-center gap-4">
           <Link
             href="/puzzle"
-            className="text-gray-600 hover:text-gray-900 font-medium hidden sm:block"
+            className="text-purple-600 hover:text-purple-800 font-medium hidden sm:block transition-colors"
           >
             Today&apos;s Puzzle
           </Link>
           <Link
             href="/archive"
-            className="text-gray-600 hover:text-gray-900 font-medium hidden sm:block"
+            className="text-purple-600 hover:text-purple-800 font-medium hidden sm:block transition-colors"
           >
             Archive
           </Link>
@@ -35,18 +33,18 @@ export function Header() {
             <div className="flex items-center gap-3">
               <Link
                 href="/profile"
-                className="flex items-center gap-2 hover:bg-gray-100 px-3 py-2 rounded-lg"
+                className="flex items-center gap-2 hover:bg-purple-50 px-3 py-2 rounded-full transition-colors"
               >
-                <div className="w-8 h-8 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center font-medium">
+                <div className="w-8 h-8 bg-gradient-to-br from-candy-pink to-candy-purple text-white rounded-full flex items-center justify-center font-bold shadow-md">
                   {user?.displayName?.charAt(0).toUpperCase()}
                 </div>
-                <span className="hidden sm:block font-medium">
+                <span className="hidden sm:block font-medium text-purple-800">
                   {user?.displayName}
                 </span>
               </Link>
               <button
                 onClick={logout}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-purple-400 hover:text-purple-600 transition-colors p-2 hover:bg-purple-50 rounded-full"
               >
                 <svg
                   className="w-5 h-5"
@@ -100,10 +98,10 @@ export function GameHeader({
   hintsEnabled = true,
 }: GameHeaderProps) {
   return (
-    <header className="bg-white border-b sticky top-0 z-30">
+    <header className="sticky top-0 z-30 backdrop-blur-xl bg-white/80 border-b border-purple-50">
       <div className="container mx-auto px-4 h-14 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/" className="text-gray-500 hover:text-gray-700">
+          <Link href="/" className="text-purple-400 hover:text-purple-600 transition-colors p-2 hover:bg-purple-50 rounded-full">
             <svg
               className="w-6 h-6"
               fill="none"
@@ -119,7 +117,7 @@ export function GameHeader({
             </svg>
           </Link>
           {title && (
-            <h1 className="font-bold text-lg truncate max-w-[200px] sm:max-w-none">
+            <h1 className="font-bold text-lg truncate max-w-[200px] sm:max-w-none text-purple-900">
               {title}
             </h1>
           )}
@@ -133,11 +131,11 @@ export function GameHeader({
           {showHints && hintsEnabled && (
             <button
               onClick={onHintRequest}
-              className="p-2 hover:bg-gray-100 rounded-lg"
+              className="p-2 hover:bg-purple-50 rounded-full transition-colors group"
               title="Get a hint"
             >
               <svg
-                className="w-5 h-5 text-gray-600"
+                className="w-5 h-5 text-purple-400 group-hover:text-purple-600 transition-colors"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -155,11 +153,11 @@ export function GameHeader({
           {showChat && (
             <button
               onClick={onChatToggle}
-              className="p-2 hover:bg-gray-100 rounded-lg relative"
+              className="p-2 hover:bg-purple-50 rounded-full transition-colors relative group"
               title="Open chat"
             >
               <svg
-                className="w-5 h-5 text-gray-600"
+                className="w-5 h-5 text-purple-400 group-hover:text-purple-600 transition-colors"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"

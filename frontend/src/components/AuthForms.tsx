@@ -86,32 +86,32 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
   return (
     <div className="w-full max-w-md mx-auto">
       {/* Tabs */}
-      <div className="flex border-b mb-6">
+      <div className="flex bg-purple-50 rounded-full p-1 mb-6">
         <button
-          className={`flex-1 py-3 font-medium transition-colors ${
+          className={`flex-1 py-2 px-4 rounded-full font-medium transition-all duration-200 ${
             activeTab === 'login'
-              ? 'text-primary-600 border-b-2 border-primary-600'
-              : 'text-gray-500 hover:text-gray-700'
+              ? 'bg-white text-purple-700 shadow-md'
+              : 'text-purple-500 hover:text-purple-700'
           }`}
           onClick={() => setActiveTab('login')}
         >
           Sign In
         </button>
         <button
-          className={`flex-1 py-3 font-medium transition-colors ${
+          className={`flex-1 py-2 px-4 rounded-full font-medium transition-all duration-200 ${
             activeTab === 'register'
-              ? 'text-primary-600 border-b-2 border-primary-600'
-              : 'text-gray-500 hover:text-gray-700'
+              ? 'bg-white text-purple-700 shadow-md'
+              : 'text-purple-500 hover:text-purple-700'
           }`}
           onClick={() => setActiveTab('register')}
         >
           Sign Up
         </button>
         <button
-          className={`flex-1 py-3 font-medium transition-colors ${
+          className={`flex-1 py-2 px-4 rounded-full font-medium transition-all duration-200 ${
             activeTab === 'guest'
-              ? 'text-primary-600 border-b-2 border-primary-600'
-              : 'text-gray-500 hover:text-gray-700'
+              ? 'bg-white text-purple-700 shadow-md'
+              : 'text-purple-500 hover:text-purple-700'
           }`}
           onClick={() => setActiveTab('guest')}
         >
@@ -121,7 +121,8 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
 
       {/* Error message */}
       {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-2xl flex items-center gap-2">
+          <span>😅</span>
           {error}
         </div>
       )}
@@ -130,7 +131,7 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
       {activeTab === 'login' && (
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label htmlFor="login-email" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="login-email" className="block text-sm font-medium text-purple-700 mb-1">
               Email
             </label>
             <input
@@ -143,7 +144,7 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
             />
           </div>
           <div>
-            <label htmlFor="login-password" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="login-password" className="block text-sm font-medium text-purple-700 mb-1">
               Password
             </label>
             <input
@@ -162,11 +163,14 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
           >
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
-                <span className="spinner w-5 h-5" />
+                <span className="spinner w-5 h-5 border-white/30 border-t-white" />
                 Signing in...
               </span>
             ) : (
-              'Sign In'
+              <span className="flex items-center justify-center gap-2">
+                Sign In
+                <span>✨</span>
+              </span>
             )}
           </button>
         </form>
@@ -176,7 +180,7 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
       {activeTab === 'register' && (
         <form onSubmit={handleRegister} className="space-y-4">
           <div>
-            <label htmlFor="register-name" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="register-name" className="block text-sm font-medium text-purple-700 mb-1">
               Display Name
             </label>
             <input
@@ -191,7 +195,7 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
             />
           </div>
           <div>
-            <label htmlFor="register-email" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="register-email" className="block text-sm font-medium text-purple-700 mb-1">
               Email
             </label>
             <input
@@ -204,7 +208,7 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
             />
           </div>
           <div>
-            <label htmlFor="register-password" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="register-password" className="block text-sm font-medium text-purple-700 mb-1">
               Password
             </label>
             <input
@@ -216,7 +220,7 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
               required
               minLength={6}
             />
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-purple-500">
               At least 6 characters
             </p>
           </div>
@@ -227,11 +231,14 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
           >
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
-                <span className="spinner w-5 h-5" />
+                <span className="spinner w-5 h-5 border-white/30 border-t-white" />
                 Creating account...
               </span>
             ) : (
-              'Create Account'
+              <span className="flex items-center justify-center gap-2">
+                Create Account
+                <span>🎉</span>
+              </span>
             )}
           </button>
         </form>
@@ -241,7 +248,7 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
       {activeTab === 'guest' && (
         <form onSubmit={handleGuest} className="space-y-4">
           <div>
-            <label htmlFor="guest-name" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="guest-name" className="block text-sm font-medium text-purple-700 mb-1">
               Display Name (optional)
             </label>
             <input
@@ -261,15 +268,18 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
           >
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
-                <span className="spinner w-5 h-5" />
+                <span className="spinner w-5 h-5 border-white/30 border-t-white" />
                 Starting...
               </span>
             ) : (
-              'Play as Guest'
+              <span className="flex items-center justify-center gap-2">
+                Play as Guest
+                <span>🎮</span>
+              </span>
             )}
           </button>
-          <p className="text-center text-sm text-gray-500">
-            Guest accounts don&apos;t save progress. Sign up to track your stats!
+          <p className="text-center text-sm text-purple-500 bg-purple-50 p-3 rounded-2xl">
+            💡 Guest accounts don&apos;t save progress. Sign up to track your stats!
           </p>
         </form>
       )}

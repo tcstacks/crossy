@@ -320,22 +320,23 @@ func (d *Database) GetTodayPuzzle() (*models.Puzzle, error) {
 	return d.GetPuzzleByDate(today)
 }
 
-func (d *Database) GetPuzzleArchive(difficulty string, limit, offset int) ([]*models.Puzzle, error) {
+func (d *Database) GetPuzzleArchive(status string, limit, offset int) ([]*models.Puzzle, error) {
 	query := `
 		SELECT id, date, title, author, difficulty, grid_width, grid_height,
 			   grid, clues_across, clues_down, theme, avg_solve_time, status, created_at, published_at
-		FROM puzzles WHERE status = 'published'
+		FROM puzzles WHERE 1=1
 	`
 	args := []interface{}{}
 	argNum := 1
 
-	if difficulty != "" {
-		query += fmt.Sprintf(" AND difficulty = $%d", argNum)
-		args = append(args, difficulty)
+	// Filter by status - empty string means all puzzles, otherwise filter by specific status
+	if status != "" {
+		query += fmt.Sprintf(" AND status = $%d", argNum)
+		args = append(args, status)
 		argNum++
 	}
 
-	query += " ORDER BY date DESC"
+	query += " ORDER BY created_at DESC"
 	query += fmt.Sprintf(" LIMIT $%d OFFSET $%d", argNum, argNum+1)
 	args = append(args, limit, offset)
 
@@ -411,6 +412,25 @@ func (d *Database) UpdatePuzzleStatus(id, status string) error {
 	query += " WHERE id = $1"
 
 	_, err := d.DB.Exec(query, id, status)
+	return err
+}
+
+func (d *Database) UpdatePuzzle(puzzle *models.Puzzle) error {
+	gridJSON, _ := json.Marshal(puzzle.Grid)
+	cluesAcrossJSON, _ := json.Marshal(puzzle.CluesAcross)
+	cluesDownJSON, _ := json.Marshal(puzzle.CluesDown)
+
+	_, err := d.DB.Exec(`
+		UPDATE puzzles SET
+			date = $2, title = $3, author = $4, difficulty = $5,
+			grid_width = $6, grid_height = $7, grid = $8,
+			clues_across = $9, clues_down = $10, theme = $11,
+			avg_solve_time = $12, status = $13, published_at = $14
+		WHERE id = $1
+	`, puzzle.ID, puzzle.Date, puzzle.Title, puzzle.Author, puzzle.Difficulty,
+		puzzle.GridWidth, puzzle.GridHeight, gridJSON,
+		cluesAcrossJSON, cluesDownJSON, puzzle.Theme,
+		puzzle.AvgSolveTime, puzzle.Status, puzzle.PublishedAt)
 	return err
 }
 

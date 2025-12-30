@@ -143,13 +143,8 @@ func main() {
 			}
 		}
 
-		// Admin routes (protected)
-		adminGroup := apiGroup.Group("/admin")
-		adminGroup.Use(authMiddleware.RequireAuth())
-		{
-			adminGroup.POST("/puzzles/generate", generatePuzzleHandler)
-			adminGroup.POST("/puzzles/validate", validatePuzzleHandler)
-		}
+		// Note: Admin puzzle management is handled by the separate admin CLI tool
+		// Run: go run ./cmd/admin --help for puzzle generation and management
 	}
 
 	// WebSocket endpoint
@@ -378,50 +373,4 @@ func demoStartRoomHandler(c *gin.Context) {
 
 func demoCloseRoomHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "room closed"})
-}
-
-func generatePuzzleHandler(c *gin.Context) {
-	var req puzzle.GenerationRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	apiKey := os.Getenv("ANTHROPIC_API_KEY")
-	if apiKey == "" {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "ANTHROPIC_API_KEY not configured"})
-		return
-	}
-
-	generator := puzzle.NewGenerator(apiKey)
-	generated, err := generator.Generate(&req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Validate
-	validator := puzzle.NewValidator()
-	result := validator.Validate(generated)
-
-	c.JSON(http.StatusOK, gin.H{
-		"puzzle":     generated,
-		"validation": result,
-	})
-}
-
-func validatePuzzleHandler(c *gin.Context) {
-	var puzzleData struct {
-		Puzzle *puzzle.GeneratedPuzzle `json:"puzzle"`
-	}
-	if err := c.ShouldBindJSON(&puzzleData); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"valid":    true,
-		"errors":   []string{},
-		"warnings": []string{},
-	})
 }

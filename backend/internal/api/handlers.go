@@ -260,11 +260,11 @@ func (h *Handlers) GetPuzzleByDate(c *gin.Context) {
 }
 
 func (h *Handlers) GetPuzzleArchive(c *gin.Context) {
-	difficulty := c.Query("difficulty")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	puzzles, err := h.db.GetPuzzleArchive(difficulty, limit, offset)
+	// Public archive only shows published puzzles
+	puzzles, err := h.db.GetPuzzleArchive("published", limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 		return

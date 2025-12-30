@@ -42,12 +42,21 @@ build-backend:
 	@echo "Building backend binary..."
 	@cd backend && go build -o bin/server cmd/server/main.go
 
-# Build both
-build: build-backend build-frontend
+# Build admin CLI
+build-admin:
+	@echo "Building admin CLI..."
+	@cd backend && go build -o bin/admin cmd/admin/main.go
+
+# Build both server and admin
+build: build-backend build-admin build-frontend
 
 # Run production backend
 run-backend:
 	@cd backend && ./bin/server
+
+# Run admin CLI (pass ARGS for commands, e.g., make admin ARGS="generate -size mini")
+admin:
+	@cd backend && go run cmd/admin/main.go $(ARGS)
 
 # Setup environment files
 setup:
@@ -116,9 +125,21 @@ help:
 	@echo "  db-down          Stop database containers"
 	@echo ""
 	@echo "Build:"
-	@echo "  build            Build both backend and frontend"
-	@echo "  build-backend    Build Go binary"
+	@echo "  build            Build server, admin CLI, and frontend"
+	@echo "  build-backend    Build Go server binary"
+	@echo "  build-admin      Build admin CLI binary"
 	@echo "  build-frontend   Build Next.js for production"
+	@echo ""
+	@echo "Admin CLI (Puzzle Management):"
+	@echo "  admin ARGS=\"...\" Run admin CLI with arguments"
+	@echo ""
+	@echo "  Examples:"
+	@echo "    make admin ARGS=\"help\""
+	@echo "    make admin ARGS=\"generate -size mini -difficulty monday\""
+	@echo "    make admin ARGS=\"batch -size daily -count 5\""
+	@echo "    make admin ARGS=\"week -start 2024-01-01 -save\""
+	@echo "    make admin ARGS=\"quality -file puzzle.json\""
+	@echo "    make admin ARGS=\"list -status draft\""
 	@echo ""
 	@echo "Utility:"
 	@echo "  clean            Remove build artifacts"

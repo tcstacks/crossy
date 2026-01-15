@@ -30,12 +30,16 @@ package-lock.json.bak
 out/
 .vercel
 .turbo
+tsconfig.tsbuildinfo
 
 # ===========================================
 # Go
 # ===========================================
 # Binaries
 backend/bin/
+backend/admin
+backend/server
+backend/cmd/debug/
 *.exe
 *.exe~
 *.dll

@@ -3,7 +3,6 @@ package puzzle
 import (
 	"fmt"
 	"math/rand"
-	"sort"
 	"strings"
 	"time"
 )
@@ -69,12 +68,29 @@ func NewGridFiller(wordList *WordListService) *GridFiller {
 		wordList:   wordList,
 		rng:        rand.New(rand.NewSource(time.Now().UnixNano())),
 		maxRetries: 1000,
-		timeout:    30 * time.Second,
+		timeout:    10 * time.Second, // Per-attempt timeout (we do multiple attempts)
 	}
 }
 
 // FillGrid attempts to fill a grid using CSP with backtracking
 func (gf *GridFiller) FillGrid(spec *GridSpec) (*FilledGrid, error) {
+	// Try multiple times with different random seeds
+	maxAttempts := 10
+
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		// Reseed RNG for each attempt to get different word orderings
+		gf.rng = rand.New(rand.NewSource(time.Now().UnixNano() + int64(attempt*1000)))
+
+		result, err := gf.fillGridAttempt(spec)
+		if err == nil {
+			return result, nil
+		}
+	}
+
+	return nil, fmt.Errorf("failed to fill grid after %d attempts", maxAttempts)
+}
+
+func (gf *GridFiller) fillGridAttempt(spec *GridSpec) (*FilledGrid, error) {
 	startTime := time.Now()
 
 	// Initialize the grid
@@ -94,10 +110,19 @@ func (gf *GridFiller) FillGrid(spec *GridSpec) (*FilledGrid, error) {
 	// Build constraint graph
 	constraints := gf.buildConstraints(slots)
 
-	// Apply Arc Consistency (AC-3) to reduce domains
+	// Initialize domains with all possible words for each slot
 	domains := gf.initializeDomains(slots, grid, spec.MinWordScore)
-	if !gf.arcConsistency(domains, constraints) {
-		return nil, fmt.Errorf("no valid solution exists after arc consistency")
+
+	// Check if any domain is empty
+	for id, domain := range domains {
+		if len(domain) == 0 {
+			return nil, fmt.Errorf("no words available for slot %d", id)
+		}
+	}
+
+	// Shuffle domains to add randomization
+	for id := range domains {
+		gf.shuffleDomain(domains[id])
 	}
 
 	// Use backtracking with MRV heuristic to fill the grid
@@ -115,6 +140,12 @@ func (gf *GridFiller) FillGrid(spec *GridSpec) (*FilledGrid, error) {
 	}
 
 	return result, nil
+}
+
+func (gf *GridFiller) shuffleDomain(domain []ScoredWord) {
+	gf.rng.Shuffle(len(domain), func(i, j int) {
+		domain[i], domain[j] = domain[j], domain[i]
+	})
 }
 
 func (gf *GridFiller) initializeGrid(spec *GridSpec) [][]rune {
@@ -397,11 +428,8 @@ func (gf *GridFiller) backtrack(
 		return gf.extractSolution(grid, slots, domains), nil
 	}
 
-	// Try each word in the domain, ordered by score
+	// Try each word in the domain (already shuffled for randomization)
 	domain := domains[slot.ID]
-	sort.Slice(domain, func(i, j int) bool {
-		return domain[i].Score > domain[j].Score
-	})
 
 	for _, word := range domain {
 		// Skip words that conflict with current grid state
@@ -579,6 +607,34 @@ func (gf *GridFiller) extractSolution(grid [][]rune, slots []Slot, domains map[i
 
 // GenerateSymmetricBlackSquares generates black square positions with 180° rotational symmetry
 func (gf *GridFiller) GenerateSymmetricBlackSquares(width, height int, targetDensity float64) []Position {
+	// For sizes with known-good patterns, use them directly for better reliability
+	// These patterns have been tested to work well with CSP filling
+	defaultPattern := gf.getDefaultBlackSquarePattern(width, height)
+	if len(defaultPattern) > 0 {
+		return defaultPattern
+	}
+
+	// For 5x5, use no black squares
+	if width == 5 && height == 5 {
+		return []Position{}
+	}
+
+	maxAttempts := 100
+
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		positions := gf.generateBlackSquareCandidate(width, height, targetDensity)
+
+		// Validate the pattern doesn't create short words or isolated cells
+		if gf.validateBlackSquarePattern(positions, width, height) {
+			return positions
+		}
+	}
+
+	// Fallback: return empty (no black squares) if nothing else works
+	return []Position{}
+}
+
+func (gf *GridFiller) generateBlackSquareCandidate(width, height int, targetDensity float64) []Position {
 	var positions []Position
 
 	// Calculate target number of black squares
@@ -617,6 +673,172 @@ func (gf *GridFiller) GenerateSymmetricBlackSquares(width, height int, targetDen
 	}
 
 	return positions
+}
+
+// validateBlackSquarePattern checks that a black square pattern doesn't create short words
+func (gf *GridFiller) validateBlackSquarePattern(positions []Position, width, height int) bool {
+	// Build a grid with black squares marked
+	grid := make([][]bool, height)
+	for y := 0; y < height; y++ {
+		grid[y] = make([]bool, width)
+	}
+	for _, pos := range positions {
+		if pos.Y >= 0 && pos.Y < height && pos.X >= 0 && pos.X < width {
+			grid[pos.Y][pos.X] = true // true = black square
+		}
+	}
+
+	// Check for short words in across direction
+	for y := 0; y < height; y++ {
+		runLength := 0
+		for x := 0; x <= width; x++ {
+			if x < width && !grid[y][x] {
+				runLength++
+			} else {
+				if runLength > 0 && runLength < 3 {
+					return false // Found a 1 or 2-letter sequence
+				}
+				runLength = 0
+			}
+		}
+	}
+
+	// Check for short words in down direction
+	for x := 0; x < width; x++ {
+		runLength := 0
+		for y := 0; y <= height; y++ {
+			if y < height && !grid[y][x] {
+				runLength++
+			} else {
+				if runLength > 0 && runLength < 3 {
+					return false // Found a 1 or 2-letter sequence
+				}
+				runLength = 0
+			}
+		}
+	}
+
+	// Check connectivity - all white cells should be reachable
+	if !gf.isPatternConnected(grid, width, height) {
+		return false
+	}
+
+	return true
+}
+
+// isPatternConnected checks if all white cells are connected
+func (gf *GridFiller) isPatternConnected(grid [][]bool, width, height int) bool {
+	visited := make([][]bool, height)
+	for y := 0; y < height; y++ {
+		visited[y] = make([]bool, width)
+	}
+
+	// Find first white cell
+	startX, startY := -1, -1
+	for y := 0; y < height && startX < 0; y++ {
+		for x := 0; x < width; x++ {
+			if !grid[y][x] {
+				startX, startY = x, y
+				break
+			}
+		}
+	}
+
+	if startX < 0 {
+		return false // No white cells
+	}
+
+	// BFS from start
+	queue := []Position{{X: startX, Y: startY}}
+	visited[startY][startX] = true
+	whiteCount := 0
+
+	for len(queue) > 0 {
+		pos := queue[0]
+		queue = queue[1:]
+		whiteCount++
+
+		// Check neighbors
+		dirs := []Position{{0, -1}, {0, 1}, {-1, 0}, {1, 0}}
+		for _, d := range dirs {
+			nx, ny := pos.X+d.X, pos.Y+d.Y
+			if nx >= 0 && nx < width && ny >= 0 && ny < height && !grid[ny][nx] && !visited[ny][nx] {
+				visited[ny][nx] = true
+				queue = append(queue, Position{X: nx, Y: ny})
+			}
+		}
+	}
+
+	// Count total white cells
+	totalWhite := 0
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			if !grid[y][x] {
+				totalWhite++
+			}
+		}
+	}
+
+	return whiteCount == totalWhite
+}
+
+// getDefaultBlackSquarePattern returns a known-good pattern for common sizes
+// All patterns are validated to ensure no slots shorter than 3 letters
+func (gf *GridFiller) getDefaultBlackSquarePattern(width, height int) []Position {
+	// Default patterns that are known to work - all verified to have 3+ letter slots
+	if width == 5 && height == 5 {
+		// Standard 5x5 mini puzzle has NO black squares - fully open grid
+		return []Position{}
+	}
+	if width == 7 && height == 7 {
+		// 7x7 pattern - single center black creates all 3 or 7 letter slots
+		// Across: Y=0-2,4-6 are 7 letters; Y=3 is 3+3 letters
+		// Down: X=0-2,4-6 are 7 letters; X=3 is 3+3 letters
+		return []Position{
+			{X: 3, Y: 3}, // Center only
+		}
+	}
+	if width == 9 && height == 9 {
+		// 9x9 pattern - creates 3, 4, and 9 letter slots
+		return []Position{
+			{X: 4, Y: 4}, // Center
+			{X: 3, Y: 0}, {X: 5, Y: 8}, // Top-bottom pair
+			{X: 0, Y: 3}, {X: 8, Y: 5}, // Left-right pair
+		}
+	}
+	if width == 11 && height == 11 {
+		// 11x11 midi pattern - 4 corner blacks in inner square
+		// Creates slots of 3 and 11 letters (well-covered by word list)
+		// Blacks have 3-cell gaps to avoid 1-2 letter slots
+		return []Position{
+			{X: 3, Y: 3}, {X: 7, Y: 7}, // Diagonal pair
+			{X: 7, Y: 3}, {X: 3, Y: 7}, // Anti-diagonal pair
+		}
+	}
+	if width == 13 && height == 13 {
+		// 13x13 pattern - creates varied slot lengths
+		return []Position{
+			{X: 4, Y: 4}, {X: 8, Y: 8},   // Diagonal
+			{X: 8, Y: 4}, {X: 4, Y: 8},   // Anti-diagonal
+			{X: 6, Y: 6},                 // Center
+			{X: 0, Y: 6}, {X: 12, Y: 6},  // Side breaks
+			{X: 6, Y: 0}, {X: 6, Y: 12},  // Top-bottom breaks
+		}
+	}
+	if width == 15 && height == 15 {
+		// Standard 15x15 daily pattern - creates varied slot lengths
+		return []Position{
+			{X: 4, Y: 4}, {X: 10, Y: 10},  // Diagonal corners
+			{X: 10, Y: 4}, {X: 4, Y: 10},  // Anti-diagonal corners
+			{X: 7, Y: 7},                   // Center
+			{X: 0, Y: 7}, {X: 14, Y: 7},   // Side midpoints
+			{X: 7, Y: 0}, {X: 7, Y: 14},   // Top-bottom midpoints
+			{X: 3, Y: 3}, {X: 11, Y: 11},  // Inner diagonal
+			{X: 11, Y: 3}, {X: 3, Y: 11},  // Inner anti-diagonal
+		}
+	}
+	// Return empty for other sizes (will use full grid)
+	return []Position{}
 }
 
 // ValidateGrid checks if a grid pattern is valid for crossword construction

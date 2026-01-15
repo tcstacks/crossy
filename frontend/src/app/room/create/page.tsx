@@ -10,7 +10,7 @@ import { getDifficultyColor, getDifficultyLabel } from '@/lib/utils';
 
 export default function CreateRoomPage() {
   const router = useRouter();
-  const { isAuthenticated } = useGameStore();
+  const { isAuthenticated, user } = useGameStore();
   const [isLoading, setIsLoading] = useState(false);
   const [puzzle, setPuzzle] = useState<Puzzle | null>(null);
   const [puzzleLoading, setPuzzleLoading] = useState(true);
@@ -46,7 +46,7 @@ export default function CreateRoomPage() {
   }, [isAuthenticated, router]);
 
   const handleCreateRoom = async () => {
-    if (!puzzle) return;
+    if (!puzzle || !user) return;
 
     setIsLoading(true);
     setError(null);
@@ -61,7 +61,10 @@ export default function CreateRoomPage() {
         spectatorMode: true,
       };
 
-      const response = await api.createRoom(puzzle.id, mode, config);
+      const response = await api.createRoom(puzzle.id, mode, config, {
+        id: user.id,
+        displayName: user.displayName,
+      });
       router.push(`/room/${response.room.code}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create room');

@@ -256,7 +256,8 @@ class ApiClient {
   async createRoom(
     puzzleId: string,
     mode: RoomMode,
-    config?: Partial<RoomConfig>
+    config?: Partial<RoomConfig>,
+    user?: { id: string; displayName: string }
   ): Promise<{ room: Room; player: Player }> {
     try {
       return await this.request('/rooms', {
@@ -264,12 +265,14 @@ class ApiClient {
         body: JSON.stringify({ puzzleId, mode, config }),
       });
     } catch {
-      // Mock room creation
+      // Mock room creation - use actual user info if provided
+      const userId = user?.id || `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const displayName = user?.displayName || 'Host';
       const roomCode = Math.random().toString(36).substr(2, 6).toUpperCase();
       const room: Room = {
         id: `room-${Date.now()}`,
         code: roomCode,
-        hostId: 'mock-user',
+        hostId: userId,
         puzzleId,
         mode,
         config: {
@@ -283,9 +286,9 @@ class ApiClient {
         createdAt: new Date().toISOString(),
       };
       const player: Player = {
-        userId: 'mock-user',
+        userId,
         roomId: room.id,
-        displayName: 'Host',
+        displayName,
         isSpectator: false,
         isConnected: true,
         contribution: 0,
@@ -312,7 +315,8 @@ class ApiClient {
   async joinRoom(
     roomId: string,
     displayName?: string,
-    isSpectator = false
+    isSpectator = false,
+    userId?: string
   ): Promise<{ room: Room; player: Player; puzzle?: Puzzle; gridState?: GameGridState }> {
     try {
       return await this.request(`/rooms/${roomId}/join`, {
@@ -320,6 +324,47 @@ class ApiClient {
         body: JSON.stringify({ displayName, isSpectator }),
       });
     } catch {
+      // Mock fallback for local development
+      const roomEntries = Array.from(localRooms.values());
+      for (const data of roomEntries) {
+        if (data.room.id === roomId) {
+          // Check if user is already in the room (e.g., they're the host)
+          const existingPlayer = userId ? data.players.find(p => p.userId === userId) : null;
+
+          let player: Player;
+          if (existingPlayer) {
+            // User is already in the room (host rejoining)
+            player = existingPlayer;
+          } else {
+            // New player joining
+            const playerColors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'];
+            player = {
+              userId: userId || `user-${Date.now()}`,
+              roomId: data.room.id,
+              displayName: displayName || 'Player',
+              isSpectator,
+              isConnected: true,
+              contribution: 0,
+              color: playerColors[data.players.length % playerColors.length],
+              joinedAt: new Date().toISOString(),
+            };
+            data.players.push(player);
+          }
+
+          // Get puzzle for response
+          const puzzle = getSamplePuzzle(data.room.puzzleId);
+
+          // Create empty grid state
+          const gridState: GameGridState = {
+            roomId: data.room.id,
+            cells: puzzle.grid.map(row => row.map(() => ({ value: null, isRevealed: false }))),
+            completedClues: [],
+            lastUpdated: new Date().toISOString(),
+          };
+
+          return { room: data.room, player, puzzle, gridState };
+        }
+      }
       throw new Error('Room not found');
     }
   }

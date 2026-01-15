@@ -127,7 +127,7 @@ Commands:
   publish     Publish a draft puzzle
   list        List puzzles in the database
   quality     Analyze puzzle quality
-  config      Show current LLM configuration
+  config      Show current configuration
 
 Examples:
   admin generate -difficulty monday -size mini -output puzzle.json
@@ -137,68 +137,36 @@ Examples:
   admin publish -id abc123 -date 2024-01-15
   admin config
 
-LLM Configuration (Environment Variables):
-  LLM_PROVIDER       Provider type: "openai" (local LLMs) or "anthropic"
-  LLM_API_URL        API endpoint URL
-                     - LMStudio: http://localhost:1234/v1/chat/completions
-                     - Ollama:   http://localhost:11434/v1/chat/completions
-  LLM_API_KEY        API key (optional for local LLMs)
-  LLM_MODEL          Model name to use
-  LLM_TIMEOUT        Request timeout (default: 120s)
-  LLM_MAX_TOKENS     Max tokens (default: 4096)
+Generation Method:
+  Uses dictionary-based generation with CSP algorithm.
+  No external LLM API required.
 
 Database Configuration:
   DATABASE_URL       PostgreSQL connection string (for save/publish)
-  REDIS_URL          Redis connection string (optional)
-
-Legacy (backward compatible):
-  ANTHROPIC_API_KEY  Falls back if LLM_API_KEY not set`)
+  REDIS_URL          Redis connection string (optional)`)
 }
 
 func getAPIKey() string {
-	// First check the new LLM_API_KEY
-	apiKey := os.Getenv("LLM_API_KEY")
-	if apiKey != "" {
-		return apiKey
-	}
-	// Fall back to legacy ANTHROPIC_API_KEY
-	apiKey = os.Getenv("ANTHROPIC_API_KEY")
-	// For local LLMs, API key is optional
-	provider := os.Getenv("LLM_PROVIDER")
-	if apiKey == "" && provider != "anthropic" {
-		// Local LLMs don't require an API key
-		return ""
-	}
-	if apiKey == "" && provider == "anthropic" {
-		log.Fatal("API key required for Anthropic provider. Set LLM_API_KEY or ANTHROPIC_API_KEY")
-	}
-	return apiKey
+	// API key is no longer required - dictionary-based generation doesn't use LLM
+	return ""
 }
 
 func runConfig() {
-	config := puzzle.DefaultLLMConfig()
-
-	fmt.Println("Current LLM Configuration")
-	fmt.Println("=========================")
-	fmt.Printf("Provider:   %s\n", config.Provider)
-	fmt.Printf("API URL:    %s\n", config.APIURL)
-	fmt.Printf("Model:      %s\n", config.Model)
-	fmt.Printf("Timeout:    %s\n", config.Timeout)
-	fmt.Printf("Max Tokens: %d\n", config.MaxTokens)
-
-	if config.APIKey != "" {
-		fmt.Printf("API Key:    %s...%s (set)\n", config.APIKey[:4], config.APIKey[len(config.APIKey)-4:])
-	} else {
-		fmt.Println("API Key:    (not set - OK for local LLMs)")
-	}
-
+	fmt.Println("CrossPlay Puzzle Generator Configuration")
+	fmt.Println("=========================================")
 	fmt.Println()
-	fmt.Println("Configuration Sources:")
-	fmt.Printf("  LLM_PROVIDER=%s\n", os.Getenv("LLM_PROVIDER"))
-	fmt.Printf("  LLM_API_URL=%s\n", os.Getenv("LLM_API_URL"))
-	fmt.Printf("  LLM_MODEL=%s\n", os.Getenv("LLM_MODEL"))
-	fmt.Printf("  LLM_TIMEOUT=%s\n", os.Getenv("LLM_TIMEOUT"))
-	fmt.Printf("  LLM_MAX_TOKENS=%s\n", os.Getenv("LLM_MAX_TOKENS"))
+	fmt.Println("Generation Mode: Dictionary-based (no LLM required)")
+	fmt.Println()
+	fmt.Println("The puzzle generator uses:")
+	fmt.Println("  - CSP (Constraint Satisfaction) algorithm for grid filling")
+	fmt.Println("  - Built-in word list with quality scores")
+	fmt.Println("  - Dictionary definitions for clue generation")
+	fmt.Println("  - Free Dictionary API for additional definitions")
+	fmt.Println("  - Datamuse API for synonyms and word patterns")
+	fmt.Println()
+	fmt.Println("Database Configuration:")
+	fmt.Printf("  DATABASE_URL=%s\n", os.Getenv("DATABASE_URL"))
+	fmt.Printf("  REDIS_URL=%s\n", os.Getenv("REDIS_URL"))
 }
 
 func getDatabase() *db.Database {

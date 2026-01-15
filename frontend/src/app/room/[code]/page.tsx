@@ -80,8 +80,13 @@ export default function RoomPage() {
         setRoom(response.room);
         setPlayers(response.players);
 
-        // Join the room via API
-        const joinResponse = await api.joinRoom(response.room.id);
+        // Join the room via API (pass user ID so host is recognized)
+        const joinResponse = await api.joinRoom(
+          response.room.id,
+          user.displayName,
+          false,
+          user.id
+        );
         if (joinResponse.puzzle) {
           setPuzzle(joinResponse.puzzle);
         }

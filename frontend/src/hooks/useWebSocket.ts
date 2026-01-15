@@ -12,6 +12,7 @@ export function useWebSocket() {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 5;
+  const handleMessageRef = useRef<(message: WSMessage) => void>(() => {});
 
   const {
     token,
@@ -65,7 +66,7 @@ export function useWebSocket() {
     ws.onmessage = (event) => {
       try {
         const message: WSMessage = JSON.parse(event.data);
-        handleMessage(message);
+        handleMessageRef.current(message);
       } catch (error) {
         console.error('Failed to parse message:', error);
       }
@@ -204,6 +205,11 @@ export function useWebSocket() {
     endGame,
     setPuzzle,
   ]);
+
+  // Keep ref updated with latest handleMessage to avoid stale closures
+  useEffect(() => {
+    handleMessageRef.current = handleMessage;
+  }, [handleMessage]);
 
   // WebSocket actions
   const joinRoom = useCallback((roomCode: string, displayName: string, isSpectator = false) => {

@@ -1,7 +1,7 @@
 package puzzle
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -10,28 +10,30 @@ import (
 	"github.com/google/uuid"
 )
 
-// Generator handles puzzle generation using AI
+// Generator handles puzzle generation using CSP algorithm and dictionary definitions
 type Generator struct {
-	llmClient *LLMClient
+	wordList      *WordListService
+	gridFiller    *GridFiller
+	clueGenerator *ClueGenerator
 }
 
 // NewGenerator creates a new puzzle generator
 func NewGenerator(apiKey string) *Generator {
-	// Use the new LLM client with environment configuration
-	config := DefaultLLMConfig()
-	// If apiKey is provided explicitly, use it (for backward compatibility)
-	if apiKey != "" && config.APIKey == "" {
-		config.APIKey = apiKey
-	}
+	// apiKey is kept for backward compatibility but no longer used
+	wordList := NewWordListService()
 	return &Generator{
-		llmClient: NewLLMClient(config),
+		wordList:      wordList,
+		gridFiller:    NewGridFiller(wordList),
+		clueGenerator: NewClueGeneratorWithWordList(wordList),
 	}
 }
 
-// NewGeneratorWithClient creates a generator with a specific LLM client
-func NewGeneratorWithClient(client *LLMClient) *Generator {
+// NewGeneratorWithWordList creates a generator with a specific word list
+func NewGeneratorWithWordList(wordList *WordListService) *Generator {
 	return &Generator{
-		llmClient: client,
+		wordList:      wordList,
+		gridFiller:    NewGridFiller(wordList),
+		clueGenerator: NewClueGeneratorWithWordList(wordList),
 	}
 }
 
@@ -44,13 +46,13 @@ type GenerationRequest struct {
 	DayOfWeek  string            `json:"dayOfWeek,omitempty"`
 }
 
-// GeneratedPuzzle represents the AI-generated puzzle before validation
+// GeneratedPuzzle represents the generated puzzle before validation
 type GeneratedPuzzle struct {
-	Title       string      `json:"title"`
-	Grid        [][]string  `json:"grid"` // "." for black squares, letters otherwise
-	CluesAcross []ClueData  `json:"cluesAcross"`
-	CluesDown   []ClueData  `json:"cluesDown"`
-	Theme       string      `json:"theme,omitempty"`
+	Title       string     `json:"title"`
+	Grid        [][]string `json:"grid"` // "." for black squares, letters otherwise
+	CluesAcross []ClueData `json:"cluesAcross"`
+	CluesDown   []ClueData `json:"cluesDown"`
+	Theme       string     `json:"theme,omitempty"`
 }
 
 type ClueData struct {
@@ -59,220 +61,185 @@ type ClueData struct {
 	Answer string `json:"answer"`
 }
 
-// Generate creates a new puzzle using AI
+// Generate creates a new puzzle using CSP algorithm
 func (g *Generator) Generate(req *GenerationRequest) (*models.Puzzle, error) {
-	prompt := g.buildPrompt(req)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
 
-	// Call LLM API
-	response, err := g.callLLMAPI(prompt)
-	if err != nil {
-		return nil, fmt.Errorf("failed to call LLM API: %w", err)
+	// Determine black square density based on grid size
+	density := 0.15
+	if req.GridWidth <= 5 {
+		density = 0.0 // Mini puzzles often have no black squares
+	} else if req.GridWidth <= 11 {
+		density = 0.14
+	} else {
+		density = 0.16
 	}
 
-	// Parse the response
-	generated, err := g.parseResponse(response)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
+	// Generate symmetric black squares
+	blackSquares := g.gridFiller.GenerateSymmetricBlackSquares(req.GridWidth, req.GridHeight, density)
+
+	// Create grid spec
+	gridSpec := &GridSpec{
+		Width:        req.GridWidth,
+		Height:       req.GridHeight,
+		BlackSquares: blackSquares,
+		MinWordScore: 30,
 	}
 
-	// Convert to puzzle model
-	puzzle, err := g.convertToPuzzle(generated, req)
+	// Fill the grid using CSP algorithm
+	filledGrid, err := g.gridFiller.FillGrid(gridSpec)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert to puzzle: %w", err)
+		return nil, fmt.Errorf("failed to fill grid: %w", err)
 	}
+
+	// Check context
+	select {
+	case <-ctx.Done():
+		return nil, fmt.Errorf("generation timed out")
+	default:
+	}
+
+	// Extract answers from filled grid
+	answers := make([]string, len(filledGrid.Slots))
+	for i, slot := range filledGrid.Slots {
+		answers[i] = slot.Word
+	}
+
+	// Map difficulty to day
+	difficulty := g.difficultyToDay(req.Difficulty)
+
+	// Generate clues for all answers
+	clueMap, err := g.clueGenerator.GenerateBatchClues(answers, difficulty, req.Theme)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate clues: %w", err)
+	}
+
+	// Build puzzle model
+	puzzle := g.buildPuzzle(filledGrid, clueMap, req)
 
 	return puzzle, nil
 }
 
-func (g *Generator) buildPrompt(req *GenerationRequest) string {
-	difficultyDesc := map[models.Difficulty]string{
-		models.DifficultyEasy:   "straightforward definitions, common vocabulary, no wordplay",
-		models.DifficultyMedium: "mix of definitions and light wordplay, some trivia",
-		models.DifficultyHard:   "challenging wordplay, misdirection, less common vocabulary",
+func (g *Generator) difficultyToDay(diff models.Difficulty) DayDifficulty {
+	switch diff {
+	case models.DifficultyEasy:
+		return DayMonday
+	case models.DifficultyMedium:
+		return DayWednesday
+	case models.DifficultyHard:
+		return DayFriday
+	default:
+		return DayWednesday
 	}
-
-	themeInstr := ""
-	if req.Theme != "" {
-		themeInstr = fmt.Sprintf("The puzzle should have a theme: %s. Include themed answers that relate to this topic.", req.Theme)
-	}
-
-	return fmt.Sprintf(`Generate a crossword puzzle with the following specifications:
-
-Grid Size: %dx%d
-Difficulty: %s (%s)
-%s
-
-Requirements:
-1. The grid must have rotational symmetry (180-degree)
-2. No 2-letter words allowed
-3. All letters must be part of both an across and down word (fully crossed)
-4. Use standard American crossword conventions
-5. Clues should be fair and solvable
-6. No offensive or exclusionary content
-7. Mix of clue types: definitions, wordplay, trivia, pop culture
-
-Return ONLY a valid JSON object with this exact structure:
-{
-  "title": "Puzzle Title",
-  "grid": [
-    ["A", "B", "C", ".", "D"],
-    ...
-  ],
-  "cluesAcross": [
-    {"number": 1, "clue": "Clue text", "answer": "ANSWER"},
-    ...
-  ],
-  "cluesDown": [
-    {"number": 1, "clue": "Clue text", "answer": "ANSWER"},
-    ...
-  ],
-  "theme": "Theme description if applicable"
 }
 
-Use "." for black squares. Answers must match the grid exactly.
-Ensure the puzzle is complete, valid, and solvable.`,
-		req.GridWidth, req.GridHeight, req.Difficulty, difficultyDesc[req.Difficulty], themeInstr)
-}
-
-func (g *Generator) callLLMAPI(prompt string) (string, error) {
-	return g.llmClient.Complete(prompt)
-}
-
-func (g *Generator) parseResponse(response string) (*GeneratedPuzzle, error) {
-	// Extract and clean JSON from response
-	response = CleanJSONResponse(response)
-
-	var generated GeneratedPuzzle
-	if err := json.Unmarshal([]byte(response), &generated); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
-	}
-
-	return &generated, nil
-}
-
-func (g *Generator) convertToPuzzle(generated *GeneratedPuzzle, req *GenerationRequest) (*models.Puzzle, error) {
-	gridHeight := len(generated.Grid)
-	if gridHeight == 0 {
-		return nil, fmt.Errorf("empty grid")
-	}
-	gridWidth := len(generated.Grid[0])
-
-	// Convert grid
-	grid := make([][]models.GridCell, gridHeight)
-	for y := 0; y < gridHeight; y++ {
-		grid[y] = make([]models.GridCell, gridWidth)
-		for x := 0; x < len(generated.Grid[y]); x++ {
-			cell := generated.Grid[y][x]
-			if cell == "." {
-				grid[y][x] = models.GridCell{Letter: nil}
+func (g *Generator) buildPuzzle(grid *FilledGrid, clueMap map[string][]GeneratedClue, req *GenerationRequest) *models.Puzzle {
+	// Convert grid cells
+	modelGrid := make([][]models.GridCell, grid.Height)
+	for y := 0; y < grid.Height; y++ {
+		modelGrid[y] = make([]models.GridCell, grid.Width)
+		for x := 0; x < grid.Width; x++ {
+			char := grid.Cells[y][x]
+			if char == 0 {
+				modelGrid[y][x] = models.GridCell{Letter: nil}
 			} else {
-				letter := strings.ToUpper(cell)
-				grid[y][x] = models.GridCell{Letter: &letter}
+				letter := string(char)
+				modelGrid[y][x] = models.GridCell{Letter: &letter}
 			}
 		}
 	}
 
-	// Number the cells and build clues
+	// Number cells and build clues
 	clueNumber := 1
-	numberMap := make(map[string]int) // "y,x" -> number
+	var cluesAcross []models.Clue
+	var cluesDown []models.Clue
 
-	for y := 0; y < gridHeight; y++ {
-		for x := 0; x < gridWidth; x++ {
-			if grid[y][x].Letter == nil {
+	for y := 0; y < grid.Height; y++ {
+		for x := 0; x < grid.Width; x++ {
+			if modelGrid[y][x].Letter == nil {
 				continue
 			}
 
-			startsAcross := x == 0 || grid[y][x-1].Letter == nil
-			startsDown := y == 0 || grid[y-1][x].Letter == nil
-
-			// Check if there's a word in that direction
-			if startsAcross {
-				hasWord := x+1 < gridWidth && grid[y][x+1].Letter != nil
-				if !hasWord {
-					startsAcross = false
-				}
-			}
-			if startsDown {
-				hasWord := y+1 < gridHeight && grid[y+1][x].Letter != nil
-				if !hasWord {
-					startsDown = false
-				}
-			}
+			startsAcross := (x == 0 || modelGrid[y][x-1].Letter == nil) &&
+				(x+1 < grid.Width && modelGrid[y][x+1].Letter != nil)
+			startsDown := (y == 0 || modelGrid[y-1][x].Letter == nil) &&
+				(y+1 < grid.Height && modelGrid[y+1][x].Letter != nil)
 
 			if startsAcross || startsDown {
 				num := clueNumber
-				grid[y][x].Number = &num
-				numberMap[fmt.Sprintf("%d,%d", y, x)] = clueNumber
+				modelGrid[y][x].Number = &num
+
+				// Find the corresponding slots and create clues
+				for _, slot := range grid.Slots {
+					if slot.Slot.StartPos.X == x && slot.Slot.StartPos.Y == y {
+						clue := g.buildClue(slot, num, clueMap)
+						if slot.Slot.Direction == "across" {
+							cluesAcross = append(cluesAcross, clue)
+						} else {
+							cluesDown = append(cluesDown, clue)
+						}
+					}
+				}
+
 				clueNumber++
 			}
 		}
 	}
 
-	// Build clues with positions
-	cluesAcross := make([]models.Clue, 0, len(generated.CluesAcross))
-	for _, c := range generated.CluesAcross {
-		pos := findCluePosition(grid, c.Number, "across")
-		if pos != nil {
-			cluesAcross = append(cluesAcross, models.Clue{
-				Number:    c.Number,
-				Text:      c.Clue,
-				Answer:    strings.ToUpper(c.Answer),
-				PositionX: pos[1],
-				PositionY: pos[0],
-				Length:    len(c.Answer),
-				Direction: "across",
-			})
-		}
-	}
-
-	cluesDown := make([]models.Clue, 0, len(generated.CluesDown))
-	for _, c := range generated.CluesDown {
-		pos := findCluePosition(grid, c.Number, "down")
-		if pos != nil {
-			cluesDown = append(cluesDown, models.Clue{
-				Number:    c.Number,
-				Text:      c.Clue,
-				Answer:    strings.ToUpper(c.Answer),
-				PositionX: pos[1],
-				PositionY: pos[0],
-				Length:    len(c.Answer),
-				Direction: "down",
-			})
-		}
-	}
-
-	theme := generated.Theme
-	if theme == "" && req.Theme != "" {
-		theme = req.Theme
+	// Build title
+	title := "Crossword Puzzle"
+	if req.Theme != "" {
+		title = req.Theme
 	}
 
 	puzzle := &models.Puzzle{
 		ID:          uuid.New().String(),
-		Title:       generated.Title,
-		Author:      "CrossPlay AI",
+		Title:       title,
+		Author:      "CrossPlay",
 		Difficulty:  req.Difficulty,
-		GridWidth:   gridWidth,
-		GridHeight:  gridHeight,
-		Grid:        grid,
+		GridWidth:   grid.Width,
+		GridHeight:  grid.Height,
+		Grid:        modelGrid,
 		CluesAcross: cluesAcross,
 		CluesDown:   cluesDown,
-		Theme:       &theme,
 		Status:      "draft",
 		CreatedAt:   time.Now(),
 	}
 
-	return puzzle, nil
+	if req.Theme != "" {
+		puzzle.Theme = &req.Theme
+	}
+
+	return puzzle
 }
 
-func findCluePosition(grid [][]models.GridCell, number int, direction string) []int {
-	for y := 0; y < len(grid); y++ {
-		for x := 0; x < len(grid[y]); x++ {
-			if grid[y][x].Number != nil && *grid[y][x].Number == number {
-				return []int{y, x}
-			}
+func (g *Generator) buildClue(slot FilledSlot, number int, clueMap map[string][]GeneratedClue) models.Clue {
+	answer := slot.Word
+
+	// Get best clue from generated candidates
+	var clueText string
+	if candidates, ok := clueMap[answer]; ok && len(candidates) > 0 {
+		best := g.clueGenerator.SelectBestClue(candidates, answer)
+		if best != nil {
+			clueText = best.Text
 		}
 	}
-	return nil
+
+	// Fallback if no clue was generated
+	if clueText == "" {
+		clueText = fmt.Sprintf("[%s]", answer)
+	}
+
+	return models.Clue{
+		Number:    number,
+		Text:      clueText,
+		Answer:    strings.ToUpper(answer),
+		PositionX: slot.Slot.StartPos.X,
+		PositionY: slot.Slot.StartPos.Y,
+		Length:    slot.Slot.Length,
+		Direction: slot.Slot.Direction,
+	}
 }
 
 // Validator validates puzzle correctness
@@ -285,8 +252,8 @@ func NewValidator() *Validator {
 
 // ValidationResult contains validation results
 type ValidationResult struct {
-	Valid   bool     `json:"valid"`
-	Errors  []string `json:"errors"`
+	Valid    bool     `json:"valid"`
+	Errors   []string `json:"errors"`
 	Warnings []string `json:"warnings"`
 }
 

@@ -1,25 +1,24 @@
 package puzzle
 
 import (
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 )
 
-// ClueGenerator generates crossword clues using AI with difficulty calibration
+// ClueGenerator generates crossword clues using dictionary definitions
 type ClueGenerator struct {
-	llmClient *LLMClient
-	wordList  *WordListService
+	wordList *WordListService
 }
 
 // ClueStyle represents different clue writing styles
 type ClueStyle string
 
 const (
-	ClueStyleDefinite    ClueStyle = "definite"    // "The capital of France"
-	ClueStyleCopular     ClueStyle = "copular"     // "It's found in kitchens"
-	ClueStyleBareNoun    ClueStyle = "bare_noun"   // "Kitchen appliance"
+	ClueStyleDefinition    ClueStyle = "definition"    // Dictionary definition
+	ClueStyleSynonym       ClueStyle = "synonym"       // Synonym-based clue
+	ClueStyleFillInBlank   ClueStyle = "fill_in_blank" // Fill in the blank
 	ClueStyleUnconstrained ClueStyle = "unconstrained" // Any style
 )
 
@@ -56,42 +55,55 @@ type GeneratedClue struct {
 
 // NewClueGenerator creates a new clue generator
 func NewClueGenerator(apiKey string, wordList *WordListService) *ClueGenerator {
-	// Use the new LLM client with environment configuration
-	config := DefaultLLMConfig()
-	// If apiKey is provided explicitly, use it (for backward compatibility)
-	if apiKey != "" && config.APIKey == "" {
-		config.APIKey = apiKey
-	}
+	// apiKey is kept for backward compatibility but no longer used
 	return &ClueGenerator{
-		llmClient: NewLLMClient(config),
-		wordList:  wordList,
+		wordList: wordList,
 	}
 }
 
-// NewClueGeneratorWithClient creates a clue generator with a specific LLM client
-func NewClueGeneratorWithClient(client *LLMClient, wordList *WordListService) *ClueGenerator {
+// NewClueGeneratorWithWordList creates a clue generator with just a word list
+func NewClueGeneratorWithWordList(wordList *WordListService) *ClueGenerator {
 	return &ClueGenerator{
-		llmClient: client,
-		wordList:  wordList,
+		wordList: wordList,
 	}
 }
 
-// GenerateClues generates multiple candidate clues for an answer
+// GenerateClues generates multiple candidate clues for an answer using dictionary definitions
 func (cg *ClueGenerator) GenerateClues(req *ClueRequest) ([]GeneratedClue, error) {
 	if req.NumCandidates <= 0 {
 		req.NumCandidates = 3
 	}
 
-	prompt := cg.buildCluePrompt(req)
+	var clues []GeneratedClue
 
-	response, err := cg.callAPI(prompt)
-	if err != nil {
-		return nil, fmt.Errorf("failed to call API: %w", err)
+	// Try to get dictionary definition
+	if cg.wordList != nil {
+		def, err := cg.wordList.GetDefinition(req.Answer)
+		if err == nil && def != "" {
+			clue := cg.createClueFromDefinition(req.Answer, def)
+			if clue != nil {
+				clues = append(clues, *clue)
+			}
+		}
+
+		// Try to get synonyms for alternative clues
+		synonyms, err := cg.wordList.FindSynonyms(req.Answer, 5)
+		if err == nil && len(synonyms) > 0 {
+			for _, syn := range synonyms {
+				if strings.ToUpper(syn) != strings.ToUpper(req.Answer) {
+					clue := cg.createSynonymClue(req.Answer, syn)
+					if clue != nil {
+						clues = append(clues, *clue)
+					}
+				}
+			}
+		}
 	}
 
-	clues, err := cg.parseClueResponse(response)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
+	// Add generic fallback if we don't have enough clues
+	if len(clues) < req.NumCandidates {
+		fallback := cg.createFallbackClue(req.Answer)
+		clues = append(clues, fallback)
 	}
 
 	// Score and sort clues
@@ -103,180 +115,88 @@ func (cg *ClueGenerator) GenerateClues(req *ClueRequest) ([]GeneratedClue, error
 		return clues[i].Score > clues[j].Score
 	})
 
-	return clues, nil
-}
-
-func (cg *ClueGenerator) buildCluePrompt(req *ClueRequest) string {
-	difficultyDesc := cg.getDifficultyDescription(req.Difficulty)
-	styleGuidance := cg.getStyleGuidance(req.Style)
-	themeContext := ""
-	if req.Theme != "" {
-		themeContext = fmt.Sprintf("\nTheme context: The puzzle has a theme of \"%s\". If possible, subtly connect the clue to this theme.", req.Theme)
-	}
-
-	crossingContext := ""
-	if len(req.CrossingClues) > 0 {
-		crossingContext = fmt.Sprintf("\nCrossing clues context: %s", strings.Join(req.CrossingClues, "; "))
-	}
-
-	examples := cg.getExamplesForDifficulty(req.Difficulty, req.Answer)
-
-	return fmt.Sprintf(`You are an expert crossword constructor creating clues for a %s-level difficulty puzzle.
-
-ANSWER: %s
-
-DIFFICULTY REQUIREMENTS:
-%s
-
-STYLE GUIDANCE:
-%s
-%s%s
-
-STRICT RULES:
-1. NEVER include the answer word or any part of it (including prefixes/suffixes) in the clue
-2. Keep clues under 10 words when possible
-3. Maintain grammatical agreement (plural answers need plural clues)
-4. Match parts of speech appropriately
-5. For abbreviations in answers, signal with "Abbr." or use an abbreviation in the clue
-6. Question marks indicate wordplay or misdirection
-
-%s
-
-Generate exactly %d different clues for "%s". Return ONLY a JSON array:
-[
-  {"text": "clue text here", "style": "definite|copular|bare_noun|unconstrained", "difficulty": 0.0-1.0},
-  ...
-]`,
-		req.Difficulty,
-		strings.ToUpper(req.Answer),
-		difficultyDesc,
-		styleGuidance,
-		themeContext,
-		crossingContext,
-		examples,
-		req.NumCandidates,
-		strings.ToUpper(req.Answer))
-}
-
-func (cg *ClueGenerator) getDifficultyDescription(day DayDifficulty) string {
-	descriptions := map[DayDifficulty]string{
-		DayMonday: `MONDAY (Easiest):
-- Use straightforward definitions
-- Common vocabulary only
-- No wordplay or misdirection
-- Clear, direct connections
-- Example: For APPLE - "Fruit that fell on Newton's head"`,
-
-		DayTuesday: `TUESDAY (Easy):
-- Mostly direct definitions
-- Common knowledge references
-- Simple wordplay acceptable
-- Example: For PIANO - "Keys found in a music room"`,
-
-		DayWednesday: `WEDNESDAY (Medium):
-- Mix of definitions and light wordplay
-- Some trivia and pop culture
-- Modest misdirection allowed
-- Example: For STREAM - "Netflix or a brook"`,
-
-		DayThursday: `THURSDAY (Medium-Hard):
-- Wordplay, puns, and misdirection welcome
-- May include theme tricks
-- Cultural references expected
-- Example: For OREO - "Twist-and-lick treat"`,
-
-		DayFriday: `FRIDAY (Hard):
-- Maximum misdirection
-- Obscure vocabulary acceptable
-- Multi-layer wordplay
-- Less common cultural references
-- Example: For OREO - "It has 12 flowers on each side"`,
-
-		DaySaturday: `SATURDAY (Hardest):
-- Cryptic-style clues acceptable
-- Obscure references
-- Complex wordplay and double meanings
-- Requires specialized knowledge
-- Example: For OREO - "Hydrox competitor since 1912"`,
-
-		DaySunday: `SUNDAY (Medium, larger grid):
-- Similar to Wednesday/Thursday difficulty
-- Theme-focused when applicable
-- Broader range of topics
-- Example: For OREO - "Cookie that's often dunked"`,
-	}
-
-	if desc, ok := descriptions[day]; ok {
-		return desc
-	}
-	return descriptions[DayWednesday]
-}
-
-func (cg *ClueGenerator) getStyleGuidance(style ClueStyle) string {
-	switch style {
-	case ClueStyleDefinite:
-		return "Use definite determiner phrases starting with 'The' - e.g., 'The capital of France'"
-	case ClueStyleCopular:
-		return "Use copular sentences with 'It's' or similar - e.g., 'It's found in kitchens'"
-	case ClueStyleBareNoun:
-		return "Use bare noun phrases without articles - e.g., 'Kitchen appliance'"
-	default:
-		return "Use any appropriate clue style. Vary between definite phrases, copular sentences, and bare nouns."
-	}
-}
-
-func (cg *ClueGenerator) getExamplesForDifficulty(day DayDifficulty, answer string) string {
-	// Provide contextual examples based on the answer's characteristics
-	answerLen := len(answer)
-
-	var examples strings.Builder
-	examples.WriteString("EXAMPLES:\n")
-
-	if answerLen <= 4 {
-		examples.WriteString("Short word clues should be especially precise:\n")
-		switch day {
-		case DayMonday, DayTuesday:
-			examples.WriteString("- ACE: \"Perfect serve in tennis\"\n")
-			examples.WriteString("- CAT: \"Pet that purrs\"\n")
-		case DayWednesday, DayThursday:
-			examples.WriteString("- ACE: \"Card up one's sleeve, maybe\"\n")
-			examples.WriteString("- CAT: \"Curiosity's victim, proverbially\"\n")
-		case DayFriday, DaySaturday:
-			examples.WriteString("- ACE: \"Blackjack's best or worst card\"\n")
-			examples.WriteString("- CAT: \"Cheshire grin wearer\"\n")
-		}
-	} else if answerLen >= 7 {
-		examples.WriteString("Longer word clues can be more elaborate:\n")
-		switch day {
-		case DayMonday, DayTuesday:
-			examples.WriteString("- ELEPHANT: \"Largest land mammal\"\n")
-			examples.WriteString("- COMPUTER: \"Desktop or laptop device\"\n")
-		case DayWednesday, DayThursday:
-			examples.WriteString("- ELEPHANT: \"It never forgets, they say\"\n")
-			examples.WriteString("- COMPUTER: \"Mouse's partner\"\n")
-		case DayFriday, DaySaturday:
-			examples.WriteString("- ELEPHANT: \"Dumbo, for one\"\n")
-			examples.WriteString("- COMPUTER: \"Pascal or Babbage creation\"\n")
-		}
-	}
-
-	return examples.String()
-}
-
-func (cg *ClueGenerator) callAPI(prompt string) (string, error) {
-	return cg.llmClient.Complete(prompt)
-}
-
-func (cg *ClueGenerator) parseClueResponse(response string) ([]GeneratedClue, error) {
-	// Clean up response using utility function
-	response = CleanJSONResponse(response)
-
-	var clues []GeneratedClue
-	if err := json.Unmarshal([]byte(response), &clues); err != nil {
-		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+	// Limit to requested number
+	if len(clues) > req.NumCandidates {
+		clues = clues[:req.NumCandidates]
 	}
 
 	return clues, nil
+}
+
+// createClueFromDefinition creates a clue from a dictionary definition
+func (cg *ClueGenerator) createClueFromDefinition(answer, definition string) *GeneratedClue {
+	// Clean up the definition
+	def := strings.TrimSpace(definition)
+
+	// Remove part of speech prefix if present (e.g., "(n) " or "noun: ")
+	if idx := strings.Index(def, ") "); idx > 0 && idx < 10 {
+		def = strings.TrimSpace(def[idx+2:])
+	}
+	if idx := strings.Index(def, ": "); idx > 0 && idx < 15 {
+		def = strings.TrimSpace(def[idx+2:])
+	}
+
+	// Make sure the answer doesn't appear in the definition
+	if strings.Contains(strings.ToUpper(def), strings.ToUpper(answer)) {
+		return nil
+	}
+
+	// Truncate if too long
+	if len(def) > 80 {
+		// Try to truncate at a word boundary
+		truncated := def[:80]
+		if lastSpace := strings.LastIndex(truncated, " "); lastSpace > 40 {
+			def = truncated[:lastSpace]
+		} else {
+			def = truncated
+		}
+	}
+
+	// Capitalize first letter
+	if len(def) > 0 {
+		def = strings.ToUpper(def[:1]) + def[1:]
+	}
+
+	return &GeneratedClue{
+		Text:       def,
+		Style:      ClueStyleDefinition,
+		Difficulty: 0.3,
+	}
+}
+
+// createSynonymClue creates a clue based on a synonym
+func (cg *ClueGenerator) createSynonymClue(answer, synonym string) *GeneratedClue {
+	// Clean up the synonym
+	syn := strings.TrimSpace(synonym)
+
+	// Skip if synonym contains the answer
+	if strings.Contains(strings.ToUpper(syn), strings.ToUpper(answer)) {
+		return nil
+	}
+
+	// Skip multi-word synonyms for simple clues
+	if strings.Contains(syn, " ") {
+		return nil
+	}
+
+	// Capitalize
+	syn = strings.ToUpper(syn[:1]) + strings.ToLower(syn[1:])
+
+	return &GeneratedClue{
+		Text:       syn,
+		Style:      ClueStyleSynonym,
+		Difficulty: 0.2,
+	}
+}
+
+// createFallbackClue creates a generic fallback clue
+func (cg *ClueGenerator) createFallbackClue(answer string) GeneratedClue {
+	length := len(answer)
+	return GeneratedClue{
+		Text:       fmt.Sprintf("%d-letter word", length),
+		Style:      "placeholder",
+		Difficulty: 0.1,
+	}
 }
 
 func (cg *ClueGenerator) scoreClue(clue GeneratedClue, req *ClueRequest) float64 {
@@ -285,6 +205,13 @@ func (cg *ClueGenerator) scoreClue(clue GeneratedClue, req *ClueRequest) float64
 	// Penalize if answer appears in clue
 	if strings.Contains(strings.ToUpper(clue.Text), strings.ToUpper(req.Answer)) {
 		return 0.0 // Immediate disqualification
+	}
+
+	// Prefer definition clues
+	if clue.Style == ClueStyleDefinition {
+		score += 0.2
+	} else if clue.Style == ClueStyleSynonym {
+		score += 0.1
 	}
 
 	// Check length - prefer concise clues
@@ -297,23 +224,10 @@ func (cg *ClueGenerator) scoreClue(clue GeneratedClue, req *ClueRequest) float64
 		score -= 0.1
 	}
 
-	// Check for proper punctuation
-	if strings.HasSuffix(clue.Text, "?") {
-		// Question marks are good for wordplay difficulties
-		if req.Difficulty == DayThursday || req.Difficulty == DayFriday || req.Difficulty == DaySaturday {
-			score += 0.1
-		}
+	// Penalize placeholder clues
+	if clue.Style == "placeholder" {
+		score -= 0.3
 	}
-
-	// Penalize quotes (usually indicates a fill-in-the-blank which can be lazy)
-	if strings.Contains(clue.Text, "\"") || strings.Contains(clue.Text, "'") {
-		score -= 0.05
-	}
-
-	// Difficulty alignment
-	difficultyTarget := cg.getDifficultyTarget(req.Difficulty)
-	difficultyDiff := abs(clue.Difficulty - difficultyTarget)
-	score -= difficultyDiff * 0.2
 
 	// Normalize score
 	if score < 0 {
@@ -342,99 +256,65 @@ func (cg *ClueGenerator) getDifficultyTarget(day DayDifficulty) float64 {
 	return 0.5
 }
 
-func abs(x float64) float64 {
-	if x < 0 {
-		return -x
-	}
-	return x
-}
-
 // GenerateBatchClues generates clues for multiple answers efficiently
 func (cg *ClueGenerator) GenerateBatchClues(answers []string, difficulty DayDifficulty, theme string) (map[string][]GeneratedClue, error) {
 	results := make(map[string][]GeneratedClue)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
 
-	// Generate clues in batches to reduce API calls
-	batchSize := 5
-	for i := 0; i < len(answers); i += batchSize {
-		end := i + batchSize
-		if end > len(answers) {
-			end = len(answers)
-		}
-		batch := answers[i:end]
+	// Process answers concurrently for faster generation
+	semaphore := make(chan struct{}, 10) // Limit concurrent API calls
 
-		batchResults, err := cg.generateBatch(batch, difficulty, theme)
-		if err != nil {
-			// Fall back to individual generation
-			for _, answer := range batch {
-				clues, err := cg.GenerateClues(&ClueRequest{
-					Answer:        answer,
-					Difficulty:    difficulty,
-					Theme:         theme,
-					NumCandidates: 3,
-				})
-				if err != nil {
-					continue
-				}
-				results[answer] = clues
+	for _, answer := range answers {
+		wg.Add(1)
+		go func(ans string) {
+			defer wg.Done()
+			semaphore <- struct{}{}        // Acquire
+			defer func() { <-semaphore }() // Release
+
+			clues, err := cg.GenerateClues(&ClueRequest{
+				Answer:        ans,
+				Difficulty:    difficulty,
+				Theme:         theme,
+				NumCandidates: 3,
+			})
+
+			mu.Lock()
+			if err == nil && len(clues) > 0 {
+				results[ans] = clues
+			} else {
+				// Use fallback
+				results[ans] = []GeneratedClue{cg.createFallbackClue(ans)}
 			}
-		} else {
-			for k, v := range batchResults {
-				results[k] = v
-			}
+			mu.Unlock()
+		}(answer)
+	}
+
+	wg.Wait()
+
+	// Post-process: filter invalid clues
+	for answer, clues := range results {
+		validClues := cg.filterValidClues(clues, answer)
+		if len(validClues) == 0 {
+			validClues = []GeneratedClue{cg.createFallbackClue(answer)}
 		}
+		results[answer] = validClues
 	}
 
 	return results, nil
 }
 
-func (cg *ClueGenerator) generateBatch(answers []string, difficulty DayDifficulty, theme string) (map[string][]GeneratedClue, error) {
-	difficultyDesc := cg.getDifficultyDescription(difficulty)
-	themeContext := ""
-	if theme != "" {
-		themeContext = fmt.Sprintf("\nTheme: %s", theme)
+// filterValidClues removes clues that contain the answer
+func (cg *ClueGenerator) filterValidClues(clues []GeneratedClue, answer string) []GeneratedClue {
+	answerUpper := strings.ToUpper(answer)
+	var valid []GeneratedClue
+	for _, clue := range clues {
+		clueUpper := strings.ToUpper(clue.Text)
+		if !strings.Contains(clueUpper, answerUpper) {
+			valid = append(valid, clue)
+		}
 	}
-
-	answersStr := strings.Join(answers, ", ")
-
-	prompt := fmt.Sprintf(`You are an expert crossword constructor. Generate 3 candidate clues for EACH of the following answers.
-
-DIFFICULTY: %s
-%s
-%s
-
-ANSWERS: %s
-
-STRICT RULES:
-1. NEVER include the answer or any part of it in the clue
-2. Keep clues under 10 words
-3. Match grammatical number and tense
-4. Question marks indicate wordplay
-
-Return a JSON object with answers as keys:
-{
-  "ANSWER1": [{"text": "clue", "style": "style", "difficulty": 0.0-1.0}, ...],
-  "ANSWER2": [{"text": "clue", "style": "style", "difficulty": 0.0-1.0}, ...],
-  ...
-}`,
-		difficulty,
-		difficultyDesc,
-		themeContext,
-		answersStr)
-
-	response, err := cg.callAPI(prompt)
-	if err != nil {
-		return nil, err
-	}
-
-	// Parse response using utility function
-	response = CleanJSONResponse(response)
-
-	var results map[string][]GeneratedClue
-	if err := json.Unmarshal([]byte(response), &results); err != nil {
-		return nil, fmt.Errorf("failed to parse batch response: %w", err)
-	}
-
-	return results, nil
+	return valid
 }
 
 // ValidateClue checks if a clue is valid for the given answer

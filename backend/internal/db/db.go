@@ -125,10 +125,21 @@ func (d *Database) InitSchema() error {
 	);
 
 	CREATE TABLE IF NOT EXISTS grid_states (
-		room_id VARCHAR(36) PRIMARY KEY REFERENCES rooms(id) ON DELETE CASCADE,
+		room_id VARCHAR(36) REFERENCES rooms(id) ON DELETE CASCADE,
+		user_id VARCHAR(36) DEFAULT '' REFERENCES users(id) ON DELETE CASCADE,
 		cells JSONB NOT NULL,
 		completed_clues JSONB DEFAULT '[]',
-		last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		PRIMARY KEY (room_id, user_id)
+	);
+
+	CREATE TABLE IF NOT EXISTS relay_states (
+		room_id VARCHAR(36) PRIMARY KEY REFERENCES rooms(id) ON DELETE CASCADE,
+		current_player_id VARCHAR(36) REFERENCES users(id) ON DELETE CASCADE,
+		turn_order JSONB NOT NULL DEFAULT '[]',
+		turn_started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		turn_time_limit INTEGER DEFAULT 0,
+		words_this_turn INTEGER DEFAULT 0
 	);
 
 	CREATE TABLE IF NOT EXISTS messages (
@@ -573,21 +584,36 @@ func (d *Database) CreateGridState(gridState *models.GridState) error {
 	cellsJSON, _ := json.Marshal(gridState.Cells)
 	completedCluesJSON, _ := json.Marshal(gridState.CompletedClues)
 
+	userID := gridState.UserID
+	if userID == "" {
+		userID = "" // Empty string for collaborative/relay modes
+	}
+
 	_, err := d.DB.Exec(`
-		INSERT INTO grid_states (room_id, cells, completed_clues, last_updated)
-		VALUES ($1, $2, $3, $4)
-	`, gridState.RoomID, cellsJSON, completedCluesJSON, gridState.LastUpdated)
+		INSERT INTO grid_states (room_id, user_id, cells, completed_clues, last_updated)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (room_id, user_id) DO UPDATE SET
+			cells = EXCLUDED.cells,
+			completed_clues = EXCLUDED.completed_clues,
+			last_updated = EXCLUDED.last_updated
+	`, gridState.RoomID, userID, cellsJSON, completedCluesJSON, gridState.LastUpdated)
 	return err
 }
 
+// GetGridState returns the shared grid state for a room (collaborative/relay modes)
 func (d *Database) GetGridState(roomID string) (*models.GridState, error) {
+	return d.GetPlayerGridState(roomID, "")
+}
+
+// GetPlayerGridState returns a player-specific grid state (for Race mode)
+func (d *Database) GetPlayerGridState(roomID, userID string) (*models.GridState, error) {
 	gridState := &models.GridState{}
 	var cellsJSON, completedCluesJSON []byte
 
 	err := d.DB.QueryRow(`
-		SELECT room_id, cells, completed_clues, last_updated
-		FROM grid_states WHERE room_id = $1
-	`, roomID).Scan(&gridState.RoomID, &cellsJSON, &completedCluesJSON, &gridState.LastUpdated)
+		SELECT room_id, user_id, cells, completed_clues, last_updated
+		FROM grid_states WHERE room_id = $1 AND user_id = $2
+	`, roomID, userID).Scan(&gridState.RoomID, &gridState.UserID, &cellsJSON, &completedCluesJSON, &gridState.LastUpdated)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -602,14 +628,87 @@ func (d *Database) GetGridState(roomID string) (*models.GridState, error) {
 	return gridState, nil
 }
 
+// GetAllPlayerGridStates returns all player grid states for a room (Race mode leaderboard)
+func (d *Database) GetAllPlayerGridStates(roomID string) ([]*models.GridState, error) {
+	rows, err := d.DB.Query(`
+		SELECT room_id, user_id, cells, completed_clues, last_updated
+		FROM grid_states WHERE room_id = $1 AND user_id != ''
+	`, roomID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var states []*models.GridState
+	for rows.Next() {
+		gridState := &models.GridState{}
+		var cellsJSON, completedCluesJSON []byte
+		err := rows.Scan(&gridState.RoomID, &gridState.UserID, &cellsJSON, &completedCluesJSON, &gridState.LastUpdated)
+		if err != nil {
+			return nil, err
+		}
+		json.Unmarshal(cellsJSON, &gridState.Cells)
+		json.Unmarshal(completedCluesJSON, &gridState.CompletedClues)
+		states = append(states, gridState)
+	}
+
+	return states, nil
+}
+
 func (d *Database) UpdateGridState(gridState *models.GridState) error {
 	cellsJSON, _ := json.Marshal(gridState.Cells)
 	completedCluesJSON, _ := json.Marshal(gridState.CompletedClues)
 
+	userID := gridState.UserID
+	if userID == "" {
+		userID = ""
+	}
+
 	_, err := d.DB.Exec(`
-		UPDATE grid_states SET cells = $2, completed_clues = $3, last_updated = $4
+		UPDATE grid_states SET cells = $3, completed_clues = $4, last_updated = $5
+		WHERE room_id = $1 AND user_id = $2
+	`, gridState.RoomID, userID, cellsJSON, completedCluesJSON, gridState.LastUpdated)
+	return err
+}
+
+// Relay state operations
+func (d *Database) CreateRelayState(state *models.RelayState) error {
+	turnOrderJSON, _ := json.Marshal(state.TurnOrder)
+
+	_, err := d.DB.Exec(`
+		INSERT INTO relay_states (room_id, current_player_id, turn_order, turn_started_at, turn_time_limit, words_this_turn)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`, state.RoomID, state.CurrentPlayerID, turnOrderJSON, state.TurnStartedAt, state.TurnTimeLimit, state.WordsThisTurn)
+	return err
+}
+
+func (d *Database) GetRelayState(roomID string) (*models.RelayState, error) {
+	state := &models.RelayState{}
+	var turnOrderJSON []byte
+
+	err := d.DB.QueryRow(`
+		SELECT room_id, current_player_id, turn_order, turn_started_at, turn_time_limit, words_this_turn
+		FROM relay_states WHERE room_id = $1
+	`, roomID).Scan(&state.RoomID, &state.CurrentPlayerID, &turnOrderJSON, &state.TurnStartedAt, &state.TurnTimeLimit, &state.WordsThisTurn)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	json.Unmarshal(turnOrderJSON, &state.TurnOrder)
+	return state, nil
+}
+
+func (d *Database) UpdateRelayState(state *models.RelayState) error {
+	turnOrderJSON, _ := json.Marshal(state.TurnOrder)
+
+	_, err := d.DB.Exec(`
+		UPDATE relay_states SET current_player_id = $2, turn_order = $3, turn_started_at = $4, turn_time_limit = $5, words_this_turn = $6
 		WHERE room_id = $1
-	`, gridState.RoomID, cellsJSON, completedCluesJSON, gridState.LastUpdated)
+	`, state.RoomID, state.CurrentPlayerID, turnOrderJSON, state.TurnStartedAt, state.TurnTimeLimit, state.WordsThisTurn)
 	return err
 }
 

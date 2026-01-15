@@ -24,6 +24,7 @@ const (
 	MsgRequestHint  MessageType = "request_hint"
 	MsgStartGame    MessageType = "start_game"
 	MsgReaction     MessageType = "reaction"
+	MsgPassTurn     MessageType = "pass_turn" // Relay mode: pass turn to next player
 
 	// Server to Client
 	MsgRoomState        MessageType = "room_state"
@@ -36,6 +37,9 @@ const (
 	MsgPuzzleCompleted  MessageType = "puzzle_completed"
 	MsgError            MessageType = "error"
 	MsgReactionAdded    MessageType = "reaction_added"
+	MsgRaceProgress     MessageType = "race_progress"     // Race mode: leaderboard update
+	MsgPlayerFinished   MessageType = "player_finished"   // Race mode: player completed puzzle
+	MsgTurnChanged      MessageType = "turn_changed"      // Relay mode: turn passed
 )
 
 // Message represents a WebSocket message
@@ -136,6 +140,25 @@ type ErrorPayload struct {
 	Message string `json:"message"`
 }
 
+// Race mode payloads
+type RaceProgressPayload struct {
+	Leaderboard []models.RaceProgress `json:"leaderboard"`
+}
+
+type PlayerFinishedPayload struct {
+	UserID      string `json:"userId"`
+	DisplayName string `json:"displayName"`
+	SolveTime   int    `json:"solveTime"`
+	Rank        int    `json:"rank"`
+}
+
+// Relay mode payloads
+type TurnChangedPayload struct {
+	CurrentPlayerID   string `json:"currentPlayerId"`
+	CurrentPlayerName string `json:"currentPlayerName"`
+	TurnNumber        int    `json:"turnNumber"`
+}
+
 // Hub manages all WebSocket connections and rooms
 type Hub struct {
 	db        *db.Database
@@ -148,11 +171,16 @@ type Hub struct {
 
 // Room represents a multiplayer room with connected clients
 type Room struct {
-	ID        string
-	Code      string
-	Clients   map[string]*Client // userID -> client
-	StartTime *time.Time
-	mutex     sync.RWMutex
+	ID          string
+	Code        string
+	Mode        models.RoomMode
+	Clients     map[string]*Client // userID -> client
+	StartTime   *time.Time
+	mutex       sync.RWMutex
+	// Race mode tracking
+	FinishOrder []string           // UserIDs in order of completion
+	// Relay mode tracking
+	TurnNumber  int
 }
 
 func NewHub(database *db.Database) *Hub {
@@ -217,6 +245,8 @@ func (h *Hub) HandleMessage(client *Client, msg *Message) {
 		h.handleStartGame(client)
 	case MsgReaction:
 		h.handleReaction(client, msg.Payload)
+	case MsgPassTurn:
+		h.handlePassTurn(client)
 	default:
 		log.Printf("Unknown message type: %s", msg.Type)
 	}
@@ -241,9 +271,11 @@ func (h *Hub) handleJoinRoom(client *Client, payload json.RawMessage) {
 	hubRoom, exists := h.rooms[room.ID]
 	if !exists {
 		hubRoom = &Room{
-			ID:      room.ID,
-			Code:    room.Code,
-			Clients: make(map[string]*Client),
+			ID:          room.ID,
+			Code:        room.Code,
+			Mode:        room.Mode,
+			Clients:     make(map[string]*Client),
+			FinishOrder: []string{},
 		}
 		h.rooms[room.ID] = hubRoom
 	}
@@ -302,12 +334,24 @@ func (h *Hub) handleCellUpdate(client *Client, payload json.RawMessage) {
 		return
 	}
 
-	// Get room and grid state
+	// Get room
 	room, _ := h.db.GetRoomByID(client.RoomID)
 	if room == nil || room.State != models.RoomStateActive {
 		return
 	}
 
+	// Handle based on game mode
+	switch room.Mode {
+	case models.RoomModeRace:
+		h.handleRaceCellUpdate(client, room, &p)
+	case models.RoomModeRelay:
+		h.handleRelayCellUpdate(client, room, &p)
+	default: // Collaborative
+		h.handleCollaborativeCellUpdate(client, room, &p)
+	}
+}
+
+func (h *Hub) handleCollaborativeCellUpdate(client *Client, room *models.Room, p *CellUpdatePayload) {
 	gridState, _ := h.db.GetGridState(client.RoomID)
 	if gridState == nil {
 		return
@@ -344,7 +388,103 @@ func (h *Hub) handleCellUpdate(client *Client, payload json.RawMessage) {
 		})
 
 		// Check for puzzle completion
-		h.checkPuzzleCompletion(client.RoomID)
+		h.checkCollaborativeCompletion(client.RoomID)
+	}
+}
+
+func (h *Hub) handleRaceCellUpdate(client *Client, room *models.Room, p *CellUpdatePayload) {
+	// In Race mode, each player has their own grid
+	gridState, _ := h.db.GetPlayerGridState(client.RoomID, client.UserID)
+	if gridState == nil {
+		// Create player's grid if it doesn't exist
+		puzzle, _ := h.db.GetPuzzleByID(room.PuzzleID)
+		if puzzle == nil {
+			return
+		}
+		gridState = &models.GridState{
+			RoomID:         client.RoomID,
+			UserID:         client.UserID,
+			Cells:          make([][]models.Cell, len(puzzle.Grid)),
+			CompletedClues: []string{},
+			LastUpdated:    time.Now(),
+		}
+		for y := range puzzle.Grid {
+			gridState.Cells[y] = make([]models.Cell, len(puzzle.Grid[y]))
+		}
+		h.db.CreateGridState(gridState)
+	}
+
+	// Update cell
+	if p.Y >= 0 && p.Y < len(gridState.Cells) && p.X >= 0 && p.X < len(gridState.Cells[p.Y]) {
+		gridState.Cells[p.Y][p.X].Value = p.Value
+		gridState.Cells[p.Y][p.X].LastEditedBy = &client.UserID
+		gridState.LastUpdated = time.Now()
+
+		h.db.UpdateGridState(gridState)
+
+		// In Race mode, only send update back to the player (not broadcast)
+		value := ""
+		if p.Value != nil {
+			value = *p.Value
+		}
+		h.sendToClient(client, MsgCellUpdated, CellUpdatedPayload{
+			X:        p.X,
+			Y:        p.Y,
+			Value:    value,
+			PlayerID: client.UserID,
+			Color:    "#4ECDC4",
+		})
+
+		// Check if this player completed and broadcast progress
+		h.checkRaceProgress(client.RoomID, client.UserID)
+	}
+}
+
+func (h *Hub) handleRelayCellUpdate(client *Client, room *models.Room, p *CellUpdatePayload) {
+	// Check if it's this player's turn
+	relayState, _ := h.db.GetRelayState(client.RoomID)
+	if relayState == nil || relayState.CurrentPlayerID != client.UserID {
+		h.sendError(client, "not your turn")
+		return
+	}
+
+	gridState, _ := h.db.GetGridState(client.RoomID)
+	if gridState == nil {
+		return
+	}
+
+	// Update cell (same as collaborative)
+	if p.Y >= 0 && p.Y < len(gridState.Cells) && p.X >= 0 && p.X < len(gridState.Cells[p.Y]) {
+		gridState.Cells[p.Y][p.X].Value = p.Value
+		gridState.Cells[p.Y][p.X].LastEditedBy = &client.UserID
+		gridState.LastUpdated = time.Now()
+
+		h.db.UpdateGridState(gridState)
+
+		// Get player for color
+		players, _ := h.db.GetRoomPlayers(client.RoomID)
+		player := findPlayer(players, client.UserID)
+		color := "#888888"
+		if player != nil {
+			color = player.Color
+		}
+
+		value := ""
+		if p.Value != nil {
+			value = *p.Value
+		}
+
+		// Broadcast to room
+		h.broadcastToRoom(client.RoomID, "", MsgCellUpdated, CellUpdatedPayload{
+			X:        p.X,
+			Y:        p.Y,
+			Value:    value,
+			PlayerID: client.UserID,
+			Color:    color,
+		})
+
+		// Check for puzzle completion
+		h.checkCollaborativeCompletion(client.RoomID)
 	}
 }
 
@@ -509,6 +649,64 @@ func (h *Hub) handleStartGame(client *Client) {
 	}
 	h.mutex.Unlock()
 
+	// Initialize mode-specific state
+	players, _ := h.db.GetRoomPlayers(room.ID)
+	puzzle, _ := h.db.GetPuzzleByID(room.PuzzleID)
+
+	switch room.Mode {
+	case models.RoomModeRace:
+		// Create individual grid state for each player
+		for _, player := range players {
+			if !player.IsSpectator {
+				gridState := &models.GridState{
+					RoomID:         room.ID,
+					UserID:         player.UserID,
+					Cells:          make([][]models.Cell, len(puzzle.Grid)),
+					CompletedClues: []string{},
+					LastUpdated:    time.Now(),
+				}
+				for y := range puzzle.Grid {
+					gridState.Cells[y] = make([]models.Cell, len(puzzle.Grid[y]))
+				}
+				h.db.CreateGridState(gridState)
+			}
+		}
+
+	case models.RoomModeRelay:
+		// Set up turn order
+		var turnOrder []string
+		for _, player := range players {
+			if !player.IsSpectator {
+				turnOrder = append(turnOrder, player.UserID)
+			}
+		}
+		if len(turnOrder) > 0 {
+			relayState := &models.RelayState{
+				RoomID:          room.ID,
+				CurrentPlayerID: turnOrder[0],
+				TurnOrder:       turnOrder,
+				TurnStartedAt:   time.Now(),
+				TurnTimeLimit:   60, // 60 seconds per turn
+				WordsThisTurn:   0,
+			}
+			h.db.CreateRelayState(relayState)
+
+			// Get first player name
+			firstPlayer := findPlayer(players, turnOrder[0])
+			playerName := "Unknown"
+			if firstPlayer != nil {
+				playerName = firstPlayer.DisplayName
+			}
+
+			// Broadcast turn info
+			h.broadcastToRoom(client.RoomID, "", MsgTurnChanged, TurnChangedPayload{
+				CurrentPlayerID:   turnOrder[0],
+				CurrentPlayerName: playerName,
+				TurnNumber:        1,
+			})
+		}
+	}
+
 	// Broadcast game started
 	h.broadcastToRoom(client.RoomID, "", MsgGameStarted, nil)
 }
@@ -531,7 +729,7 @@ func (h *Hub) handleReaction(client *Client, payload json.RawMessage) {
 	})
 }
 
-func (h *Hub) checkPuzzleCompletion(roomID string) {
+func (h *Hub) checkCollaborativeCompletion(roomID string) {
 	room, _ := h.db.GetRoomByID(roomID)
 	if room == nil {
 		return
@@ -597,6 +795,224 @@ func (h *Hub) checkPuzzleCompletion(roomID string) {
 			CompletedAt: time.Now(),
 		})
 	}
+}
+
+func (h *Hub) checkRaceProgress(roomID string, userID string) {
+	room, _ := h.db.GetRoomByID(roomID)
+	if room == nil {
+		return
+	}
+
+	puzzle, _ := h.db.GetPuzzleByID(room.PuzzleID)
+	if puzzle == nil {
+		return
+	}
+
+	// Get the hub room for tracking finish order
+	h.mutex.RLock()
+	hubRoom := h.rooms[roomID]
+	h.mutex.RUnlock()
+
+	if hubRoom == nil {
+		return
+	}
+
+	// Count total cells in puzzle
+	totalCells := 0
+	for y := range puzzle.Grid {
+		for x := range puzzle.Grid[y] {
+			if puzzle.Grid[y][x].Letter != nil {
+				totalCells++
+			}
+		}
+	}
+
+	// Build leaderboard from all players
+	players, _ := h.db.GetRoomPlayers(roomID)
+	var leaderboard []models.RaceProgress
+
+	allFinished := true
+	activePlayers := 0
+
+	for _, player := range players {
+		if player.IsSpectator {
+			continue
+		}
+		activePlayers++
+
+		gridState, _ := h.db.GetPlayerGridState(roomID, player.UserID)
+		if gridState == nil {
+			leaderboard = append(leaderboard, models.RaceProgress{
+				UserID:      player.UserID,
+				DisplayName: player.DisplayName,
+				Progress:    0,
+			})
+			allFinished = false
+			continue
+		}
+
+		// Calculate progress
+		correctCells := 0
+		complete := true
+		for y := range puzzle.Grid {
+			for x := range puzzle.Grid[y] {
+				expectedLetter := puzzle.Grid[y][x].Letter
+				if expectedLetter == nil {
+					continue
+				}
+				if y < len(gridState.Cells) && x < len(gridState.Cells[y]) {
+					currentValue := gridState.Cells[y][x].Value
+					if currentValue != nil && *currentValue == *expectedLetter {
+						correctCells++
+					} else {
+						complete = false
+					}
+				} else {
+					complete = false
+				}
+			}
+		}
+
+		progress := float64(correctCells) / float64(totalCells) * 100
+
+		rp := models.RaceProgress{
+			UserID:      player.UserID,
+			DisplayName: player.DisplayName,
+			Progress:    progress,
+		}
+
+		// Check if player just finished
+		if complete {
+			hubRoom.mutex.Lock()
+			alreadyFinished := false
+			for _, uid := range hubRoom.FinishOrder {
+				if uid == player.UserID {
+					alreadyFinished = true
+					break
+				}
+			}
+			if !alreadyFinished {
+				hubRoom.FinishOrder = append(hubRoom.FinishOrder, player.UserID)
+				now := time.Now()
+				rp.FinishedAt = &now
+				solveTime := 0
+				if hubRoom.StartTime != nil {
+					solveTime = int(time.Since(*hubRoom.StartTime).Seconds())
+				}
+				rp.SolveTime = &solveTime
+				rp.Rank = len(hubRoom.FinishOrder)
+
+				// Broadcast that player finished
+				h.broadcastToRoom(roomID, "", MsgPlayerFinished, PlayerFinishedPayload{
+					UserID:      player.UserID,
+					DisplayName: player.DisplayName,
+					SolveTime:   solveTime,
+					Rank:        rp.Rank,
+				})
+			}
+			hubRoom.mutex.Unlock()
+		} else {
+			allFinished = false
+		}
+
+		leaderboard = append(leaderboard, rp)
+	}
+
+	// Broadcast progress update
+	h.broadcastToRoom(roomID, "", MsgRaceProgress, RaceProgressPayload{
+		Leaderboard: leaderboard,
+	})
+
+	// Check if race is complete
+	if allFinished && activePlayers > 0 {
+		h.db.UpdateRoomState(roomID, models.RoomStateCompleted)
+
+		// Build final results
+		var results []PlayerResult
+		for i, uid := range hubRoom.FinishOrder {
+			player := findPlayer(players, uid)
+			if player != nil {
+				results = append(results, PlayerResult{
+					UserID:       uid,
+					DisplayName:  player.DisplayName,
+					Contribution: float64(len(hubRoom.FinishOrder) - i), // Higher rank = more contribution
+					Color:        player.Color,
+				})
+			}
+		}
+
+		h.broadcastToRoom(roomID, "", MsgPuzzleCompleted, PuzzleCompletedPayload{
+			SolveTime:   0, // Race mode doesn't have a single solve time
+			Players:     results,
+			CompletedAt: time.Now(),
+		})
+	}
+}
+
+func (h *Hub) handlePassTurn(client *Client) {
+	if client.RoomID == "" {
+		return
+	}
+
+	room, _ := h.db.GetRoomByID(client.RoomID)
+	if room == nil || room.Mode != models.RoomModeRelay {
+		return
+	}
+
+	relayState, _ := h.db.GetRelayState(client.RoomID)
+	if relayState == nil || relayState.CurrentPlayerID != client.UserID {
+		h.sendError(client, "not your turn")
+		return
+	}
+
+	// Find next player
+	currentIndex := -1
+	for i, uid := range relayState.TurnOrder {
+		if uid == client.UserID {
+			currentIndex = i
+			break
+		}
+	}
+
+	if currentIndex == -1 {
+		return
+	}
+
+	nextIndex := (currentIndex + 1) % len(relayState.TurnOrder)
+	nextPlayerID := relayState.TurnOrder[nextIndex]
+
+	// Update relay state
+	relayState.CurrentPlayerID = nextPlayerID
+	relayState.TurnStartedAt = time.Now()
+	relayState.WordsThisTurn = 0
+	h.db.UpdateRelayState(relayState)
+
+	// Increment turn number
+	h.mutex.Lock()
+	hubRoom := h.rooms[client.RoomID]
+	if hubRoom != nil {
+		hubRoom.TurnNumber++
+	}
+	turnNum := 1
+	if hubRoom != nil {
+		turnNum = hubRoom.TurnNumber
+	}
+	h.mutex.Unlock()
+
+	// Get next player name
+	players, _ := h.db.GetRoomPlayers(client.RoomID)
+	nextPlayer := findPlayer(players, nextPlayerID)
+	playerName := "Unknown"
+	if nextPlayer != nil {
+		playerName = nextPlayer.DisplayName
+	}
+
+	// Broadcast turn change
+	h.broadcastToRoom(client.RoomID, "", MsgTurnChanged, TurnChangedPayload{
+		CurrentPlayerID:   nextPlayerID,
+		CurrentPlayerName: playerName,
+		TurnNumber:        turnNum,
+	})
 }
 
 func (h *Hub) removeClientFromRoom(client *Client) {

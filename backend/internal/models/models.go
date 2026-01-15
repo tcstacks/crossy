@@ -147,10 +147,31 @@ type Cell struct {
 
 // GridState represents the current state of the puzzle grid in a room
 type GridState struct {
-	RoomID        string     `json:"roomId"`
-	Cells         [][]Cell   `json:"cells"`
+	RoomID         string    `json:"roomId"`
+	UserID         string    `json:"userId,omitempty"` // For Race mode: player-specific grid
+	Cells          [][]Cell  `json:"cells"`
 	CompletedClues []string  `json:"completedClues"`
-	LastUpdated   time.Time  `json:"lastUpdated"`
+	LastUpdated    time.Time `json:"lastUpdated"`
+}
+
+// RelayState tracks turn-based gameplay for Relay mode
+type RelayState struct {
+	RoomID          string    `json:"roomId"`
+	CurrentPlayerID string    `json:"currentPlayerId"`
+	TurnOrder       []string  `json:"turnOrder"`       // Player IDs in turn order
+	TurnStartedAt   time.Time `json:"turnStartedAt"`
+	TurnTimeLimit   int       `json:"turnTimeLimit"`   // Seconds per turn (0 = unlimited)
+	WordsThisTurn   int       `json:"wordsThisTurn"`   // Words completed this turn
+}
+
+// RaceProgress tracks individual player progress in Race mode
+type RaceProgress struct {
+	UserID       string    `json:"userId"`
+	DisplayName  string    `json:"displayName"`
+	Progress     float64   `json:"progress"`     // 0-100 percentage
+	FinishedAt   *time.Time `json:"finishedAt,omitempty"`
+	SolveTime    *int      `json:"solveTime,omitempty"` // Seconds to complete
+	Rank         int       `json:"rank,omitempty"`
 }
 
 // Message represents a chat message in a room

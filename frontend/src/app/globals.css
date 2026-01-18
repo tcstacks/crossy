@@ -50,6 +50,22 @@ body {
   touch-action: manipulation;
 }
 
+/* Mobile responsive adjustments */
+@media (max-width: 640px) {
+  .crossword-grid {
+    gap: 2px;
+    padding: 4px;
+    border-radius: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .crossword-grid {
+    gap: 1px;
+    padding: 3px;
+  }
+}
+
 .crossword-cell {
   position: relative;
   background-color: #fff;
@@ -106,10 +122,18 @@ body {
   position: absolute;
   top: 2px;
   left: 4px;
-  font-size: clamp(8px, 2vw, 11px);
+  font-size: clamp(7px, 2vw, 11px);
   font-weight: 700;
   line-height: 1;
   color: #7c3aed;
+}
+
+@media (max-width: 640px) {
+  .crossword-cell .cell-number {
+    top: 1px;
+    left: 2px;
+    font-size: clamp(6px, 2vw, 9px);
+  }
 }
 
 .crossword-cell .cell-value {

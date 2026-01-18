@@ -263,28 +263,62 @@ export function CrosswordGrid({
         return;
       }
 
-      // Handle tab to move to next clue
+      // Handle tab to move to next blank cell
       if (e.key === 'Tab') {
         e.preventDefault();
-        // Move to next clue
-        const clues = direction === 'across' ? puzzle.cluesAcross : puzzle.cluesDown;
-        const currentClue = findClueAtPosition(x, y, direction);
-        if (!currentClue) return;
 
-        const currentIndex = clues.findIndex((c) => c.number === currentClue.number);
-        const nextIndex = e.shiftKey
-          ? (currentIndex - 1 + clues.length) % clues.length
-          : (currentIndex + 1) % clues.length;
-        const nextClue = clues[nextIndex];
+        // Find next blank cell
+        let found = false;
+        let searchX = x;
+        let searchY = y;
+        const totalCells = puzzle.gridWidth * puzzle.gridHeight;
+        let searched = 0;
 
-        if (nextClue) {
-          setSelectedCell({
-            x: nextClue.positionX,
-            y: nextClue.positionY,
-            direction,
-          });
-          setSelectedClue(nextClue);
-          onCursorMove?.(nextClue.positionX, nextClue.positionY);
+        // Direction to search: forward for Tab, backward for Shift+Tab
+        const searchForward = !e.shiftKey;
+
+        while (!found && searched < totalCells) {
+          if (searchForward) {
+            searchX++;
+            if (searchX >= puzzle.gridWidth) {
+              searchX = 0;
+              searchY++;
+              if (searchY >= puzzle.gridHeight) {
+                searchY = 0;
+              }
+            }
+          } else {
+            searchX--;
+            if (searchX < 0) {
+              searchX = puzzle.gridWidth - 1;
+              searchY--;
+              if (searchY < 0) {
+                searchY = puzzle.gridHeight - 1;
+              }
+            }
+          }
+
+          searched++;
+
+          // Check if this cell is not black and is empty
+          const cell = puzzle.grid[searchY]?.[searchX];
+          const cellValue = cells[searchY]?.[searchX]?.value;
+
+          if (cell && cell.letter !== null && !cellValue) {
+            found = true;
+
+            // Determine direction based on available clues
+            let newDirection = direction;
+            let clue = findClueAtPosition(searchX, searchY, newDirection);
+            if (!clue) {
+              newDirection = newDirection === 'across' ? 'down' : 'across';
+              clue = findClueAtPosition(searchX, searchY, newDirection);
+            }
+
+            setSelectedCell({ x: searchX, y: searchY, direction: newDirection });
+            setSelectedClue(clue);
+            onCursorMove?.(searchX, searchY);
+          }
         }
       }
     },
@@ -346,8 +380,9 @@ export function CrosswordGrid({
       className="crossword-grid select-none"
       style={{
         gridTemplateColumns: `repeat(${puzzle.gridWidth}, minmax(0, 1fr))`,
-        width: `min(100%, 70vh)`,
-        maxWidth: '600px',
+        width: '100%',
+        maxWidth: 'min(600px, 90vw)',
+        aspectRatio: `${puzzle.gridWidth} / ${puzzle.gridHeight}`,
       }}
       tabIndex={0}
     >

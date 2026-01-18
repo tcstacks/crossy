@@ -274,6 +274,11 @@ func (h *Handlers) SavePuzzleHistory(c *gin.Context) {
 		return
 	}
 
+	// Update user stats after saving history (only if completed)
+	if req.Completed {
+		h.updateUserStatsAfterSoloPuzzle(claims.UserID, req.PuzzleID, req.SolveTime, req.Accuracy, req.HintsUsed)
+	}
+
 	c.JSON(http.StatusCreated, history)
 }
 
@@ -801,6 +806,70 @@ func (h *Handlers) CloseRoom(c *gin.Context) {
 }
 
 // Helper functions
+
+// updateUserStatsAfterSoloPuzzle updates user stats after completing a solo puzzle
+func (h *Handlers) updateUserStatsAfterSoloPuzzle(userID, puzzleID string, solveTime int, accuracy float64, hintsUsed int) {
+	// Get current user stats
+	stats, err := h.db.GetUserStats(userID)
+	if err != nil {
+		log.Printf("Error getting user stats for %s: %v", userID, err)
+		return
+	}
+
+	// If stats don't exist, create a new one
+	if stats == nil {
+		stats = &models.UserStats{
+			UserID:        userID,
+			PuzzlesSolved: 0,
+			AvgSolveTime:  0,
+			StreakCurrent: 0,
+			StreakBest:    0,
+		}
+	}
+
+	// Get puzzle to check if it's a daily puzzle
+	puzzle, _ := h.db.GetPuzzleByID(puzzleID)
+	today := time.Now().Format("2006-01-02")
+
+	// Update streak logic (only for daily puzzles with dates)
+	if puzzle != nil && puzzle.Date != nil && *puzzle.Date != "" {
+		if stats.LastPlayedAt != nil {
+			lastPlayed := stats.LastPlayedAt.Format("2006-01-02")
+			yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+
+			// Continue streak if played yesterday or today (same day)
+			if lastPlayed == yesterday {
+				stats.StreakCurrent++
+			} else if lastPlayed == today {
+				// Same day, don't change streak
+			} else {
+				// Streak broken, start new streak
+				stats.StreakCurrent = 1
+			}
+		} else {
+			// First puzzle ever
+			stats.StreakCurrent = 1
+		}
+
+		// Update best streak
+		if stats.StreakCurrent > stats.StreakBest {
+			stats.StreakBest = stats.StreakCurrent
+		}
+	}
+
+	// Update other stats
+	stats.PuzzlesSolved++
+	totalTime := stats.AvgSolveTime * float64(stats.PuzzlesSolved-1)
+	stats.AvgSolveTime = (totalTime + float64(solveTime)) / float64(stats.PuzzlesSolved)
+	stats.TotalPlayTime += solveTime
+	now := time.Now()
+	stats.LastPlayedAt = &now
+
+	// Save updated stats
+	if err := h.db.UpdateUserStats(stats); err != nil {
+		log.Printf("Error updating user stats for %s: %v", userID, err)
+	}
+}
 
 func generateRoomCode() string {
 	const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"

@@ -1067,7 +1067,8 @@ func (h *Hub) checkCollaborativeCompletion(roomID string) {
 				})
 
 				// Update user stats and create puzzle history
-				h.updateUserStatsAfterCompletion(p.UserID, room.PuzzleID, &roomID, solveTime)
+				// For collaborative mode, everyone "wins" (rank 0 = no rank for collaborative)
+				h.updateUserStatsAfterCompletion(p.UserID, room.PuzzleID, &roomID, solveTime, 0)
 			}
 		}
 
@@ -1197,7 +1198,8 @@ func (h *Hub) checkRaceProgress(roomID string, userID string) {
 				})
 
 				// Update user stats and create puzzle history
-				h.updateUserStatsAfterCompletion(player.UserID, room.PuzzleID, &roomID, solveTime)
+				// For race mode, track multiplayer wins (rank 1 = winner)
+				h.updateUserStatsAfterCompletion(player.UserID, room.PuzzleID, &roomID, solveTime, rp.Rank)
 			}
 			hubRoom.mutex.Unlock()
 		} else {
@@ -1663,7 +1665,8 @@ func sanitizePuzzleForClient(puzzle *models.Puzzle) *models.Puzzle {
 }
 
 // updateUserStatsAfterCompletion updates user stats and creates puzzle history after completing a puzzle
-func (h *Hub) updateUserStatsAfterCompletion(userID string, puzzleID string, roomID *string, solveTime int) {
+// rank: 0 = collaborative/relay (no ranking), 1 = first place (winner), 2+ = other ranks
+func (h *Hub) updateUserStatsAfterCompletion(userID string, puzzleID string, roomID *string, solveTime int, rank int) {
 	// Get current user stats
 	stats, err := h.db.GetUserStats(userID)
 	if err != nil {
@@ -1716,6 +1719,13 @@ func (h *Hub) updateUserStatsAfterCompletion(userID string, puzzleID string, roo
 	stats.PuzzlesSolved++
 	totalTime := stats.AvgSolveTime * float64(stats.PuzzlesSolved-1)
 	stats.AvgSolveTime = (totalTime + float64(solveTime)) / float64(stats.PuzzlesSolved)
+	stats.TotalPlayTime += solveTime
+
+	// Track multiplayer wins (rank 1 = first place winner)
+	if rank == 1 {
+		stats.MultiplayerWins++
+	}
+
 	now := time.Now()
 	stats.LastPlayedAt = &now
 

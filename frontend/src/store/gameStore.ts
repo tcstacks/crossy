@@ -18,6 +18,13 @@ interface PlayerCursor {
   color: string;
 }
 
+interface RelayState {
+  currentTurnUserId: string;
+  turnNumber: number;
+  turnStartedAt: number; // timestamp
+  turnTimeLimit: number; // seconds (0 = unlimited)
+}
+
 interface GameState {
   // Auth
   user: User | null;
@@ -42,6 +49,7 @@ interface GameState {
   raceLeaderboard: RaceProgress[];
   currentTurnUserId: string | null;
   turnNumber: number;
+  relayState: RelayState | null;
 
   // UI
   showChat: boolean;
@@ -73,6 +81,7 @@ interface GameState {
   resetGame: () => void;
   setRaceLeaderboard: (leaderboard: RaceProgress[]) => void;
   setCurrentTurn: (userId: string, turnNumber: number) => void;
+  setRelayState: (state: RelayState) => void;
 }
 
 const initialCells: Cell[][] = [];
@@ -99,6 +108,7 @@ export const useGameStore = create<GameState>()(
       raceLeaderboard: [],
       currentTurnUserId: null,
       turnNumber: 0,
+      relayState: null,
       showChat: false,
       showClues: true,
       hintsUsed: 0,
@@ -243,6 +253,8 @@ export const useGameStore = create<GameState>()(
 
       setCurrentTurn: (userId, turnNumber) =>
         set({ currentTurnUserId: userId, turnNumber }),
+
+      setRelayState: (state) => set({ relayState: state }),
     }),
     {
       name: 'crossplay-storage',

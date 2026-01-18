@@ -33,6 +33,7 @@ export function useWebSocket(roomCode?: string) {
     setPuzzle,
     setRaceLeaderboard,
     setCurrentTurn,
+    setRelayState,
   } = useGameStore();
 
   // Update current room code ref when it changes
@@ -255,6 +256,17 @@ export function useWebSocket(roomCode?: string) {
       case 'turn_changed': {
         const data = payload as TurnChangedPayload;
         setCurrentTurn(data.currentPlayerId, data.turnNumber);
+
+        // Update relay state with timing information
+        if (data.turnStartedAt && data.turnTimeLimit !== undefined) {
+          setRelayState({
+            currentTurnUserId: data.currentPlayerId,
+            turnNumber: data.turnNumber,
+            turnStartedAt: new Date(data.turnStartedAt).getTime(),
+            turnTimeLimit: data.turnTimeLimit,
+          });
+        }
+
         console.log(`Turn changed: ${data.currentPlayerName}'s turn (turn ${data.turnNumber})`);
         break;
       }
@@ -289,6 +301,7 @@ export function useWebSocket(roomCode?: string) {
     setPuzzle,
     setRaceLeaderboard,
     setCurrentTurn,
+    setRelayState,
   ]);
 
   // Keep ref updated with latest handleMessage to avoid stale closures

@@ -221,3 +221,21 @@ orm":"Documenting that US-019 was already completed"},{"content":"Commit progres
 adcasts `race_progress` with updated leaderboard to all players\n\n2. The frontend:\n   - Receives `race_progress` messages and updates the leaderboard display\n   - Shows real-time progress bars and percentages\n   - Highlights finished players with green checkmarks and solve times\n\n3. When a player completes the puzzle:\n   - Backend broadcasts `player_finished` with rank and solve time\n   - Player's rank is determined by finish order\n   - Results modal shows final rankings with medals\n\n
 
 ---
+## ✓ Iteration 20 - US-021: Race leaderboard component
+*2026-01-18T03:25:14.790Z (121s)*
+
+**Status:** Completed
+
+**Notes:**
+n5. **Live sorting as players progress** ✅\n   - Sorts finished players by rank first\n   - Then sorts unfinished players by progress percentage\n   - Uses memoized sorting for optimal performance (lines 24-40)\n\n6. **TypeScript typecheck passes** ✅\n   - No type errors\n\n7. **ESLint passes** ✅\n   - No linting warnings or errors\n\nThe component is already integrated into the room page and will display on the right side on desktop and as a floating widget on mobile during race mode games.\n\n
+
+---
+## ✓ Iteration 21 - US-022: Relay mode implementation
+*2026-01-18T03:40:40.872Z (487s)*
+
+**Status:** Completed
+
+**Notes:**
+sx:55-56,69,226-230,402,408): Updated to use store state and proper pass turn functionality\n\n### All Acceptance Criteria Met\n- ✅ Turn order established at game start\n- ✅ Time limit per turn (default: 60 seconds)\n- ✅ Only current player can edit grid\n- ✅ Pass turn button transfers to next player\n- ✅ Timeout auto-advances turn\n- ✅ Words completed per turn tracked\n- ✅ cd backend && go test ./... passes\n- ✅ cd frontend && npm run typecheck passes\n- ✅ cd frontend && npm run lint passes\n\n
+
+---

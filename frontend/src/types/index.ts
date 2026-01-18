@@ -216,4 +216,6 @@ export interface TurnChangedPayload {
   currentPlayerId: string;
   currentPlayerName: string;
   turnNumber: number;
+  turnStartedAt?: string; // ISO timestamp
+  turnTimeLimit?: number; // seconds
 }

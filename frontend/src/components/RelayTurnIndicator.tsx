@@ -10,22 +10,28 @@ interface RelayTurnIndicatorProps {
 }
 
 export function RelayTurnIndicator({ currentTurnUserId, onPassTurn }: RelayTurnIndicatorProps) {
-  const { players, user } = useGameStore();
-  const [turnTimeElapsed, setTurnTimeElapsed] = useState(0);
+  const { players, user, relayState } = useGameStore();
+  const [currentTime, setCurrentTime] = useState(Date.now());
 
   const isMyTurn = currentTurnUserId === user?.id;
   const currentPlayer = players.find((p) => p.userId === currentTurnUserId);
   const currentPlayerIndex = players.findIndex((p) => p.userId === currentTurnUserId);
-  const turnTimeLimit = 60; // 60 seconds per turn
 
+  // Get turn time limit from relay state, default to 60 seconds
+  const turnTimeLimit = relayState?.turnTimeLimit ?? 60;
+  const turnStartedAt = relayState?.turnStartedAt ?? Date.now();
+
+  // Update current time every second for countdown
   useEffect(() => {
-    setTurnTimeElapsed(0);
     const interval = setInterval(() => {
-      setTurnTimeElapsed((prev) => prev + 1);
-    }, 1000);
+      setCurrentTime(Date.now());
+    }, 100); // Update more frequently for smoother countdown
 
     return () => clearInterval(interval);
-  }, [currentTurnUserId]);
+  }, []);
+
+  // Calculate elapsed time based on when turn started
+  const turnTimeElapsed = Math.floor((currentTime - turnStartedAt) / 1000);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -33,9 +39,12 @@ export function RelayTurnIndicator({ currentTurnUserId, onPassTurn }: RelayTurnI
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const timeRemaining = Math.max(0, turnTimeLimit - turnTimeElapsed);
-  const timeProgress = (turnTimeElapsed / turnTimeLimit) * 100;
-  const isTimeRunningOut = timeRemaining < 30;
+  // Handle unlimited time (turnTimeLimit = 0)
+  const isUnlimitedTime = turnTimeLimit === 0;
+  const timeRemaining = isUnlimitedTime ? 0 : Math.max(0, turnTimeLimit - turnTimeElapsed);
+  const timeProgress = isUnlimitedTime ? 0 : Math.min(100, (turnTimeElapsed / turnTimeLimit) * 100);
+  const isTimeRunningOut = !isUnlimitedTime && timeRemaining <= 10 && timeRemaining > 0;
+  const isTimeUp = !isUnlimitedTime && timeRemaining === 0;
 
   if (!currentPlayer) {
     return null;
@@ -73,7 +82,7 @@ export function RelayTurnIndicator({ currentTurnUserId, onPassTurn }: RelayTurnI
                 <svg
                   className={cn(
                     'w-4 h-4',
-                    isTimeRunningOut ? 'text-red-500' : 'text-gray-400'
+                    isTimeUp ? 'text-red-600' : isTimeRunningOut ? 'text-orange-500' : 'text-gray-400'
                   )}
                   fill="none"
                   stroke="currentColor"
@@ -89,10 +98,12 @@ export function RelayTurnIndicator({ currentTurnUserId, onPassTurn }: RelayTurnI
                 <span
                   className={cn(
                     'text-sm font-medium',
-                    isTimeRunningOut ? 'text-red-600 animate-pulse' : 'text-gray-600'
+                    isTimeUp ? 'text-red-700 font-bold' : isTimeRunningOut ? 'text-orange-600 animate-pulse' : 'text-gray-600'
                   )}
                 >
-                  {formatTime(timeRemaining)} remaining
+                  {isUnlimitedTime ? `${formatTime(turnTimeElapsed)} elapsed` :
+                   isTimeUp ? 'Time is up!' :
+                   `${formatTime(timeRemaining)} remaining`}
                 </span>
               </div>
             </div>
@@ -121,18 +132,20 @@ export function RelayTurnIndicator({ currentTurnUserId, onPassTurn }: RelayTurnI
           )}
         </div>
 
-        {/* Time progress bar */}
-        <div className="container mx-auto mt-2">
-          <div className="w-full bg-gray-200 rounded-full h-1 overflow-hidden">
-            <div
-              className={cn(
-                'h-full rounded-full transition-all duration-1000 ease-linear',
-                isTimeRunningOut ? 'bg-red-500' : 'bg-purple-500'
-              )}
-              style={{ width: `${timeProgress}%` }}
-            />
+        {/* Time progress bar - only show if not unlimited */}
+        {!isUnlimitedTime && (
+          <div className="container mx-auto mt-2">
+            <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+              <div
+                className={cn(
+                  'h-full rounded-full transition-all duration-200 ease-linear',
+                  isTimeUp ? 'bg-red-600' : isTimeRunningOut ? 'bg-orange-500' : 'bg-purple-500'
+                )}
+                style={{ width: `${timeProgress}%` }}
+              />
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Turn Order */}

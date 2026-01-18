@@ -3,10 +3,10 @@
   "sessionId": "b95adf80-416f-43a6-9f0e-dc9debfd1765",
   "status": "running",
   "startedAt": "2026-01-18T00:37:59.835Z",
-  "updatedAt": "2026-01-18T03:23:13.334Z",
-  "currentIteration": 19,
+  "updatedAt": "2026-01-18T03:42:33.417Z",
+  "currentIteration": 21,
   "maxIterations": 5,
-  "tasksCompleted": 19,
+  "tasksCompleted": 21,
   "isPaused": false,
   "agentPlugin": "claude",
   "trackerState": {
@@ -137,14 +137,14 @@
       {
         "id": "US-021",
         "title": "Race leaderboard component",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-022",
         "title": "Relay mode implementation",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-023",
@@ -446,12 +446,32 @@
       "durationMs": 404057,
       "startedAt": "2026-01-18T03:10:46.021Z",
       "endedAt": "2026-01-18T03:17:30.078Z"
+    },
+    {
+      "iteration": 20,
+      "status": "completed",
+      "taskId": "US-021",
+      "taskTitle": "Race leaderboard component",
+      "taskCompleted": true,
+      "durationMs": 121455,
+      "startedAt": "2026-01-18T03:23:13.330Z",
+      "endedAt": "2026-01-18T03:25:14.785Z"
+    },
+    {
+      "iteration": 21,
+      "status": "completed",
+      "taskId": "US-022",
+      "taskTitle": "Relay mode implementation",
+      "taskCompleted": true,
+      "durationMs": 486749,
+      "startedAt": "2026-01-18T03:32:34.116Z",
+      "endedAt": "2026-01-18T03:40:40.865Z"
     }
   ],
   "skippedTaskIds": [],
   "cwd": "/Users/dev/proj/crossy",
   "activeTaskIds": [
-    "US-021"
+    "US-023"
   ],
   "subagentPanelVisible": false
 }

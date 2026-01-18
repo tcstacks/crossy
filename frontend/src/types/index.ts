@@ -152,7 +152,8 @@ export type WSMessageType =
   | 'game_started'
   | 'puzzle_completed'
   | 'error'
-  | 'reaction_added';
+  | 'reaction_added'
+  | 'room_deleted';
 
 export interface WSMessage {
   type: WSMessageType;

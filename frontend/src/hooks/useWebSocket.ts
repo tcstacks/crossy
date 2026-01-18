@@ -217,6 +217,16 @@ export function useWebSocket(roomCode?: string) {
         break;
       }
 
+      case 'room_deleted': {
+        const data = payload as { reason: string };
+        console.log('Room deleted:', data.reason);
+        // Room was deleted (e.g., host left) - redirect to home
+        if (typeof window !== 'undefined') {
+          window.location.href = '/?message=room_closed';
+        }
+        break;
+      }
+
       default:
         console.log('Unhandled message type:', type);
     }

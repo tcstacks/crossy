@@ -40,6 +40,7 @@ const (
 	MsgRaceProgress     MessageType = "race_progress"     // Race mode: leaderboard update
 	MsgPlayerFinished   MessageType = "player_finished"   // Race mode: player completed puzzle
 	MsgTurnChanged      MessageType = "turn_changed"      // Relay mode: turn passed
+	MsgRoomDeleted      MessageType = "room_deleted"      // Room was deleted (e.g., host left)
 )
 
 // Message represents a WebSocket message
@@ -159,6 +160,10 @@ type TurnChangedPayload struct {
 	CurrentPlayerID   string `json:"currentPlayerId"`
 	CurrentPlayerName string `json:"currentPlayerName"`
 	TurnNumber        int    `json:"turnNumber"`
+}
+
+type RoomDeletedPayload struct {
+	Reason string `json:"reason"`
 }
 
 // Hub manages all WebSocket connections and rooms
@@ -1214,6 +1219,15 @@ func (h *Hub) removeClientFromRoom(client *Client) {
 		return
 	}
 
+	roomID := client.RoomID
+
+	// Get room from database to check if user is host
+	room, err := h.db.GetRoomByID(roomID)
+	if err != nil {
+		log.Printf("removeClientFromRoom: error getting room: %v", err)
+		return
+	}
+
 	hubRoom.mutex.Lock()
 	delete(hubRoom.Clients, client.ConnectionID)
 	isEmpty := len(hubRoom.Clients) == 0
@@ -1232,28 +1246,60 @@ func (h *Hub) removeClientFromRoom(client *Client) {
 
 	// Only update connection status if no other tabs are connected
 	if !hasOtherConnections {
-		h.db.UpdatePlayerConnection(client.UserID, client.RoomID, false)
+		h.db.UpdatePlayerConnection(client.UserID, roomID, false)
 
 		// Get player for notification
-		players, _ := h.db.GetRoomPlayers(client.RoomID)
+		players, _ := h.db.GetRoomPlayers(roomID)
 		player := findPlayer(players, client.UserID)
 		displayName := "Unknown"
 		if player != nil {
 			displayName = player.DisplayName
 		}
 
-		// Notify other clients that user left
-		h.broadcastToRoom(client.RoomID, client.ConnectionID, MsgPlayerLeft, PlayerLeftPayload{
-			UserID:      client.UserID,
-			DisplayName: displayName,
-		})
-	}
+		// Check if the leaving user is the host
+		isHost := room != nil && room.HostID == client.UserID
 
-	// Clean up empty room
-	if isEmpty {
-		h.mutex.Lock()
-		delete(h.rooms, client.RoomID)
-		h.mutex.Unlock()
+		if isHost {
+			// Host is leaving - delete the room and notify all players
+			log.Printf("removeClientFromRoom: host is leaving, deleting room %s", roomID)
+
+			// Broadcast room_deleted to all remaining clients
+			h.broadcastToRoom(roomID, "", MsgRoomDeleted, RoomDeletedPayload{
+				Reason: "host_left",
+			})
+
+			// Delete room from database
+			if err := h.db.DeleteRoom(roomID); err != nil {
+				log.Printf("removeClientFromRoom: failed to delete room: %v", err)
+			}
+
+			// Clean up hub room
+			h.mutex.Lock()
+			delete(h.rooms, roomID)
+			h.mutex.Unlock()
+
+			// Close all client connections in this room
+			hubRoom.mutex.RLock()
+			for _, c := range hubRoom.Clients {
+				if c.ConnectionID != client.ConnectionID {
+					c.RoomID = ""
+				}
+			}
+			hubRoom.mutex.RUnlock()
+		} else {
+			// Regular player leaving - just notify others
+			h.broadcastToRoom(roomID, client.ConnectionID, MsgPlayerLeft, PlayerLeftPayload{
+				UserID:      client.UserID,
+				DisplayName: displayName,
+			})
+
+			// Clean up empty room
+			if isEmpty {
+				h.mutex.Lock()
+				delete(h.rooms, roomID)
+				h.mutex.Unlock()
+			}
+		}
 	}
 
 	client.RoomID = ""

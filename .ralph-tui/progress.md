@@ -127,3 +127,12 @@ Validates room state transitions (lobby/active/completed)\n6. **TestInitializeGr
 er code requirement)\n     - Case-insensitive code matching\n     - Room state validation (completed games)\n     - Full room prevention\n     - Player roster management\n     - Response structure verification\n\n### Quality Checks ✅\n- ✅ `cd backend && go test ./...` - All tests passing\n- ✅ `cd frontend && npm run typecheck` - No type errors\n- ✅ `cd frontend && npm run lint` - Passing (1 unrelated warning)\n\n### Git Commit ✅\nCommitted with message: `feat: US-014 - Room joining endpoint`\n\n
 
 ---
+## ✓ Iteration 14 - US-015: WebSocket connection setup
+*2026-01-18T02:44:44.641Z (241s)*
+
+**Status:** Completed
+
+**Notes:**
+tegration tests in `websocket_test.go`:\n  - Connection establishment\n  - Ping-pong heartbeat verification\n  - Message serialization/deserialization\n  - Error handling (invalid tokens)\n  - Auto-reconnect simulation\n  - Multi-tab support validation\n- ✅ Backend tests pass: `go test ./...` ✓\n- ✅ Frontend typecheck passes: `npm run typecheck` ✓\n- ✅ Frontend lint passes: `npm run lint` ✓ (only 1 warning, not an error)\n\nAll changes have been committed with a comprehensive commit message.\n\n
+
+---

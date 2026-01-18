@@ -328,11 +328,12 @@
         "cd frontend && npm run lint passes"
       ],
       "priority": 14,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "US-014"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-016",
@@ -874,6 +875,6 @@
     }
   ],
   "metadata": {
-    "updatedAt": "2026-01-18T02:40:43.377Z"
+    "updatedAt": "2026-01-18T02:50:11.091Z"
   }
 }

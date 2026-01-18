@@ -23,6 +23,11 @@ func New(postgresURL, redisURL string) (*Database, error) {
 		return nil, fmt.Errorf("failed to connect to postgres: %w", err)
 	}
 
+	// Configure connection pool for optimal performance
+	db.SetMaxOpenConns(25)                 // Maximum number of open connections
+	db.SetMaxIdleConns(10)                 // Maximum number of idle connections
+	db.SetConnMaxLifetime(5 * time.Minute) // Maximum lifetime of a connection
+
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to ping postgres: %w", err)
 	}
@@ -177,6 +182,12 @@ func (d *Database) InitSchema() error {
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_puzzle_history_user_id ON puzzle_history(user_id);
+	CREATE INDEX IF NOT EXISTS idx_puzzle_history_puzzle_id ON puzzle_history(puzzle_id);
+	CREATE INDEX IF NOT EXISTS idx_puzzle_history_completed_at ON puzzle_history(completed_at);
+	CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
+	CREATE INDEX IF NOT EXISTS idx_rooms_host_id ON rooms(host_id);
+	CREATE INDEX IF NOT EXISTS idx_players_room_id ON players(room_id);
+	CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 	`
 
 	_, err := d.DB.Exec(schema)

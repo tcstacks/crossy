@@ -831,7 +831,7 @@
         "US-022",
         "US-036"
       ],
-      "completionNotes": "All acceptance criteria met. Game room page already implements mode detection and routing with conditional rendering for collaborative, race (with leaderboard), and relay (with turn indicator) modes. WebSocket connection and real-time updates work for all modes. All quality checks pass."
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-038",
@@ -848,11 +848,12 @@
         "cd frontend && npm run lint passes"
       ],
       "priority": 37,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "US-037"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-039",
@@ -868,11 +869,12 @@
         "cd frontend && npm run lint passes"
       ],
       "priority": 38,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "US-037"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-040",
@@ -897,6 +899,6 @@
     }
   ],
   "metadata": {
-    "updatedAt": "2026-01-18T18:34:33.859Z"
+    "updatedAt": "2026-01-18T18:53:45.631Z"
   }
 }

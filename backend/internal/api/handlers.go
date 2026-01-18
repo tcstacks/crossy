@@ -1,6 +1,8 @@
 package api
 
 import (
+	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 	"strconv"
@@ -285,6 +287,22 @@ func (h *Handlers) SavePuzzleHistory(c *gin.Context) {
 // Puzzle Handlers
 
 func (h *Handlers) GetTodayPuzzle(c *gin.Context) {
+	ctx := context.Background()
+	cacheKey := "puzzle:today:" + time.Now().Format("2006-01-02")
+
+	// Try to get from cache first
+	if h.db.Redis != nil {
+		cached, err := h.db.Redis.Get(ctx, cacheKey).Result()
+		if err == nil && cached != "" {
+			var puzzle models.Puzzle
+			if json.Unmarshal([]byte(cached), &puzzle) == nil {
+				c.JSON(http.StatusOK, &puzzle)
+				return
+			}
+		}
+	}
+
+	// Cache miss - fetch from database
 	puzzle, err := h.db.GetTodayPuzzle()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
@@ -297,11 +315,35 @@ func (h *Handlers) GetTodayPuzzle(c *gin.Context) {
 
 	// Remove answers for client
 	sanitizedPuzzle := sanitizePuzzleForClient(puzzle)
+
+	// Cache for 1 hour
+	if h.db.Redis != nil {
+		if data, err := json.Marshal(sanitizedPuzzle); err == nil {
+			h.db.Redis.Set(ctx, cacheKey, data, time.Hour)
+		}
+	}
+
 	c.JSON(http.StatusOK, sanitizedPuzzle)
 }
 
 func (h *Handlers) GetPuzzleByDate(c *gin.Context) {
 	date := c.Param("date")
+	ctx := context.Background()
+	cacheKey := "puzzle:date:" + date
+
+	// Try to get from cache first
+	if h.db.Redis != nil {
+		cached, err := h.db.Redis.Get(ctx, cacheKey).Result()
+		if err == nil && cached != "" {
+			var puzzle models.Puzzle
+			if json.Unmarshal([]byte(cached), &puzzle) == nil {
+				c.JSON(http.StatusOK, &puzzle)
+				return
+			}
+		}
+	}
+
+	// Cache miss - fetch from database
 	puzzle, err := h.db.GetPuzzleByDate(date)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
@@ -313,6 +355,14 @@ func (h *Handlers) GetPuzzleByDate(c *gin.Context) {
 	}
 
 	sanitizedPuzzle := sanitizePuzzleForClient(puzzle)
+
+	// Cache for 24 hours (puzzles don't change)
+	if h.db.Redis != nil {
+		if data, err := json.Marshal(sanitizedPuzzle); err == nil {
+			h.db.Redis.Set(ctx, cacheKey, data, 24*time.Hour)
+		}
+	}
+
 	c.JSON(http.StatusOK, sanitizedPuzzle)
 }
 

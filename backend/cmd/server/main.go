@@ -71,9 +71,17 @@ func main() {
 	// Apply CORS middleware
 	router.Use(middleware.CORS())
 
+	// Apply performance monitoring middleware
+	router.Use(middleware.PerformanceMonitor())
+
 	// Health check
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok", "time": time.Now().Unix()})
+	})
+
+	// Performance metrics endpoint
+	router.GET("/metrics", func(c *gin.Context) {
+		c.JSON(http.StatusOK, middleware.GetMetrics())
 	})
 
 	// API routes

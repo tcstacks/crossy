@@ -3,19 +3,42 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { CrosswordGrid } from '@/components/CrosswordGrid';
 import { CluePanel, MobileClueDisplay, ClueBottomSheet } from '@/components/CluePanel';
-import { ChatSidebar } from '@/components/Chat';
 import { Timer } from '@/components/Timer';
-import { PlayerList, PlayerPill } from '@/components/PlayerList';
-import { ResultsModal } from '@/components/ResultsModal';
+import { PlayerPill } from '@/components/PlayerList';
 import { GameHeader } from '@/components/Header';
-import { RaceLeaderboard } from '@/components/RaceLeaderboard';
-import { RelayTurnIndicator } from '@/components/RelayTurnIndicator';
 import { useGameStore } from '@/store/gameStore';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { api } from '@/lib/api';
 import type { PlayerResult } from '@/types';
+
+// Dynamically import heavy components to reduce initial bundle size
+const ChatSidebar = dynamic(() => import('@/components/Chat').then(mod => ({ default: mod.ChatSidebar })), {
+  loading: () => <div className="w-80 bg-gray-800 animate-pulse" />,
+  ssr: false,
+});
+
+const PlayerList = dynamic(() => import('@/components/PlayerList').then(mod => ({ default: mod.PlayerList })), {
+  loading: () => <div className="animate-pulse" />,
+  ssr: false,
+});
+
+const ResultsModal = dynamic(() => import('@/components/ResultsModal').then(mod => ({ default: mod.ResultsModal })), {
+  loading: () => null,
+  ssr: false,
+});
+
+const RaceLeaderboard = dynamic(() => import('@/components/RaceLeaderboard').then(mod => ({ default: mod.RaceLeaderboard })), {
+  loading: () => <div className="animate-pulse bg-gray-800 rounded-lg p-4" />,
+  ssr: false,
+});
+
+const RelayTurnIndicator = dynamic(() => import('@/components/RelayTurnIndicator').then(mod => ({ default: mod.RelayTurnIndicator })), {
+  loading: () => <div className="animate-pulse bg-gray-800 rounded-lg p-3" />,
+  ssr: false,
+});
 
 export default function RoomPage() {
   const router = useRouter();

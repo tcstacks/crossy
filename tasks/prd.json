@@ -644,9 +644,10 @@
         "cd frontend && npm run lint passes"
       ],
       "priority": 28,
-      "passes": false,
+      "passes": true,
       "notes": "",
-      "dependsOn": []
+      "dependsOn": [],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-030",
@@ -662,11 +663,12 @@
         "cd frontend && npm run lint passes"
       ],
       "priority": 29,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "US-029"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-031",
@@ -683,11 +685,12 @@
         "cd backend && go test ./... passes"
       ],
       "priority": 30,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "US-004"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-032",
@@ -704,13 +707,14 @@
         "cd frontend && npm run lint passes"
       ],
       "priority": 31,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "US-001",
         "US-002",
         "US-003"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-033",
@@ -726,12 +730,13 @@
         "cd frontend && npm run lint passes"
       ],
       "priority": 32,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "US-004",
         "US-032"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-034",
@@ -888,6 +893,6 @@
     }
   ],
   "metadata": {
-    "updatedAt": "2026-01-18T15:58:08.574Z"
+    "updatedAt": "2026-01-18T18:26:02.577Z"
   }
 }

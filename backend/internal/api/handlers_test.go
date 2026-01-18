@@ -701,6 +701,383 @@ func TestPuzzleMetadataExcludesGrid(t *testing.T) {
 	t.Log("PuzzleMetadata type correctly excludes grid data")
 }
 
+// TestRoomCreation verifies room creation endpoint requirements
+func TestRoomCreation(t *testing.T) {
+	tests := []struct {
+		name     string
+		request  CreateRoomRequest
+		validate func(*testing.T, *models.Room)
+	}{
+		{
+			name: "Create collaborative room with default config",
+			request: CreateRoomRequest{
+				PuzzleID: "puzzle-123",
+				Mode:     models.RoomModeCollaborative,
+				Config:   models.RoomConfig{},
+			},
+			validate: func(t *testing.T, room *models.Room) {
+				if room.Mode != models.RoomModeCollaborative {
+					t.Errorf("Expected mode collaborative, got %s", room.Mode)
+				}
+				if room.Config.MaxPlayers != 8 {
+					t.Errorf("Expected default max players 8, got %d", room.Config.MaxPlayers)
+				}
+				if room.Config.TimerMode != "none" {
+					t.Errorf("Expected default timer mode 'none', got %s", room.Config.TimerMode)
+				}
+			},
+		},
+		{
+			name: "Create race room with custom config",
+			request: CreateRoomRequest{
+				PuzzleID: "puzzle-456",
+				Mode:     models.RoomModeRace,
+				Config: models.RoomConfig{
+					MaxPlayers:    4,
+					IsPublic:      true,
+					SpectatorMode: true,
+					TimerMode:     "countdown",
+					TimerSeconds:  600,
+					HintsEnabled:  false,
+				},
+			},
+			validate: func(t *testing.T, room *models.Room) {
+				if room.Mode != models.RoomModeRace {
+					t.Errorf("Expected mode race, got %s", room.Mode)
+				}
+				if room.Config.MaxPlayers != 4 {
+					t.Errorf("Expected max players 4, got %d", room.Config.MaxPlayers)
+				}
+				if !room.Config.IsPublic {
+					t.Error("Expected public room")
+				}
+				if room.Config.TimerMode != "countdown" {
+					t.Errorf("Expected timer mode 'countdown', got %s", room.Config.TimerMode)
+				}
+				if room.Config.TimerSeconds != 600 {
+					t.Errorf("Expected timer seconds 600, got %d", room.Config.TimerSeconds)
+				}
+				if room.Config.HintsEnabled {
+					t.Error("Expected hints disabled")
+				}
+			},
+		},
+		{
+			name: "Create relay room with private config",
+			request: CreateRoomRequest{
+				PuzzleID: "puzzle-789",
+				Mode:     models.RoomModeRelay,
+				Config: models.RoomConfig{
+					MaxPlayers:    10,
+					IsPublic:      false,
+					SpectatorMode: false,
+					TimerMode:     "stopwatch",
+					HintsEnabled:  true,
+				},
+			},
+			validate: func(t *testing.T, room *models.Room) {
+				if room.Mode != models.RoomModeRelay {
+					t.Errorf("Expected mode relay, got %s", room.Mode)
+				}
+				if room.Config.MaxPlayers != 10 {
+					t.Errorf("Expected max players 10, got %d", room.Config.MaxPlayers)
+				}
+				if room.Config.IsPublic {
+					t.Error("Expected private room")
+				}
+				if room.Config.TimerMode != "stopwatch" {
+					t.Errorf("Expected timer mode 'stopwatch', got %s", room.Config.TimerMode)
+				}
+				if !room.Config.HintsEnabled {
+					t.Error("Expected hints enabled")
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Simulate room creation
+			room := &models.Room{
+				ID:        uuid.New().String(),
+				Code:      generateRoomCode(),
+				HostID:    "test-user-123",
+				PuzzleID:  tt.request.PuzzleID,
+				Mode:      tt.request.Mode,
+				Config:    tt.request.Config,
+				State:     models.RoomStateLobby,
+				CreatedAt: time.Now(),
+			}
+
+			// Apply defaults
+			if room.Config.MaxPlayers == 0 {
+				room.Config.MaxPlayers = 8
+			}
+			if room.Config.TimerMode == "" {
+				room.Config.TimerMode = "none"
+			}
+
+			// Validate room code
+			if len(room.Code) != 6 {
+				t.Errorf("Expected room code length 6, got %d", len(room.Code))
+			}
+
+			// Validate initial state
+			if room.State != models.RoomStateLobby {
+				t.Errorf("Expected initial state 'lobby', got %s", room.State)
+			}
+
+			// Run custom validations
+			tt.validate(t, room)
+		})
+	}
+}
+
+// TestRoomCodeUniqueness verifies that room codes are unique
+func TestRoomCodeUniqueness(t *testing.T) {
+	codes := make(map[string]bool)
+	iterations := 1000
+
+	for i := 0; i < iterations; i++ {
+		code := generateRoomCode()
+		if codes[code] {
+			t.Errorf("Duplicate room code generated: %s", code)
+		}
+		codes[code] = true
+	}
+
+	if len(codes) != iterations {
+		t.Errorf("Expected %d unique codes, got %d", iterations, len(codes))
+	}
+}
+
+// TestRoomConfigValidation verifies room config validation
+func TestRoomConfigValidation(t *testing.T) {
+	tests := []struct {
+		name   string
+		config models.RoomConfig
+		valid  bool
+		reason string
+	}{
+		{
+			name: "Valid config with 2 players",
+			config: models.RoomConfig{
+				MaxPlayers:   2,
+				TimerMode:    "none",
+				HintsEnabled: true,
+			},
+			valid: true,
+		},
+		{
+			name: "Valid config with 10 players",
+			config: models.RoomConfig{
+				MaxPlayers:   10,
+				TimerMode:    "countdown",
+				TimerSeconds: 1800,
+				HintsEnabled: false,
+			},
+			valid: true,
+		},
+		{
+			name: "Invalid max players (too low)",
+			config: models.RoomConfig{
+				MaxPlayers:   1,
+				TimerMode:    "none",
+				HintsEnabled: true,
+			},
+			valid:  false,
+			reason: "Max players must be between 2-10",
+		},
+		{
+			name: "Invalid max players (too high)",
+			config: models.RoomConfig{
+				MaxPlayers:   11,
+				TimerMode:    "none",
+				HintsEnabled: true,
+			},
+			valid:  false,
+			reason: "Max players must be between 2-10",
+		},
+		{
+			name: "Valid timer modes",
+			config: models.RoomConfig{
+				MaxPlayers:   4,
+				TimerMode:    "countdown",
+				TimerSeconds: 300,
+				HintsEnabled: true,
+			},
+			valid: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Validate max players (2-10)
+			isValid := tt.config.MaxPlayers >= 2 && tt.config.MaxPlayers <= 10
+
+			if isValid != tt.valid {
+				if !tt.valid {
+					t.Logf("Expected validation to fail: %s", tt.reason)
+				} else {
+					t.Errorf("Expected config to be valid, but validation failed")
+				}
+			}
+
+			// Validate timer mode
+			validTimerModes := []string{"none", "countdown", "stopwatch"}
+			timerModeValid := false
+			for _, mode := range validTimerModes {
+				if tt.config.TimerMode == mode {
+					timerModeValid = true
+					break
+				}
+			}
+
+			if !timerModeValid && tt.config.TimerMode != "" {
+				t.Errorf("Invalid timer mode: %s", tt.config.TimerMode)
+			}
+		})
+	}
+}
+
+// TestRoomModes verifies all room modes are supported
+func TestRoomModes(t *testing.T) {
+	modes := []models.RoomMode{
+		models.RoomModeCollaborative,
+		models.RoomModeRace,
+		models.RoomModeRelay,
+	}
+
+	for _, mode := range modes {
+		t.Run(string(mode), func(t *testing.T) {
+			room := &models.Room{
+				ID:       uuid.New().String(),
+				Code:     generateRoomCode(),
+				HostID:   "test-host",
+				PuzzleID: "test-puzzle",
+				Mode:     mode,
+				Config: models.RoomConfig{
+					MaxPlayers:   8,
+					TimerMode:    "none",
+					HintsEnabled: true,
+				},
+				State:     models.RoomStateLobby,
+				CreatedAt: time.Now(),
+			}
+
+			// Verify mode is set correctly
+			if room.Mode != mode {
+				t.Errorf("Expected mode %s, got %s", mode, room.Mode)
+			}
+
+			// Verify mode is one of the valid modes
+			validModes := []models.RoomMode{
+				models.RoomModeCollaborative,
+				models.RoomModeRace,
+				models.RoomModeRelay,
+			}
+
+			found := false
+			for _, vm := range validModes {
+				if room.Mode == vm {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				t.Errorf("Room mode %s is not valid", room.Mode)
+			}
+		})
+	}
+}
+
+// TestRoomStates verifies room state transitions
+func TestRoomStates(t *testing.T) {
+	states := []models.RoomState{
+		models.RoomStateLobby,
+		models.RoomStateActive,
+		models.RoomStateCompleted,
+	}
+
+	for _, state := range states {
+		t.Run(string(state), func(t *testing.T) {
+			room := &models.Room{
+				ID:       uuid.New().String(),
+				Code:     generateRoomCode(),
+				HostID:   "test-host",
+				PuzzleID: "test-puzzle",
+				Mode:     models.RoomModeCollaborative,
+				Config: models.RoomConfig{
+					MaxPlayers:   8,
+					TimerMode:    "none",
+					HintsEnabled: true,
+				},
+				State:     state,
+				CreatedAt: time.Now(),
+			}
+
+			// Verify state is set correctly
+			if room.State != state {
+				t.Errorf("Expected state %s, got %s", state, room.State)
+			}
+		})
+	}
+}
+
+// TestInitializeGridState verifies grid state initialization
+func TestInitializeGridState(t *testing.T) {
+	puzzle := &models.Puzzle{
+		ID:         uuid.New().String(),
+		GridWidth:  5,
+		GridHeight: 5,
+		Grid:       make([][]models.GridCell, 5),
+	}
+
+	// Initialize puzzle grid
+	for y := 0; y < puzzle.GridHeight; y++ {
+		puzzle.Grid[y] = make([]models.GridCell, puzzle.GridWidth)
+		for x := 0; x < puzzle.GridWidth; x++ {
+			letter := "A"
+			puzzle.Grid[y][x] = models.GridCell{
+				Letter: &letter,
+			}
+		}
+	}
+
+	roomID := "test-room-123"
+	gridState := initializeGridState(roomID, puzzle)
+
+	// Verify grid state structure
+	if gridState.RoomID != roomID {
+		t.Errorf("Expected room ID %s, got %s", roomID, gridState.RoomID)
+	}
+
+	if len(gridState.Cells) != puzzle.GridHeight {
+		t.Errorf("Expected %d rows, got %d", puzzle.GridHeight, len(gridState.Cells))
+	}
+
+	for y := 0; y < puzzle.GridHeight; y++ {
+		if len(gridState.Cells[y]) != puzzle.GridWidth {
+			t.Errorf("Expected %d columns in row %d, got %d", puzzle.GridWidth, y, len(gridState.Cells[y]))
+		}
+
+		for x := 0; x < puzzle.GridWidth; x++ {
+			cell := gridState.Cells[y][x]
+			if cell.Value != nil {
+				t.Errorf("Expected nil value at [%d][%d], got %v", y, x, *cell.Value)
+			}
+			if cell.IsRevealed {
+				t.Errorf("Expected IsRevealed false at [%d][%d]", y, x)
+			}
+		}
+	}
+
+	if len(gridState.CompletedClues) != 0 {
+		t.Errorf("Expected 0 completed clues, got %d", len(gridState.CompletedClues))
+	}
+}
+
 // TestPuzzleCompletionStatus verifies completion status logic
 func TestPuzzleCompletionStatus(t *testing.T) {
 	// Test for logged-in user

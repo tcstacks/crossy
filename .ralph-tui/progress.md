@@ -154,3 +154,51 @@ ving the room\n  - Broadcast `room_deleted` event to all remaining players\n  - 
 ackend broadcasts the change to all connected players instantly\n3. **Contribution Tracking**: Each time a player enters a NEW correct answer (not previously correct), their contribution counter increments\n4. **Completion Detection**: After every cell update, the backend checks if all cells are 100% correct, then calculates contribution percentages and broadcasts results\n5. **Results Display**: The ResultsModal shows each player's contribution as a percentage with color-coded progress bars\n\n
 
 ---
+## ✓ Iteration 17 - US-018: Cursor tracking for multiplayer
+*2026-01-18T03:05:43.164Z (326s)*
+
+**Status:** Completed
+
+**Notes:**
+n- ✅ `.player-cursor` - Colored border overlay with pulse animation, 0.8 opacity\n- ✅ `.player-cursor-label` - Floating player name with background color, positioned above cell\n\n### Quality Checks\n- ✅ Backend tests pass: `cd backend && go test ./...`\n- ✅ Frontend typecheck passes: `cd frontend && npm run typecheck`\n- ✅ Frontend lint passes: `cd frontend && npm run lint` (1 unrelated warning)\n\n### Commit\nAll changes committed: `feat: US-018 - Cursor tracking for multiplayer` (fe78e1c)\n\n
+
+---
+## ✓ Iteration 18 - US-019: Live chat system
+*2026-01-18T03:08:00.000Z (0s)*
+
+**Status:** Completed (Already Implemented)
+
+**Notes:**
+### Verification Summary
+
+The chat system was already fully implemented in the initial codebase (commit 812d12b). All acceptance criteria have been verified:
+
+**Backend Implementation (backend/internal/realtime/hub.go:594-636):**
+- ✅ `handleSendMessage` receives chat messages via WebSocket
+- ✅ Creates Message model with UUID, timestamps, and user info
+- ✅ Saves messages to database via `CreateMessage`
+- ✅ Broadcasts to all room participants via `broadcastToRoom`
+- ✅ `GetRoomMessages(roomID, 50)` retrieves last 50 messages on room join
+
+**Frontend Implementation (frontend/src/components/Chat.tsx):**
+- ✅ Form submission on Enter key (line 91: `onSubmit={handleSubmit}`)
+- ✅ Real-time message display (useWebSocket hook integrates with game store)
+- ✅ Timestamp formatting (line 40-43: `formatTime` converts to HH:MM)
+- ✅ Color-coded usernames (line 32-38: `getPlayerColor` matches cursor colors)
+- ✅ Auto-scroll to newest (line 16-19: `messagesEndRef.current?.scrollIntoView`)
+- ✅ Message history limit of 50 (backend enforces on join)
+
+**Database Schema (backend/internal/db/db.go:145-154):**
+- ✅ messages table with proper foreign keys and indexes
+- ✅ Stores id, room_id, user_id, display_name, text, created_at
+
+### Quality Checks - All Passing ✅
+- ✅ `cd backend && go test ./...` - All tests pass
+- ✅ `cd frontend && npm run typecheck` - No type errors
+- ✅ `cd frontend && npm run lint` - Passes (1 unrelated warning)
+
+### Result
+No code changes were needed. The feature was complete and all acceptance criteria are met.
+
+---
+

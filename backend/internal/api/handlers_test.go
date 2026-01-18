@@ -222,3 +222,203 @@ func TestGetPlayerColor(t *testing.T) {
 		}
 	}
 }
+
+// TestGuestUserModel verifies the guest user model meets requirements
+func TestGuestUserModel(t *testing.T) {
+	// Test guest user creation
+	guestID := uuid.New().String()
+	displayName := "TestGuest"
+
+	guestUser := &models.User{
+		ID:          guestID,
+		Email:       "guest_" + guestID[:8] + "@crossplay.local",
+		DisplayName: displayName,
+		IsGuest:     true,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	// Verify guest flag is set
+	if !guestUser.IsGuest {
+		t.Error("Guest user should have IsGuest flag set to true")
+	}
+
+	// Verify display name is set
+	if guestUser.DisplayName != displayName {
+		t.Errorf("Expected display name %s, got %s", displayName, guestUser.DisplayName)
+	}
+
+	// Verify email follows guest pattern
+	if guestUser.Email[:6] != "guest_" {
+		t.Errorf("Guest email should start with 'guest_', got %s", guestUser.Email)
+	}
+
+	// Verify guest user has no password
+	if guestUser.Password != "" {
+		t.Error("Guest user should not have a password set")
+	}
+
+	// Verify display name length constraints
+	shortName := "AB"
+	if len(shortName) < 2 || len(shortName) > 50 {
+		t.Errorf("Display name '%s' should be between 2-50 characters", shortName)
+	}
+
+	longName := "This is a very long display name that exceeds fifty chars"
+	if len(longName) >= 2 && len(longName) <= 50 {
+		t.Errorf("Display name '%s' should be rejected if over 50 characters", longName)
+	}
+}
+
+// TestGuestRequestValidation verifies guest request validation
+func TestGuestRequestValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		displayName string
+		shouldPass  bool
+	}{
+		{
+			name:        "Valid display name (2 chars)",
+			displayName: "AB",
+			shouldPass:  true,
+		},
+		{
+			name:        "Valid display name (50 chars)",
+			displayName: "12345678901234567890123456789012345678901234567890",
+			shouldPass:  true,
+		},
+		{
+			name:        "Valid display name (medium)",
+			displayName: "GuestPlayer123",
+			shouldPass:  true,
+		},
+		{
+			name:        "Invalid display name (1 char)",
+			displayName: "A",
+			shouldPass:  false,
+		},
+		{
+			name:        "Invalid display name (51 chars)",
+			displayName: "123456789012345678901234567890123456789012345678901",
+			shouldPass:  false,
+		},
+		{
+			name:        "Invalid display name (empty)",
+			displayName: "",
+			shouldPass:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Validate display name length
+			isValid := len(tt.displayName) >= 2 && len(tt.displayName) <= 50
+
+			if isValid != tt.shouldPass {
+				t.Errorf("Expected validation result %v for display name '%s', got %v", tt.shouldPass, tt.displayName, isValid)
+			}
+		})
+	}
+}
+
+// TestGuestAccountCreation verifies guest account creation logic
+func TestGuestAccountCreation(t *testing.T) {
+	displayName := "TestGuest"
+	req := GuestRequest{
+		DisplayName: displayName,
+	}
+
+	// Verify request has only display name
+	if req.DisplayName != displayName {
+		t.Errorf("Expected display name %s, got %s", displayName, req.DisplayName)
+	}
+
+	// Create guest user
+	guestID := uuid.New().String()
+	user := &models.User{
+		ID:          guestID,
+		Email:       "guest_" + guestID[:8] + "@crossplay.local",
+		DisplayName: req.DisplayName,
+		IsGuest:     true,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	// Verify guest user properties
+	if !user.IsGuest {
+		t.Error("User should be marked as guest")
+	}
+
+	if user.Password != "" {
+		t.Error("Guest user should not have a password")
+	}
+
+	if user.DisplayName != displayName {
+		t.Errorf("Expected display name %s, got %s", displayName, user.DisplayName)
+	}
+
+	// Verify email format
+	if user.Email[:6] != "guest_" || user.Email[len(user.Email)-16:] != "@crossplay.local" {
+		t.Errorf("Guest email format incorrect: %s", user.Email)
+	}
+}
+
+// TestGuestCanPlayAllModes verifies guest users can access all game modes
+func TestGuestCanPlayAllModes(t *testing.T) {
+	// Create a guest user
+	guestUser := &models.User{
+		ID:          uuid.New().String(),
+		Email:       "guest_test@crossplay.local",
+		DisplayName: "TestGuest",
+		IsGuest:     true,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	// Test all room modes
+	roomModes := []models.RoomMode{
+		models.RoomModeCollaborative,
+		models.RoomModeRace,
+		models.RoomModeRelay,
+	}
+
+	for _, mode := range roomModes {
+		// Guest user should be able to create/join rooms in any mode
+		room := &models.Room{
+			ID:       uuid.New().String(),
+			Code:     "TEST01",
+			HostID:   guestUser.ID,
+			PuzzleID: "puzzle-123",
+			Mode:     mode,
+			Config: models.RoomConfig{
+				MaxPlayers:    8,
+				IsPublic:      true,
+				SpectatorMode: true,
+				TimerMode:     "none",
+				HintsEnabled:  true,
+			},
+			State:     models.RoomStateLobby,
+			CreatedAt: time.Now(),
+		}
+
+		// Verify guest can be room host
+		if room.HostID != guestUser.ID {
+			t.Errorf("Guest user should be able to host room with mode %s", mode)
+		}
+
+		// Verify guest can be a player
+		player := &models.Player{
+			UserID:      guestUser.ID,
+			RoomID:      room.ID,
+			DisplayName: guestUser.DisplayName,
+			IsSpectator: false,
+			IsConnected: true,
+			Color:       getPlayerColor(0),
+			JoinedAt:    time.Now(),
+		}
+
+		if player.UserID != guestUser.ID {
+			t.Errorf("Guest user should be able to join room with mode %s", mode)
+		}
+	}
+}

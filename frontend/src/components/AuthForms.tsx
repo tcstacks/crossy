@@ -72,7 +72,7 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
     setError(null);
 
     try {
-      const response = await api.guest(guestDisplayName || 'Guest');
+      const response = await api.guest(guestDisplayName);
       api.setToken(response.token);
       setUser(response.user, response.token);
       onSuccess?.();
@@ -249,7 +249,7 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
         <form onSubmit={handleGuest} className="space-y-4">
           <div>
             <label htmlFor="guest-name" className="block text-sm font-medium text-purple-700 mb-1">
-              Display Name (optional)
+              Display Name
             </label>
             <input
               id="guest-name"
@@ -257,9 +257,14 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
               value={guestDisplayName}
               onChange={(e) => setGuestDisplayName(e.target.value)}
               className="input"
-              placeholder="Guest"
+              placeholder="Enter your name"
+              required
+              minLength={2}
               maxLength={50}
             />
+            <p className="mt-1 text-xs text-purple-500">
+              2-50 characters
+            </p>
           </div>
           <button
             type="submit"

@@ -358,6 +358,343 @@ func TestIsEntryFilled(t *testing.T) {
 	}
 }
 
+func TestConflictsWithFilled(t *testing.T) {
+	tests := []struct {
+		name          string
+		setupEntry    func() *grid.Entry
+		word          string
+		wantConflict  bool
+	}{
+		{
+			name: "no conflicts - all cells empty",
+			setupEntry: func() *grid.Entry {
+				return &grid.Entry{
+					Length: 4,
+					Cells: []*grid.Cell{
+						{Row: 0, Col: 0, Letter: 0},
+						{Row: 0, Col: 1, Letter: 0},
+						{Row: 0, Col: 2, Letter: 0},
+						{Row: 0, Col: 3, Letter: 0},
+					},
+				}
+			},
+			word:         "JAZZ",
+			wantConflict: false,
+		},
+		{
+			name: "no conflicts - matching crossing letter",
+			setupEntry: func() *grid.Entry {
+				return &grid.Entry{
+					Length: 4,
+					Cells: []*grid.Cell{
+						{Row: 0, Col: 0, Letter: 0},
+						{Row: 0, Col: 1, Letter: 'A'},
+						{Row: 0, Col: 2, Letter: 0},
+						{Row: 0, Col: 3, Letter: 0},
+					},
+				}
+			},
+			word:         "JAZZ",
+			wantConflict: false,
+		},
+		{
+			name: "no conflicts - all letters match",
+			setupEntry: func() *grid.Entry {
+				return &grid.Entry{
+					Length: 4,
+					Cells: []*grid.Cell{
+						{Row: 0, Col: 0, Letter: 'J'},
+						{Row: 0, Col: 1, Letter: 'A'},
+						{Row: 0, Col: 2, Letter: 'Z'},
+						{Row: 0, Col: 3, Letter: 'Z'},
+					},
+				}
+			},
+			word:         "JAZZ",
+			wantConflict: false,
+		},
+		{
+			name: "conflict - first letter differs",
+			setupEntry: func() *grid.Entry {
+				return &grid.Entry{
+					Length: 4,
+					Cells: []*grid.Cell{
+						{Row: 0, Col: 0, Letter: 'C'},
+						{Row: 0, Col: 1, Letter: 0},
+						{Row: 0, Col: 2, Letter: 0},
+						{Row: 0, Col: 3, Letter: 0},
+					},
+				}
+			},
+			word:         "JAZZ",
+			wantConflict: true,
+		},
+		{
+			name: "conflict - middle letter differs",
+			setupEntry: func() *grid.Entry {
+				return &grid.Entry{
+					Length: 4,
+					Cells: []*grid.Cell{
+						{Row: 0, Col: 0, Letter: 0},
+						{Row: 0, Col: 1, Letter: 'X'},
+						{Row: 0, Col: 2, Letter: 0},
+						{Row: 0, Col: 3, Letter: 0},
+					},
+				}
+			},
+			word:         "JAZZ",
+			wantConflict: true,
+		},
+		{
+			name: "conflict - last letter differs",
+			setupEntry: func() *grid.Entry {
+				return &grid.Entry{
+					Length: 4,
+					Cells: []*grid.Cell{
+						{Row: 0, Col: 0, Letter: 0},
+						{Row: 0, Col: 1, Letter: 0},
+						{Row: 0, Col: 2, Letter: 0},
+						{Row: 0, Col: 3, Letter: 'Y'},
+					},
+				}
+			},
+			word:         "JAZZ",
+			wantConflict: true,
+		},
+		{
+			name: "conflict - multiple letters differ",
+			setupEntry: func() *grid.Entry {
+				return &grid.Entry{
+					Length: 4,
+					Cells: []*grid.Cell{
+						{Row: 0, Col: 0, Letter: 'C'},
+						{Row: 0, Col: 1, Letter: 'A'},
+						{Row: 0, Col: 2, Letter: 'T'},
+						{Row: 0, Col: 3, Letter: 'S'},
+					},
+				}
+			},
+			word:         "JAZZ",
+			wantConflict: true,
+		},
+		{
+			name: "no conflicts - partial fill with matching letters",
+			setupEntry: func() *grid.Entry {
+				return &grid.Entry{
+					Length: 4,
+					Cells: []*grid.Cell{
+						{Row: 0, Col: 0, Letter: 'J'},
+						{Row: 0, Col: 1, Letter: 0},
+						{Row: 0, Col: 2, Letter: 'Z'},
+						{Row: 0, Col: 3, Letter: 0},
+					},
+				}
+			},
+			word:         "JAZZ",
+			wantConflict: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			entry := tt.setupEntry()
+			got := conflictsWithFilled(entry, tt.word)
+			if got != tt.wantConflict {
+				t.Errorf("conflictsWithFilled() = %v, want %v", got, tt.wantConflict)
+			}
+		})
+	}
+}
+
+func TestConflictsWithFilled_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name          string
+		entry         *grid.Entry
+		word          string
+		wantConflict  bool
+		description   string
+	}{
+		{
+			name:          "nil entry",
+			entry:         nil,
+			word:          "TEST",
+			wantConflict:  true,
+			description:   "nil entry should be treated as a conflict",
+		},
+		{
+			name: "word length mismatch - too short",
+			entry: &grid.Entry{
+				Length: 4,
+				Cells: []*grid.Cell{
+					{Letter: 0},
+					{Letter: 0},
+					{Letter: 0},
+					{Letter: 0},
+				},
+			},
+			word:          "CAT",
+			wantConflict:  true,
+			description:   "word shorter than entry should be treated as a conflict",
+		},
+		{
+			name: "word length mismatch - too long",
+			entry: &grid.Entry{
+				Length: 3,
+				Cells: []*grid.Cell{
+					{Letter: 0},
+					{Letter: 0},
+					{Letter: 0},
+				},
+			},
+			word:          "CATS",
+			wantConflict:  true,
+			description:   "word longer than entry should be treated as a conflict",
+		},
+		{
+			name: "cells array mismatch",
+			entry: &grid.Entry{
+				Length: 4,
+				Cells: []*grid.Cell{
+					{Letter: 0},
+					{Letter: 0},
+				},
+			},
+			word:          "JAZZ",
+			wantConflict:  true,
+			description:   "word length not matching cells length should be treated as a conflict",
+		},
+		{
+			name: "empty entry with empty word",
+			entry: &grid.Entry{
+				Length: 0,
+				Cells:  []*grid.Cell{},
+			},
+			word:          "",
+			wantConflict:  false,
+			description:   "empty entry with empty word should not conflict",
+		},
+		{
+			name: "single letter - no conflict",
+			entry: &grid.Entry{
+				Length: 1,
+				Cells: []*grid.Cell{
+					{Letter: 0},
+				},
+			},
+			word:          "A",
+			wantConflict:  false,
+			description:   "single letter with empty cell should not conflict",
+		},
+		{
+			name: "single letter - matching",
+			entry: &grid.Entry{
+				Length: 1,
+				Cells: []*grid.Cell{
+					{Letter: 'A'},
+				},
+			},
+			word:          "A",
+			wantConflict:  false,
+			description:   "single letter matching should not conflict",
+		},
+		{
+			name: "single letter - conflict",
+			entry: &grid.Entry{
+				Length: 1,
+				Cells: []*grid.Cell{
+					{Letter: 'B'},
+				},
+			},
+			word:          "A",
+			wantConflict:  true,
+			description:   "single letter not matching should conflict",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := conflictsWithFilled(tt.entry, tt.word)
+			if got != tt.wantConflict {
+				t.Errorf("conflictsWithFilled() = %v, want %v - %s", got, tt.wantConflict, tt.description)
+			}
+		})
+	}
+}
+
+func TestConflictsWithFilled_RealWorldScenario(t *testing.T) {
+	// Simulate a real crossword scenario with multiple crossing words
+	g := grid.NewEmptyGrid(grid.GridConfig{Size: 5})
+
+	// Place an ACROSS word "CATS" at (1, 1)
+	acrossEntry := &grid.Entry{
+		Direction: grid.ACROSS,
+		StartRow:  1,
+		StartCol:  1,
+		Length:    4,
+		Cells: []*grid.Cell{
+			g.Cells[1][1],
+			g.Cells[1][2],
+			g.Cells[1][3],
+			g.Cells[1][4],
+		},
+	}
+
+	err := placeWord(acrossEntry, "CATS")
+	if err != nil {
+		t.Fatalf("placeWord() error = %v", err)
+	}
+
+	// Now try to place a DOWN word crossing at (1, 2)
+	downEntry := &grid.Entry{
+		Direction: grid.DOWN,
+		StartRow:  0,
+		StartCol:  2,
+		Length:    4,
+		Cells: []*grid.Cell{
+			g.Cells[0][2],
+			g.Cells[1][2], // Crossing with CATS (should have 'A')
+			g.Cells[2][2],
+			g.Cells[3][2],
+		},
+	}
+
+	tests := []struct {
+		name          string
+		word          string
+		wantConflict  bool
+	}{
+		{
+			name:          "compatible word - BARN (has 'A' in position 1)",
+			word:          "BARN",
+			wantConflict:  false,
+		},
+		{
+			name:          "compatible word - CAST (has 'A' in position 1)",
+			word:          "CAST",
+			wantConflict:  false,
+		},
+		{
+			name:          "incompatible word - COIN (has 'O' in position 1, not 'A')",
+			word:          "COIN",
+			wantConflict:  true,
+		},
+		{
+			name:          "incompatible word - BEST (has 'E' in position 1, not 'A')",
+			word:          "BEST",
+			wantConflict:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := conflictsWithFilled(downEntry, tt.word)
+			if got != tt.wantConflict {
+				t.Errorf("conflictsWithFilled() = %v, want %v for word %q", got, tt.wantConflict, tt.word)
+			}
+		})
+	}
+}
+
 // Helper function to check if a string contains a substring
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||

@@ -102,3 +102,34 @@ func isEntryFilled(entry *grid.Entry) bool {
 
 	return true
 }
+
+// conflictsWithFilled checks if a word conflicts with existing filled cells.
+// It verifies that all crossing letters in the grid match the corresponding
+// letters in the candidate word.
+//
+// Parameters:
+//   - entry: The entry to check
+//   - word: The candidate word to place
+//
+// Returns:
+//   - true if any crossing letter differs (conflict exists)
+//   - false if all crossings are compatible or unfilled
+func conflictsWithFilled(entry *grid.Entry, word string) bool {
+	if entry == nil || len(word) != entry.Length || len(word) != len(entry.Cells) {
+		return true // Invalid input is treated as a conflict
+	}
+
+	// Check each cell in the entry
+	for i, cell := range entry.Cells {
+		// If the cell is already filled (has a letter)
+		if cell.Letter != 0 {
+			// Check if the letter matches the word at this position
+			if cell.Letter != rune(word[i]) {
+				return true // Conflict found
+			}
+		}
+	}
+
+	// No conflicts found
+	return false
+}

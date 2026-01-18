@@ -134,7 +134,7 @@ export default function RoomPage() {
 
   // Handle puzzle completion
   useEffect(() => {
-    if (solveTime !== null) {
+    if (solveTime !== null && !showResults) {
       setResults({
         solveTime,
         players: players.map((p) => ({
@@ -146,7 +146,7 @@ export default function RoomPage() {
       });
       setShowResults(true);
     }
-  }, [solveTime, players]);
+  }, [solveTime, players, showResults]);
 
   // Track unread messages when chat is closed
   const prevMessageCountRef = useRef(messages.length);

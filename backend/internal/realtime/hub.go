@@ -307,11 +307,12 @@ func (h *Hub) handleJoinRoom(client *Client, payload json.RawMessage) {
 	hubRoom, exists := h.rooms[room.ID]
 	if !exists {
 		hubRoom = &Room{
-			ID:          room.ID,
-			Code:        room.Code,
-			Mode:        room.Mode,
-			Clients:     make(map[string]*Client),
-			FinishOrder: []string{},
+			ID:              room.ID,
+			Code:            room.Code,
+			Mode:            room.Mode,
+			Clients:         make(map[string]*Client),
+			FinishOrder:     []string{},
+			ContributionMap: make(map[string]int),
 		}
 		h.rooms[room.ID] = hubRoom
 	}
@@ -803,11 +804,17 @@ func (h *Hub) handleStartGame(client *Client) {
 	// Update room state
 	h.db.UpdateRoomState(room.ID, models.RoomStateActive)
 
-	// Set start time
+	// Set start time and initialize contribution tracking for collaborative mode
 	h.mutex.Lock()
 	if hubRoom, exists := h.rooms[room.ID]; exists {
 		now := time.Now()
 		hubRoom.StartTime = &now
+		// Initialize contribution map for collaborative mode
+		if room.Mode == models.RoomModeCollaborative {
+			if hubRoom.ContributionMap == nil {
+				hubRoom.ContributionMap = make(map[string]int)
+			}
+		}
 	}
 	h.mutex.Unlock()
 

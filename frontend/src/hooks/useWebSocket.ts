@@ -206,7 +206,27 @@ export function useWebSocket(roomCode?: string) {
       }
 
       case 'puzzle_completed': {
-        const data = payload as { solveTime: number };
+        const data = payload as {
+          solveTime: number;
+          players: Array<{
+            userId: string;
+            displayName: string;
+            contribution: number;
+            color: string;
+          }>;
+          completedAt: string;
+        };
+
+        // Update player contributions in the store
+        if (data.players) {
+          const currentPlayers = useGameStore.getState().players;
+          const updatedPlayers = currentPlayers.map(player => {
+            const result = data.players.find(p => p.userId === player.userId);
+            return result ? { ...player, contribution: result.contribution } : player;
+          });
+          useGameStore.getState().setPlayers(updatedPlayers);
+        }
+
         endGame(data.solveTime);
         break;
       }

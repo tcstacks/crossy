@@ -6,13 +6,15 @@ import { Header } from '@/components/Header';
 import { useGameStore } from '@/store/gameStore';
 import { api } from '@/lib/api';
 import { formatTime } from '@/lib/utils';
-import type { UserStats } from '@/types';
+import type { UserStats, PuzzleHistory } from '@/types';
 
 export default function ProfilePage() {
   const router = useRouter();
   const { isAuthenticated, user, logout } = useGameStore();
   const [stats, setStats] = useState<UserStats | null>(null);
+  const [history, setHistory] = useState<PuzzleHistory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -31,7 +33,19 @@ export default function ProfilePage() {
       }
     };
 
+    const loadHistory = async () => {
+      try {
+        const data = await api.getMyHistory(10, 0);
+        setHistory(data);
+      } catch (err) {
+        console.error('Failed to load history:', err);
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    };
+
     loadStats();
+    loadHistory();
   }, [isAuthenticated, router]);
 
   const handleLogout = () => {
@@ -128,9 +142,58 @@ export default function ProfilePage() {
         {/* Recent Activity */}
         <div className="card mb-6">
           <h2 className="font-bold text-lg mb-4">Recent Activity</h2>
-          <p className="text-center text-gray-500 py-8">
-            Your puzzle history will appear here
-          </p>
+
+          {isLoadingHistory ? (
+            <div className="flex justify-center py-8">
+              <div className="spinner w-8 h-8" />
+            </div>
+          ) : history.length > 0 ? (
+            <div className="space-y-3">
+              {history.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">Puzzle #{entry.puzzleId.slice(0, 8)}</span>
+                      {entry.completed && (
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                          Completed
+                        </span>
+                      )}
+                      {entry.roomId && (
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                          Multiplayer
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-sm text-gray-500 mt-1">
+                      {new Date(entry.completedAt || entry.createdAt).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <div className="flex gap-6 text-sm">
+                    <div className="text-center">
+                      <div className="font-bold text-primary-600">{formatTime(entry.solveTime)}</div>
+                      <div className="text-xs text-gray-500">Time</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="font-bold text-primary-600">{entry.accuracy.toFixed(0)}%</div>
+                      <div className="text-xs text-gray-500">Accuracy</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="font-bold text-primary-600">{entry.hintsUsed}</div>
+                      <div className="text-xs text-gray-500">Hints</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-center text-gray-500 py-8">
+              No puzzle history yet. Start solving puzzles!
+            </p>
+          )}
         </div>
 
         {/* Account Actions */}

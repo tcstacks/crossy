@@ -1,4 +1,4 @@
-import type { AuthResponse, Puzzle, Room, Player, RoomConfig, RoomMode, UserStats, User, GridCell, GameGridState } from '@/types';
+import type { AuthResponse, Puzzle, Room, Player, RoomConfig, RoomMode, UserStats, User, GridCell, GameGridState, PuzzleHistory } from '@/types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
@@ -187,11 +187,29 @@ class ApiClient {
     }
   }
 
-  async getMyHistory(_limit = 20, _offset = 0): Promise<unknown[]> {
+  async getMyHistory(_limit = 20, _offset = 0): Promise<PuzzleHistory[]> {
     try {
       return await this.request(`/users/me/history?limit=${_limit}&offset=${_offset}`);
     } catch {
       return [];
+    }
+  }
+
+  async savePuzzleHistory(data: {
+    puzzleId: string;
+    solveTime: number;
+    completed: boolean;
+    accuracy: number;
+    hintsUsed: number;
+  }): Promise<void> {
+    try {
+      await this.request('/users/me/history', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    } catch (error) {
+      console.warn('Failed to save puzzle history:', error);
+      // Fail silently for now
     }
   }
 

@@ -75,8 +75,37 @@ export default function PuzzlePage() {
       endGame(solveTime);
       setCompletionTime(solveTime);
       setShowResults(true);
+
+      // Calculate accuracy: correct cells / total cells
+      let totalCells = 0;
+      let correctCells = 0;
+
+      puzzle.grid.forEach((row, y) => {
+        row.forEach((cell, x) => {
+          if (cell.letter !== null) {
+            totalCells++;
+            const userCell = cells[y]?.[x];
+            if (userCell?.value?.toUpperCase() === cell.letter?.toUpperCase()) {
+              correctCells++;
+            }
+          }
+        });
+      });
+
+      const accuracy = totalCells > 0 ? (correctCells / totalCells) * 100 : 0;
+
+      // Save puzzle history
+      api.savePuzzleHistory({
+        puzzleId: puzzle.id,
+        solveTime,
+        completed: true,
+        accuracy,
+        hintsUsed,
+      }).catch((err) => {
+        console.error('Failed to save puzzle history:', err);
+      });
     }
-  }, [cells, puzzle, startTime, endGame]);
+  }, [cells, puzzle, startTime, endGame, hintsUsed]);
 
   const handleRevealLetter = useCallback(() => {
     if (!selectedCell || !puzzle) return;

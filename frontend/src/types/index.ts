@@ -19,6 +19,19 @@ export interface UserStats {
   lastPlayedAt?: string;
 }
 
+export interface PuzzleHistory {
+  id: string;
+  userId: string;
+  puzzleId: string;
+  roomId?: string;
+  solveTime: number;
+  completed: boolean;
+  accuracy: number;
+  hintsUsed: number;
+  completedAt?: string;
+  createdAt: string;
+}
+
 // Puzzle types
 export type Difficulty = 'easy' | 'medium' | 'hard';
 

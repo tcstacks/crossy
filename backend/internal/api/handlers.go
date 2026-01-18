@@ -226,6 +226,56 @@ func (h *Handlers) GetMyHistory(c *gin.Context) {
 	c.JSON(http.StatusOK, history)
 }
 
+func (h *Handlers) SavePuzzleHistory(c *gin.Context) {
+	claims := middleware.GetAuthUser(c)
+	if claims == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	var req struct {
+		PuzzleID  string `json:"puzzleId" binding:"required"`
+		SolveTime int    `json:"solveTime" binding:"required"`
+		Completed bool   `json:"completed"`
+		Accuracy  float64 `json:"accuracy" binding:"required,min=0,max=100"`
+		HintsUsed int    `json:"hintsUsed" binding:"min=0"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	// Verify puzzle exists
+	puzzle, err := h.db.GetPuzzleByID(req.PuzzleID)
+	if err != nil || puzzle == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "puzzle not found"})
+		return
+	}
+
+	now := time.Now()
+	history := &models.PuzzleHistory{
+		ID:          uuid.New().String(),
+		UserID:      claims.UserID,
+		PuzzleID:    req.PuzzleID,
+		RoomID:      nil, // Solo play
+		SolveTime:   req.SolveTime,
+		Completed:   req.Completed,
+		Accuracy:    req.Accuracy,
+		HintsUsed:   req.HintsUsed,
+		CompletedAt: &now,
+		CreatedAt:   now,
+	}
+
+	if err := h.db.CreatePuzzleHistory(history); err != nil {
+		log.Printf("Failed to save puzzle history: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save history"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, history)
+}
+
 // Puzzle Handlers
 
 func (h *Handlers) GetTodayPuzzle(c *gin.Context) {

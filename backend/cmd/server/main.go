@@ -101,6 +101,7 @@ func main() {
 				usersGroup.GET("/me", handlers.GetMe)
 				usersGroup.GET("/me/stats", handlers.GetMyStats)
 				usersGroup.GET("/me/history", handlers.GetMyHistory)
+				usersGroup.POST("/me/history", handlers.SavePuzzleHistory)
 			} else {
 				usersGroup.GET("/me", demoUserHandler)
 				usersGroup.GET("/me/stats", demoStatsHandler)

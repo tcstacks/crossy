@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useGameStore } from '@/store/gameStore';
-import type { WSMessage, WSMessageType, Player, Message, RaceProgressPayload, PlayerFinishedPayload, TurnChangedPayload } from '@/types';
+import type { WSMessage, WSMessageType, Player, Message, RaceProgressPayload, PlayerFinishedPayload, TurnChangedPayload, ReactionAddedPayload, Reaction } from '@/types';
 
 const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080';
 
@@ -28,6 +28,9 @@ export function useWebSocket(roomCode?: string) {
     updateCell,
     addMessage,
     setMessages,
+    setReactions,
+    addReaction,
+    removeReaction,
     startGame,
     endGame,
     setPuzzle,
@@ -120,6 +123,7 @@ export function useWebSocket(roomCode?: string) {
           gridState?: { cells: Parameters<typeof setCells>[0] };
           puzzle?: Parameters<typeof setPuzzle>[0];
           messages?: Message[];
+          reactions?: Reaction[];
         };
         setRoom(data.room);
         setPlayers(data.players);
@@ -131,6 +135,9 @@ export function useWebSocket(roomCode?: string) {
         }
         if (data.messages) {
           setMessages(data.messages);
+        }
+        if (data.reactions) {
+          setReactions(data.reactions);
         }
         break;
       }
@@ -271,6 +278,16 @@ export function useWebSocket(roomCode?: string) {
         break;
       }
 
+      case 'reaction_added': {
+        const data = payload as ReactionAddedPayload;
+        if (data.action === 'removed' || data.emoji === '') {
+          removeReaction(data.userId, data.clueId);
+        } else {
+          addReaction(data.userId, data.clueId, data.emoji);
+        }
+        break;
+      }
+
       case 'room_deleted': {
         const data = payload as { reason: string };
         console.log('Room deleted:', data.reason);
@@ -296,6 +313,9 @@ export function useWebSocket(roomCode?: string) {
     updateCell,
     addMessage,
     setMessages,
+    setReactions,
+    addReaction,
+    removeReaction,
     startGame,
     endGame,
     setPuzzle,

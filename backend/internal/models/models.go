@@ -188,7 +188,7 @@ type Message struct {
 type Reaction struct {
 	ID        string    `json:"id"`
 	RoomID    string    `json:"roomId"`
-	UserID    string    `json:"useriId"`
+	UserID    string    `json:"userId"`
 	ClueID    string    `json:"clueId"` // format: "across-1" or "down-5"
 	Emoji     string    `json:"emoji"`
 	CreatedAt time.Time `json:"createdAt"`

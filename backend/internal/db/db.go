@@ -899,6 +899,61 @@ func (d *Database) DeleteSession(ctx context.Context, token string) error {
 	return d.Redis.Del(ctx, "session:"+token).Err()
 }
 
+// Reaction operations
+func (d *Database) AddOrUpdateReaction(reaction *models.Reaction) error {
+	_, err := d.DB.Exec(`
+		INSERT INTO reactions (id, room_id, user_id, clue_id, emoji, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		ON CONFLICT (room_id, user_id, clue_id, emoji) DO UPDATE SET
+			created_at = EXCLUDED.created_at
+	`, reaction.ID, reaction.RoomID, reaction.UserID, reaction.ClueID, reaction.Emoji, reaction.CreatedAt)
+	return err
+}
+
+func (d *Database) RemoveReaction(roomID, userID, clueID string) error {
+	_, err := d.DB.Exec(`
+		DELETE FROM reactions WHERE room_id = $1 AND user_id = $2 AND clue_id = $3
+	`, roomID, userID, clueID)
+	return err
+}
+
+func (d *Database) GetRoomReactions(roomID string) ([]models.Reaction, error) {
+	rows, err := d.DB.Query(`
+		SELECT id, room_id, user_id, clue_id, emoji, created_at
+		FROM reactions WHERE room_id = $1
+		ORDER BY created_at ASC
+	`, roomID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var reactions []models.Reaction
+	for rows.Next() {
+		var r models.Reaction
+		err := rows.Scan(&r.ID, &r.RoomID, &r.UserID, &r.ClueID, &r.Emoji, &r.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		reactions = append(reactions, r)
+	}
+
+	return reactions, nil
+}
+
+func (d *Database) GetUserReactionForClue(roomID, userID, clueID string) (*models.Reaction, error) {
+	reaction := &models.Reaction{}
+	err := d.DB.QueryRow(`
+		SELECT id, room_id, user_id, clue_id, emoji, created_at
+		FROM reactions WHERE room_id = $1 AND user_id = $2 AND clue_id = $3
+	`, roomID, userID, clueID).Scan(&reaction.ID, &reaction.RoomID, &reaction.UserID, &reaction.ClueID, &reaction.Emoji, &reaction.CreatedAt)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	return reaction, err
+}
+
 // Redis room presence operations
 func (d *Database) SetRoomPresence(ctx context.Context, roomID, userID string) error {
 	return d.Redis.SAdd(ctx, "room:"+roomID+":presence", userID).Err()

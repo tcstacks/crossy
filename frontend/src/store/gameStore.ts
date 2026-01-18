@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { User, Puzzle, Room, Player, Cell, Message, Clue, RaceProgress } from '@/types';
+import type { User, Puzzle, Room, Player, Cell, Message, Clue, RaceProgress, Reaction } from '@/types';
 
 interface CursorPosition {
   x: number;
@@ -45,6 +45,7 @@ interface GameState {
   players: Player[];
   playerCursors: PlayerCursor[];
   messages: Message[];
+  reactions: Reaction[];
   isHost: boolean;
   raceLeaderboard: RaceProgress[];
   currentTurnUserId: string | null;
@@ -73,6 +74,9 @@ interface GameState {
   removePlayerCursor: (playerId: string) => void;
   addMessage: (message: Message) => void;
   setMessages: (messages: Message[]) => void;
+  setReactions: (reactions: Reaction[]) => void;
+  addReaction: (userId: string, clueId: string, emoji: string) => void;
+  removeReaction: (userId: string, clueId: string) => void;
   setShowChat: (show: boolean) => void;
   setShowClues: (show: boolean) => void;
   startGame: () => void;
@@ -104,6 +108,7 @@ export const useGameStore = create<GameState>()(
       players: [],
       playerCursors: [],
       messages: [],
+      reactions: [],
       isHost: false,
       raceLeaderboard: [],
       currentTurnUserId: null,
@@ -218,6 +223,39 @@ export const useGameStore = create<GameState>()(
 
       setMessages: (messages) => set({ messages }),
 
+      setReactions: (reactions) => set({ reactions }),
+
+      addReaction: (userId, clueId, emoji) => {
+        const { reactions } = get();
+        // Remove existing reaction from this user for this clue
+        const filtered = reactions.filter(
+          (r) => !(r.userId === userId && r.clueId === clueId)
+        );
+        // Add new reaction
+        set({
+          reactions: [
+            ...filtered,
+            {
+              id: `${userId}-${clueId}-${Date.now()}`,
+              roomId: get().room?.id || '',
+              userId,
+              clueId,
+              emoji,
+              createdAt: new Date().toISOString(),
+            },
+          ],
+        });
+      },
+
+      removeReaction: (userId, clueId) => {
+        const { reactions } = get();
+        set({
+          reactions: reactions.filter(
+            (r) => !(r.userId === userId && r.clueId === clueId)
+          ),
+        });
+      },
+
       setShowChat: (show) => set({ showChat: show }),
 
       setShowClues: (show) => set({ showClues: show }),
@@ -244,6 +282,7 @@ export const useGameStore = create<GameState>()(
           players: [],
           playerCursors: [],
           messages: [],
+          reactions: [],
           isHost: false,
           raceLeaderboard: [],
           hintsUsed: 0,

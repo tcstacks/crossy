@@ -89,6 +89,7 @@ type RoomStatePayload struct {
 	GridState *models.GridState `json:"gridState"`
 	Puzzle    *models.Puzzle    `json:"puzzle"`
 	Messages  []models.Message  `json:"messages"`
+	Reactions []models.Reaction `json:"reactions"`
 }
 
 type PlayerJoinedPayload struct {
@@ -336,6 +337,7 @@ func (h *Hub) handleJoinRoom(client *Client, payload json.RawMessage) {
 	gridState, _ := h.db.GetGridState(room.ID)
 	puzzle, _ := h.db.GetPuzzleByID(room.PuzzleID)
 	messages, _ := h.db.GetRoomMessages(room.ID, 50)
+	reactions, _ := h.db.GetRoomReactions(room.ID)
 
 	// Send room state to joining client
 	roomState := RoomStatePayload{
@@ -344,6 +346,7 @@ func (h *Hub) handleJoinRoom(client *Client, payload json.RawMessage) {
 		GridState: gridState,
 		Puzzle:    sanitizePuzzleForClient(puzzle),
 		Messages:  messages,
+		Reactions: reactions,
 	}
 	h.sendToClient(client, MsgRoomState, roomState)
 
@@ -913,11 +916,74 @@ func (h *Hub) handleReaction(client *Client, payload json.RawMessage) {
 		return
 	}
 
+	// Validate emoji is one of the allowed reactions
+	allowedEmojis := []string{"👍", "❤️", "😂", "🤔", "💡"}
+	isValidEmoji := false
+	for _, allowed := range allowedEmojis {
+		if p.Emoji == allowed {
+			isValidEmoji = true
+			break
+		}
+	}
+
+	// If emoji is empty, remove the user's reaction for this clue
+	if p.Emoji == "" {
+		if err := h.db.RemoveReaction(client.RoomID, client.UserID, p.ClueID); err != nil {
+			log.Printf("Failed to remove reaction: %v", err)
+			return
+		}
+
+		// Broadcast reaction removal
+		h.broadcastToRoom(client.RoomID, "", MsgReactionAdded, map[string]interface{}{
+			"userId":  client.UserID,
+			"clueId":  p.ClueID,
+			"emoji":   "",
+			"action":  "removed",
+		})
+		return
+	}
+
+	if !isValidEmoji {
+		log.Printf("Invalid emoji received: %s", p.Emoji)
+		return
+	}
+
+	// Check if user already has a reaction for this clue
+	existingReaction, err := h.db.GetUserReactionForClue(client.RoomID, client.UserID, p.ClueID)
+	if err != nil {
+		log.Printf("Failed to check existing reaction: %v", err)
+		return
+	}
+
+	// If user is changing to a different emoji, remove the old one first
+	if existingReaction != nil && existingReaction.Emoji != p.Emoji {
+		if err := h.db.RemoveReaction(client.RoomID, client.UserID, p.ClueID); err != nil {
+			log.Printf("Failed to remove old reaction: %v", err)
+			return
+		}
+	}
+
+	// Add or update the reaction
+	reaction := &models.Reaction{
+		ID:        uuid.New().String(),
+		RoomID:    client.RoomID,
+		UserID:    client.UserID,
+		ClueID:    p.ClueID,
+		Emoji:     p.Emoji,
+		CreatedAt: time.Now(),
+	}
+
+	if err := h.db.AddOrUpdateReaction(reaction); err != nil {
+		log.Printf("Failed to save reaction: %v", err)
+		return
+	}
+
 	// Broadcast reaction to room
 	h.broadcastToRoom(client.RoomID, "", MsgReactionAdded, map[string]interface{}{
 		"userId":  client.UserID,
 		"clueId":  p.ClueID,
 		"emoji":   p.Emoji,
+		"action":  "added",
 	})
 }
 

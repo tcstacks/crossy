@@ -133,6 +133,23 @@ export interface Message {
   createdAt: string;
 }
 
+// Reaction types
+export interface Reaction {
+  id: string;
+  roomId: string;
+  userId: string;
+  clueId: string;
+  emoji: string;
+  createdAt: string;
+}
+
+export interface ReactionAddedPayload {
+  userId: string;
+  clueId: string;
+  emoji: string;
+  action?: 'added' | 'removed';
+}
+
 // WebSocket message types
 export type WSMessageType =
   | 'join_room'
@@ -175,6 +192,7 @@ export interface RoomResponse {
   players: Player[];
   puzzle?: Puzzle;
   gridState?: GameGridState;
+  reactions?: Reaction[];
 }
 
 export interface PuzzleCompletedPayload {

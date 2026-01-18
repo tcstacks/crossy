@@ -4,6 +4,9 @@ import { useCallback, useRef, useEffect, useState } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { cn, getClueId } from '@/lib/utils';
 import type { Clue } from '@/types';
+import { EmojiPicker } from './EmojiPicker';
+import { ReactionDisplay } from './ReactionDisplay';
+import { useWebSocket } from '@/hooks/useWebSocket';
 
 interface CluePanelProps {
   direction: 'across' | 'down';
@@ -16,11 +19,22 @@ export function CluePanel({ direction, onClueClick }: CluePanelProps) {
     puzzle,
     selectedClue,
     completedClues,
+    reactions,
+    user,
+    room,
     setSelectedCell,
     setSelectedClue,
   } = useGameStore();
 
+  const { sendReaction } = useWebSocket(room?.code);
   const clues = direction === 'across' ? puzzle?.cluesAcross : puzzle?.cluesDown;
+
+  const handleReaction = useCallback(
+    (clueId: string, emoji: string) => {
+      sendReaction(clueId, emoji);
+    },
+    [sendReaction]
+  );
 
   const handleClueClick = useCallback(
     (clue: Clue) => {
@@ -67,6 +81,10 @@ export function CluePanel({ direction, onClueClick }: CluePanelProps) {
               selectedClue?.direction === direction;
             const isCompleted = completedClues.includes(clueId);
 
+            const currentUserReaction = reactions.find(
+              (r) => r.clueId === clueId && r.userId === user?.id
+            );
+
             return (
               <div
                 key={clue.number}
@@ -76,13 +94,22 @@ export function CluePanel({ direction, onClueClick }: CluePanelProps) {
                   isSelected && 'selected',
                   isCompleted && 'completed'
                 )}
-                onClick={() => handleClueClick(clue)}
               >
-                <div className="flex items-start gap-2">
+                <div className="flex items-start gap-2" onClick={() => handleClueClick(clue)}>
                   <span className="font-bold">{clue.number}.</span>
                   <span className="clue-text flex-1">{clue.text}</span>
                   {isCompleted && (
                     <span className="text-green-600 flex-shrink-0">✓</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 mt-1 ml-6">
+                  <ReactionDisplay clueId={clueId} reactions={reactions} />
+                  {room && (
+                    <EmojiPicker
+                      clueId={clueId}
+                      currentUserEmoji={currentUserReaction?.emoji}
+                      onEmojiSelect={(emoji) => handleReaction(clueId, emoji)}
+                    />
                   )}
                 </div>
               </div>

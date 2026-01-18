@@ -4,14 +4,15 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import type { WSMessage, WSMessageType, Player, Message } from '@/types';
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080/ws';
+const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080';
 
-export function useWebSocket() {
+export function useWebSocket(roomCode?: string) {
   const wsRef = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
   const reconnectAttemptsRef = useRef(0);
-  const maxReconnectAttempts = 5;
+  const maxReconnectAttempts = 10; // Increased for better reliability
+  const currentRoomCodeRef = useRef<string | undefined>(roomCode);
   const handleMessageRef = useRef<(message: WSMessage) => void>(() => {});
 
   const {
@@ -32,12 +33,22 @@ export function useWebSocket() {
     setPuzzle,
   } = useGameStore();
 
+  // Update current room code ref when it changes
+  useEffect(() => {
+    currentRoomCodeRef.current = roomCode;
+  }, [roomCode]);
+
   const connect = useCallback(() => {
     if (!token || wsRef.current?.readyState === WebSocket.OPEN) {
       return;
     }
 
-    const ws = new WebSocket(`${WS_URL}?token=${token}`);
+    // Use room-specific endpoint if roomCode is available
+    const wsUrl = currentRoomCodeRef.current
+      ? `${WS_BASE_URL}/api/rooms/${currentRoomCodeRef.current}/ws?token=${token}`
+      : `${WS_BASE_URL}/ws?token=${token}`;
+
+    const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
       console.log('WebSocket connected');
@@ -49,13 +60,16 @@ export function useWebSocket() {
       console.log('WebSocket disconnected');
       setIsConnected(false);
 
-      // Attempt to reconnect
+      // Attempt to reconnect with exponential backoff
       if (reconnectAttemptsRef.current < maxReconnectAttempts) {
         const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
+        console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current + 1}/${maxReconnectAttempts})`);
         reconnectTimeoutRef.current = setTimeout(() => {
           reconnectAttemptsRef.current++;
           connect();
         }, delay);
+      } else {
+        console.error('Max reconnection attempts reached');
       }
     };
 

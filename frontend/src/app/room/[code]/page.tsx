@@ -65,7 +65,7 @@ export default function RoomPage() {
     sendMessage,
     requestHint,
     startGame,
-  } = useWebSocket();
+  } = useWebSocket(code);
 
   // Check authentication
   useEffect(() => {

@@ -3,10 +3,10 @@
   "sessionId": "b95adf80-416f-43a6-9f0e-dc9debfd1765",
   "status": "running",
   "startedAt": "2026-01-18T00:37:59.835Z",
-  "updatedAt": "2026-01-18T02:37:03.388Z",
-  "currentIteration": 12,
+  "updatedAt": "2026-01-18T02:40:43.381Z",
+  "currentIteration": 13,
   "maxIterations": 5,
-  "tasksCompleted": 12,
+  "tasksCompleted": 13,
   "isPaused": false,
   "agentPlugin": "claude",
   "trackerState": {
@@ -95,8 +95,8 @@
       {
         "id": "US-014",
         "title": "Room joining endpoint",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-015",
@@ -376,12 +376,22 @@
       "durationMs": 269585,
       "startedAt": "2026-01-18T02:31:41.555Z",
       "endedAt": "2026-01-18T02:36:11.140Z"
+    },
+    {
+      "iteration": 13,
+      "status": "completed",
+      "taskId": "US-014",
+      "taskTitle": "Room joining endpoint",
+      "taskCompleted": true,
+      "durationMs": 187707,
+      "startedAt": "2026-01-18T02:37:03.384Z",
+      "endedAt": "2026-01-18T02:40:11.091Z"
     }
   ],
   "skippedTaskIds": [],
   "cwd": "/Users/dev/proj/crossy",
   "activeTaskIds": [
-    "US-014"
+    "US-015"
   ],
   "subagentPanelVisible": false
 }

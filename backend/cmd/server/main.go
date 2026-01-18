@@ -150,8 +150,8 @@ func main() {
 		// Run: go run ./cmd/admin --help for puzzle generation and management
 	}
 
-	// WebSocket endpoint
-	router.GET("/ws", func(c *gin.Context) {
+	// WebSocket endpoint - /api/rooms/:code/ws
+	apiGroup.GET("/rooms/:code/ws", func(c *gin.Context) {
 		token := c.Query("token")
 		if token == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "missing token"})
@@ -161,6 +161,12 @@ func main() {
 		claims, err := authService.ValidateToken(token)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+			return
+		}
+
+		roomCode := c.Param("code")
+		if roomCode == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "missing room code"})
 			return
 		}
 

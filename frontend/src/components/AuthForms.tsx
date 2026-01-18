@@ -28,10 +28,31 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
   // Guest form state
   const [guestDisplayName, setGuestDisplayName] = useState('');
 
+  // Validation errors
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    setValidationErrors({});
+
+    // Validation
+    const errors: Record<string, string> = {};
+    if (!loginEmail.trim()) {
+      errors.loginEmail = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginEmail)) {
+      errors.loginEmail = 'Please enter a valid email';
+    }
+    if (!loginPassword) {
+      errors.loginPassword = 'Password is required';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const response = await api.login(loginEmail, loginPassword);
@@ -49,6 +70,33 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    setValidationErrors({});
+
+    // Validation
+    const errors: Record<string, string> = {};
+    if (!registerDisplayName.trim()) {
+      errors.registerDisplayName = 'Display name is required';
+    } else if (registerDisplayName.trim().length < 2) {
+      errors.registerDisplayName = 'Display name must be at least 2 characters';
+    } else if (registerDisplayName.trim().length > 50) {
+      errors.registerDisplayName = 'Display name must be 50 characters or less';
+    }
+    if (!registerEmail.trim()) {
+      errors.registerEmail = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerEmail)) {
+      errors.registerEmail = 'Please enter a valid email';
+    }
+    if (!registerPassword) {
+      errors.registerPassword = 'Password is required';
+    } else if (registerPassword.length < 6) {
+      errors.registerPassword = 'Password must be at least 6 characters';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const response = await api.register(
@@ -70,6 +118,23 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    setValidationErrors({});
+
+    // Validation
+    const errors: Record<string, string> = {};
+    if (!guestDisplayName.trim()) {
+      errors.guestDisplayName = 'Display name is required';
+    } else if (guestDisplayName.trim().length < 2) {
+      errors.guestDisplayName = 'Display name must be at least 2 characters';
+    } else if (guestDisplayName.trim().length > 50) {
+      errors.guestDisplayName = 'Display name must be 50 characters or less';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const response = await api.guest(guestDisplayName);
@@ -139,9 +204,12 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
               type="email"
               value={loginEmail}
               onChange={(e) => setLoginEmail(e.target.value)}
-              className="input"
+              className={`input ${validationErrors.loginEmail ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
               required
             />
+            {validationErrors.loginEmail && (
+              <p className="mt-1 text-xs text-red-600">{validationErrors.loginEmail}</p>
+            )}
           </div>
           <div>
             <label htmlFor="login-password" className="block text-sm font-medium text-purple-700 mb-1">
@@ -152,9 +220,12 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
               type="password"
               value={loginPassword}
               onChange={(e) => setLoginPassword(e.target.value)}
-              className="input"
+              className={`input ${validationErrors.loginPassword ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
               required
             />
+            {validationErrors.loginPassword && (
+              <p className="mt-1 text-xs text-red-600">{validationErrors.loginPassword}</p>
+            )}
           </div>
           <button
             type="submit"
@@ -188,11 +259,14 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
               type="text"
               value={registerDisplayName}
               onChange={(e) => setRegisterDisplayName(e.target.value)}
-              className="input"
+              className={`input ${validationErrors.registerDisplayName ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
               required
               minLength={2}
               maxLength={50}
             />
+            {validationErrors.registerDisplayName && (
+              <p className="mt-1 text-xs text-red-600">{validationErrors.registerDisplayName}</p>
+            )}
           </div>
           <div>
             <label htmlFor="register-email" className="block text-sm font-medium text-purple-700 mb-1">
@@ -203,9 +277,12 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
               type="email"
               value={registerEmail}
               onChange={(e) => setRegisterEmail(e.target.value)}
-              className="input"
+              className={`input ${validationErrors.registerEmail ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
               required
             />
+            {validationErrors.registerEmail && (
+              <p className="mt-1 text-xs text-red-600">{validationErrors.registerEmail}</p>
+            )}
           </div>
           <div>
             <label htmlFor="register-password" className="block text-sm font-medium text-purple-700 mb-1">
@@ -216,13 +293,17 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
               type="password"
               value={registerPassword}
               onChange={(e) => setRegisterPassword(e.target.value)}
-              className="input"
+              className={`input ${validationErrors.registerPassword ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
               required
               minLength={6}
             />
-            <p className="mt-1 text-xs text-purple-500">
-              At least 6 characters
-            </p>
+            {validationErrors.registerPassword ? (
+              <p className="mt-1 text-xs text-red-600">{validationErrors.registerPassword}</p>
+            ) : (
+              <p className="mt-1 text-xs text-purple-500">
+                At least 6 characters
+              </p>
+            )}
           </div>
           <button
             type="submit"
@@ -256,15 +337,19 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
               type="text"
               value={guestDisplayName}
               onChange={(e) => setGuestDisplayName(e.target.value)}
-              className="input"
+              className={`input ${validationErrors.guestDisplayName ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
               placeholder="Enter your name"
               required
               minLength={2}
               maxLength={50}
             />
-            <p className="mt-1 text-xs text-purple-500">
-              2-50 characters
-            </p>
+            {validationErrors.guestDisplayName ? (
+              <p className="mt-1 text-xs text-red-600">{validationErrors.guestDisplayName}</p>
+            ) : (
+              <p className="mt-1 text-xs text-purple-500">
+                2-50 characters
+              </p>
+            )}
           </div>
           <button
             type="submit"

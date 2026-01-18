@@ -17,6 +17,7 @@ export default function PuzzlePage() {
   const [showClueSheet, setShowClueSheet] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [completionTime, setCompletionTime] = useState<number | null>(null);
+  const [completionAccuracy, setCompletionAccuracy] = useState<number | null>(null);
 
   const {
     isAuthenticated,
@@ -74,7 +75,6 @@ export default function PuzzlePage() {
       const solveTime = Math.floor((Date.now() - startTime) / 1000);
       endGame(solveTime);
       setCompletionTime(solveTime);
-      setShowResults(true);
 
       // Calculate accuracy: correct cells / total cells
       let totalCells = 0;
@@ -93,6 +93,8 @@ export default function PuzzlePage() {
       });
 
       const accuracy = totalCells > 0 ? (correctCells / totalCells) * 100 : 0;
+      setCompletionAccuracy(accuracy);
+      setShowResults(true);
 
       // Save puzzle history
       api.savePuzzleHistory({
@@ -292,6 +294,7 @@ export default function PuzzlePage() {
       <ResultsModal
         isOpen={showResults}
         solveTime={completionTime || 0}
+        accuracy={completionAccuracy ?? undefined}
         onClose={() => setShowResults(false)}
         onHome={handleHome}
       />

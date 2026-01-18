@@ -31,6 +31,7 @@ export default function RoomPage() {
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [results, setResults] = useState<{
     solveTime: number;
+    accuracy?: number;
     players: PlayerResult[];
   } | null>(null);
 
@@ -43,6 +44,7 @@ export default function RoomPage() {
     isHost,
     startTime,
     solveTime,
+    cells,
     messages,
     setRoom,
     setPlayers,
@@ -136,9 +138,28 @@ export default function RoomPage() {
 
   // Handle puzzle completion
   useEffect(() => {
-    if (solveTime !== null && !showResults) {
+    if (solveTime !== null && !showResults && puzzle) {
+      // Calculate accuracy: correct cells / total cells
+      let totalCells = 0;
+      let correctCells = 0;
+
+      puzzle.grid.forEach((row, y) => {
+        row.forEach((cell, x) => {
+          if (cell.letter !== null) {
+            totalCells++;
+            const userCell = cells[y]?.[x];
+            if (userCell?.value?.toUpperCase() === cell.letter?.toUpperCase()) {
+              correctCells++;
+            }
+          }
+        });
+      });
+
+      const accuracy = totalCells > 0 ? (correctCells / totalCells) * 100 : 0;
+
       setResults({
         solveTime,
+        accuracy,
         players: players.map((p) => ({
           userId: p.userId,
           displayName: p.displayName,
@@ -148,7 +169,7 @@ export default function RoomPage() {
       });
       setShowResults(true);
     }
-  }, [solveTime, players, showResults]);
+  }, [solveTime, players, showResults, puzzle, cells]);
 
   // Track unread messages when chat is closed
   const prevMessageCountRef = useRef(messages.length);
@@ -502,6 +523,7 @@ export default function RoomPage() {
         <ResultsModal
           isOpen={showResults}
           solveTime={results.solveTime}
+          accuracy={results.accuracy}
           players={results.players}
           onClose={() => setShowResults(false)}
           onRematch={handleRematch}

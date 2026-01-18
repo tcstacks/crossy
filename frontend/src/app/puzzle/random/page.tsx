@@ -17,6 +17,7 @@ export default function RandomPuzzlePage() {
   const [showClueSheet, setShowClueSheet] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [completionTime, setCompletionTime] = useState<number | null>(null);
+  const [completionAccuracy, setCompletionAccuracy] = useState<number | null>(null);
 
   const {
     puzzle,
@@ -68,6 +69,25 @@ export default function RandomPuzzlePage() {
       const solveTime = Math.floor((Date.now() - startTime) / 1000);
       endGame(solveTime);
       setCompletionTime(solveTime);
+
+      // Calculate accuracy: correct cells / total cells
+      let totalCells = 0;
+      let correctCells = 0;
+
+      puzzle.grid.forEach((row, y) => {
+        row.forEach((cell, x) => {
+          if (cell.letter !== null) {
+            totalCells++;
+            const userCell = cells[y]?.[x];
+            if (userCell?.value?.toUpperCase() === cell.letter?.toUpperCase()) {
+              correctCells++;
+            }
+          }
+        });
+      });
+
+      const accuracy = totalCells > 0 ? (correctCells / totalCells) * 100 : 0;
+      setCompletionAccuracy(accuracy);
       setShowResults(true);
     }
   }, [cells, puzzle, startTime, endGame]);
@@ -278,6 +298,7 @@ export default function RandomPuzzlePage() {
       <ResultsModal
         isOpen={showResults}
         solveTime={completionTime || 0}
+        accuracy={completionAccuracy ?? undefined}
         onClose={() => setShowResults(false)}
         onHome={handleHome}
         onRematch={handlePlayAnother}

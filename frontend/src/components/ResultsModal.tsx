@@ -8,6 +8,7 @@ import type { PlayerResult } from '@/types';
 interface ResultsModalProps {
   isOpen: boolean;
   solveTime: number;
+  accuracy?: number;
   players?: PlayerResult[];
   onClose: () => void;
   onRematch?: () => void;
@@ -17,6 +18,7 @@ interface ResultsModalProps {
 export function ResultsModal({
   isOpen,
   solveTime,
+  accuracy,
   players = [],
   onClose,
   onRematch,
@@ -66,11 +68,17 @@ export function ResultsModal({
           </div>
 
           {/* Stats */}
-          <div className="mt-6 grid grid-cols-2 gap-4">
+          <div className={`mt-6 grid gap-4 ${accuracy !== undefined ? 'grid-cols-3' : 'grid-cols-2'}`}>
             <div className="bg-white/20 rounded-xl p-4 text-center">
               <div className="text-3xl font-bold">{formatTime(solveTime)}</div>
               <div className="text-sm opacity-90">Solve Time</div>
             </div>
+            {accuracy !== undefined && (
+              <div className="bg-white/20 rounded-xl p-4 text-center">
+                <div className="text-3xl font-bold">{Math.round(accuracy)}%</div>
+                <div className="text-sm opacity-90">Accuracy</div>
+              </div>
+            )}
             <div className="bg-white/20 rounded-xl p-4 text-center">
               <div className="text-3xl font-bold">{hintsUsed}</div>
               <div className="text-sm opacity-90">Hints Used</div>

@@ -47,3 +47,32 @@ type Grid struct {
 	Cells   [][]*Cell // 2D array of cells (Size x Size)
 	Entries []*Entry  // List of word entries in the grid
 }
+
+// GridConfig holds configuration for grid creation
+type GridConfig struct {
+	Size int // Size of the grid (Size x Size)
+}
+
+// NewEmptyGrid creates a new empty grid with the specified configuration.
+// All cells are initialized as white (non-black) with Letter = 0 and Number = 0.
+func NewEmptyGrid(config GridConfig) *Grid {
+	cells := make([][]*Cell, config.Size)
+	for i := 0; i < config.Size; i++ {
+		cells[i] = make([]*Cell, config.Size)
+		for j := 0; j < config.Size; j++ {
+			cells[i][j] = &Cell{
+				Row:     i,
+				Col:     j,
+				IsBlack: false,
+				Letter:  0,
+				Number:  0,
+			}
+		}
+	}
+
+	return &Grid{
+		Size:    config.Size,
+		Cells:   cells,
+		Entries: []*Entry{},
+	}
+}

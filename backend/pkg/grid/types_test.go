@@ -270,3 +270,146 @@ func TestEntry_EmptyEntry(t *testing.T) {
 		t.Errorf("Empty Entry.Cells = %v, want %v", entry.Cells, nil)
 	}
 }
+
+func TestNewEmptyGrid_15x15(t *testing.T) {
+	config := GridConfig{Size: 15}
+	grid := NewEmptyGrid(config)
+
+	if grid == nil {
+		t.Fatal("NewEmptyGrid returned nil")
+	}
+
+	if grid.Size != 15 {
+		t.Errorf("Grid.Size = %v, want %v", grid.Size, 15)
+	}
+
+	if len(grid.Cells) != 15 {
+		t.Errorf("len(Grid.Cells) = %v, want %v", len(grid.Cells), 15)
+	}
+
+	// Check all cells are properly initialized
+	for i := 0; i < 15; i++ {
+		if len(grid.Cells[i]) != 15 {
+			t.Errorf("len(Grid.Cells[%d]) = %v, want %v", i, len(grid.Cells[i]), 15)
+		}
+
+		for j := 0; j < 15; j++ {
+			cell := grid.Cells[i][j]
+			if cell == nil {
+				t.Fatalf("Grid.Cells[%d][%d] is nil", i, j)
+			}
+
+			if cell.Row != i {
+				t.Errorf("Grid.Cells[%d][%d].Row = %v, want %v", i, j, cell.Row, i)
+			}
+
+			if cell.Col != j {
+				t.Errorf("Grid.Cells[%d][%d].Col = %v, want %v", i, j, cell.Col, j)
+			}
+
+			if cell.IsBlack {
+				t.Errorf("Grid.Cells[%d][%d].IsBlack = %v, want %v", i, j, cell.IsBlack, false)
+			}
+
+			if cell.Letter != 0 {
+				t.Errorf("Grid.Cells[%d][%d].Letter = %v, want %v", i, j, cell.Letter, 0)
+			}
+
+			if cell.Number != 0 {
+				t.Errorf("Grid.Cells[%d][%d].Number = %v, want %v", i, j, cell.Number, 0)
+			}
+		}
+	}
+
+	if len(grid.Entries) != 0 {
+		t.Errorf("len(Grid.Entries) = %v, want %v", len(grid.Entries), 0)
+	}
+}
+
+func TestNewEmptyGrid_ConfigurableSize(t *testing.T) {
+	tests := []struct {
+		name string
+		size int
+	}{
+		{
+			name: "5x5 grid",
+			size: 5,
+		},
+		{
+			name: "10x10 grid",
+			size: 10,
+		},
+		{
+			name: "15x15 grid",
+			size: 15,
+		},
+		{
+			name: "21x21 grid",
+			size: 21,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := GridConfig{Size: tt.size}
+			grid := NewEmptyGrid(config)
+
+			if grid.Size != tt.size {
+				t.Errorf("Grid.Size = %v, want %v", grid.Size, tt.size)
+			}
+
+			if len(grid.Cells) != tt.size {
+				t.Errorf("len(Grid.Cells) = %v, want %v", len(grid.Cells), tt.size)
+			}
+
+			for i := 0; i < tt.size; i++ {
+				if len(grid.Cells[i]) != tt.size {
+					t.Errorf("len(Grid.Cells[%d]) = %v, want %v", i, len(grid.Cells[i]), tt.size)
+				}
+			}
+
+			if len(grid.Entries) != 0 {
+				t.Errorf("len(Grid.Entries) = %v, want %v", len(grid.Entries), 0)
+			}
+		})
+	}
+}
+
+func TestNewEmptyGrid_AllCellsWhite(t *testing.T) {
+	config := GridConfig{Size: 15}
+	grid := NewEmptyGrid(config)
+
+	for i := 0; i < grid.Size; i++ {
+		for j := 0; j < grid.Size; j++ {
+			if grid.Cells[i][j].IsBlack {
+				t.Errorf("Grid.Cells[%d][%d] should be white, got black", i, j)
+			}
+		}
+	}
+}
+
+func TestNewEmptyGrid_AllCellsUnfilled(t *testing.T) {
+	config := GridConfig{Size: 15}
+	grid := NewEmptyGrid(config)
+
+	for i := 0; i < grid.Size; i++ {
+		for j := 0; j < grid.Size; j++ {
+			if grid.Cells[i][j].Letter != 0 {
+				t.Errorf("Grid.Cells[%d][%d].Letter = %v, want 0 (unfilled)", i, j, grid.Cells[i][j].Letter)
+			}
+		}
+	}
+}
+
+func TestNewEmptyGrid_AllCellsNoClueNumber(t *testing.T) {
+	config := GridConfig{Size: 15}
+	grid := NewEmptyGrid(config)
+
+	for i := 0; i < grid.Size; i++ {
+		for j := 0; j < grid.Size; j++ {
+			if grid.Cells[i][j].Number != 0 {
+				t.Errorf("Grid.Cells[%d][%d].Number = %v, want 0 (no clue number)", i, j, grid.Cells[i][j].Number)
+			}
+		}
+	}
+}

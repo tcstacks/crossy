@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { useGameStore } from '@/store/gameStore';
-import { cn } from '@/lib/utils';
+import { cn, isClueComplete, getClueId } from '@/lib/utils';
 import type { Clue } from '@/types';
 
 interface CrosswordGridProps {
@@ -25,6 +25,7 @@ export function CrosswordGrid({
     setSelectedCell,
     setSelectedClue,
     updateCell,
+    markClueCompleted,
   } = useGameStore();
 
   // Find the clue at a given position
@@ -53,6 +54,26 @@ export function CrosswordGrid({
       return null;
     },
     [puzzle]
+  );
+
+  // Check for completed clues
+  const checkClueCompletion = useCallback(
+    (x: number, y: number) => {
+      if (!puzzle) return;
+
+      // Check both across and down clues at this position
+      const clueAcross = findClueAtPosition(x, y, 'across');
+      const clueDown = findClueAtPosition(x, y, 'down');
+
+      if (clueAcross && isClueComplete(clueAcross, cells, puzzle.grid)) {
+        markClueCompleted(getClueId('across', clueAcross.number));
+      }
+
+      if (clueDown && isClueComplete(clueDown, cells, puzzle.grid)) {
+        markClueCompleted(getClueId('down', clueDown.number));
+      }
+    },
+    [puzzle, cells, findClueAtPosition, markClueCompleted]
   );
 
   // Handle cell click
@@ -166,6 +187,9 @@ export function CrosswordGrid({
 
         updateCell(x, y, value);
         onCellUpdate?.(x, y, value);
+
+        // Check if this completed any clues
+        setTimeout(() => checkClueCompletion(x, y), 0);
 
         // Move to next cell
         let nextX = x;
@@ -322,7 +346,7 @@ export function CrosswordGrid({
         }
       }
     },
-    [puzzle, cells, selectedCell, findClueAtPosition, setSelectedCell, setSelectedClue, updateCell, onCellUpdate, onCursorMove, readOnly]
+    [puzzle, cells, selectedCell, findClueAtPosition, setSelectedCell, setSelectedClue, updateCell, onCellUpdate, onCursorMove, readOnly, checkClueCompletion]
   );
 
   // Set up keyboard listener

@@ -73,3 +73,25 @@ export function parseClueId(clueId: string): { direction: 'across' | 'down'; num
     number: parseInt(match[2], 10),
   };
 }
+
+export function isClueComplete(
+  clue: { positionX: number; positionY: number; length: number; direction: 'across' | 'down' },
+  cells: Array<Array<{ value: string | null; isRevealed: boolean }>>,
+  grid: Array<Array<{ letter: string | null }>>
+): boolean {
+  if (!cells || !grid) return false;
+
+  for (let i = 0; i < clue.length; i++) {
+    const x = clue.direction === 'across' ? clue.positionX + i : clue.positionX;
+    const y = clue.direction === 'down' ? clue.positionY + i : clue.positionY;
+
+    const cellValue = cells[y]?.[x]?.value;
+    const correctValue = grid[y]?.[x]?.letter;
+
+    if (!cellValue || !correctValue || cellValue.toUpperCase() !== correctValue.toUpperCase()) {
+      return false;
+    }
+  }
+
+  return true;
+}

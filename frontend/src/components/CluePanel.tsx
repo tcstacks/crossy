@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback, useRef, useEffect, useState } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { cn, getClueId } from '@/lib/utils';
 import type { Clue } from '@/types';
@@ -57,29 +57,37 @@ export function CluePanel({ direction, onClueClick }: CluePanelProps) {
         {direction}
       </h3>
       <div ref={listRef} className="flex-1 overflow-y-auto clue-list p-2">
-        {clues.map((clue) => {
-          const clueId = getClueId(direction, clue.number);
-          const isSelected =
-            selectedClue?.number === clue.number &&
-            selectedClue?.direction === direction;
-          const isCompleted = completedClues.includes(clueId);
+        {clues
+          .slice()
+          .sort((a, b) => a.number - b.number)
+          .map((clue) => {
+            const clueId = getClueId(direction, clue.number);
+            const isSelected =
+              selectedClue?.number === clue.number &&
+              selectedClue?.direction === direction;
+            const isCompleted = completedClues.includes(clueId);
 
-          return (
-            <div
-              key={clue.number}
-              data-clue-number={clue.number}
-              className={cn(
-                'clue-item',
-                isSelected && 'selected',
-                isCompleted && 'completed'
-              )}
-              onClick={() => handleClueClick(clue)}
-            >
-              <span className="font-bold mr-2">{clue.number}.</span>
-              <span className="clue-text">{clue.text}</span>
-            </div>
-          );
-        })}
+            return (
+              <div
+                key={clue.number}
+                data-clue-number={clue.number}
+                className={cn(
+                  'clue-item',
+                  isSelected && 'selected',
+                  isCompleted && 'completed'
+                )}
+                onClick={() => handleClueClick(clue)}
+              >
+                <div className="flex items-start gap-2">
+                  <span className="font-bold">{clue.number}.</span>
+                  <span className="clue-text flex-1">{clue.text}</span>
+                  {isCompleted && (
+                    <span className="text-green-600 flex-shrink-0">✓</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
       </div>
     </div>
   );
@@ -180,5 +188,3 @@ export function ClueBottomSheet({ isOpen, onClose }: ClueBottomSheetProps) {
     </div>
   );
 }
-
-import { useState } from 'react';

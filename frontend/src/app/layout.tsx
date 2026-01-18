@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 import { InstallPrompt } from '@/components/InstallPrompt';
+import { OfflineIndicator } from '@/components/OfflineIndicator';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -61,6 +62,7 @@ export default function RootLayout({
       <body className="min-h-screen antialiased">
         <Providers>{children}</Providers>
         <InstallPrompt />
+        <OfflineIndicator />
       </body>
     </html>
   );

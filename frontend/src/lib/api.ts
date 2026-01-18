@@ -1,4 +1,5 @@
 import type { AuthResponse, Puzzle, Room, Player, RoomConfig, RoomMode, UserStats, User, GridCell, GameGridState, PuzzleHistory } from '@/types';
+import { puzzleCache, actionQueue } from './offlineStorage';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
@@ -209,24 +210,53 @@ class ApiClient {
       });
     } catch (error) {
       console.warn('Failed to save puzzle history:', error);
-      // Fail silently for now
+      // Queue the action for sync when back online
+      if (!navigator.onLine) {
+        await actionQueue.add({
+          type: 'save_history',
+          payload: data,
+        });
+        console.log('Puzzle history queued for sync when online');
+      }
     }
   }
 
   // Puzzle endpoints
   async getTodayPuzzle(): Promise<Puzzle> {
     try {
-      return await this.request('/puzzles/today');
+      const puzzle = await this.request<Puzzle>('/puzzles/today');
+      // Cache the puzzle for offline use
+      await puzzleCache.set(puzzle);
+      return puzzle;
     } catch {
-      return getSamplePuzzle('today-puzzle');
+      // Try to get from cache if offline
+      const today = new Date().toISOString().split('T')[0];
+      const cached = await puzzleCache.get(`today-puzzle-${today}`);
+      if (cached) {
+        return cached;
+      }
+      // Fallback to sample puzzle
+      const puzzle = getSamplePuzzle('today-puzzle');
+      await puzzleCache.set(puzzle);
+      return puzzle;
     }
   }
 
   async getPuzzleByDate(date: string): Promise<Puzzle> {
     try {
-      return await this.request(`/puzzles/${date}`);
+      const puzzle = await this.request<Puzzle>(`/puzzles/${date}`);
+      await puzzleCache.set(puzzle);
+      return puzzle;
     } catch {
-      return getSamplePuzzle(`puzzle-${date}`, date);
+      // Try cache first
+      const cached = await puzzleCache.get(`puzzle-${date}`);
+      if (cached) {
+        return cached;
+      }
+      // Fallback to sample
+      const puzzle = getSamplePuzzle(`puzzle-${date}`, date);
+      await puzzleCache.set(puzzle);
+      return puzzle;
     }
   }
 
@@ -237,35 +267,76 @@ class ApiClient {
       params.set('limit', limit.toString());
       params.set('offset', offset.toString());
       const result = await this.request<Puzzle[]>(`/puzzles/archive?${params}`);
+
+      // Cache each puzzle
+      for (const puzzle of result) {
+        await puzzleCache.set(puzzle);
+      }
+
       // Fallback to mock data if backend returns empty
       if (result.length === 0) {
         let puzzles = getArchivePuzzles();
         if (difficulty) {
           puzzles = puzzles.filter(p => p.difficulty === difficulty);
         }
-        return puzzles.slice(offset, offset + limit);
+        const paginated = puzzles.slice(offset, offset + limit);
+        for (const puzzle of paginated) {
+          await puzzleCache.set(puzzle);
+        }
+        return paginated;
       }
       return result;
     } catch {
+      // Try to get from cache when offline
+      const allCached = await puzzleCache.getAll();
+      if (allCached.length > 0) {
+        let filtered = allCached;
+        if (difficulty) {
+          filtered = filtered.filter(p => p.difficulty === difficulty);
+        }
+        return filtered.slice(offset, offset + limit);
+      }
+
+      // Fallback to mock data
       let puzzles = getArchivePuzzles();
       if (difficulty) {
         puzzles = puzzles.filter(p => p.difficulty === difficulty);
       }
-      return puzzles.slice(offset, offset + limit);
+      const paginated = puzzles.slice(offset, offset + limit);
+      for (const puzzle of paginated) {
+        await puzzleCache.set(puzzle);
+      }
+      return paginated;
     }
   }
 
   async getRandomPuzzle(difficulty?: string): Promise<Puzzle> {
     try {
       const params = difficulty ? `?difficulty=${difficulty}` : '';
-      return await this.request(`/puzzles/random${params}`);
+      const puzzle = await this.request<Puzzle>(`/puzzles/random${params}`);
+      await puzzleCache.set(puzzle);
+      return puzzle;
     } catch {
+      // Try to get random from cache when offline
+      const allCached = await puzzleCache.getAll();
+      if (allCached.length > 0) {
+        let candidates = allCached;
+        if (difficulty) {
+          candidates = candidates.filter(p => p.difficulty === difficulty);
+        }
+        if (candidates.length > 0) {
+          return candidates[Math.floor(Math.random() * candidates.length)];
+        }
+      }
+
+      // Fallback to sample
       const date = new Date();
       date.setDate(date.getDate() - Math.floor(Math.random() * 30));
       const puzzle = getSamplePuzzle(`random-${Date.now()}`, date.toISOString().split('T')[0]);
       if (difficulty) {
         puzzle.difficulty = difficulty as 'easy' | 'medium' | 'hard';
       }
+      await puzzleCache.set(puzzle);
       return puzzle;
     }
   }

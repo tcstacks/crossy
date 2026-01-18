@@ -30,7 +30,7 @@ type AuthService struct {
 func NewAuthService(jwtSecret string) *AuthService {
 	return &AuthService{
 		jwtSecret:     []byte(jwtSecret),
-		tokenDuration: 7 * 24 * time.Hour, // 7 days
+		tokenDuration: 24 * time.Hour, // 24 hours
 	}
 }
 

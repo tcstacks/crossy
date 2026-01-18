@@ -6,9 +6,16 @@ import (
 	"github.com/crossplay/backend/pkg/grid"
 )
 
-// Wordlist interface for pattern matching
+// WordCandidate represents a word with its score for fill quality control
+type WordCandidate struct {
+	Word  string
+	Score int
+}
+
+// Wordlist interface for pattern matching with score support
 type Wordlist interface {
 	Match(pattern string) []string
+	MatchWithScores(pattern string, minScore int) []WordCandidate
 }
 
 // ConstraintInfo holds constraint data for sorting entries

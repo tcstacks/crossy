@@ -27,11 +27,12 @@ type FillConfig struct {
 //   - g: The grid being filled
 //   - wordlist: Wordlist for finding candidate words
 //   - config: Configuration for minimum score threshold
+//   - usedWords: Set of words already used in the puzzle (prevents duplicates)
 //
 // Returns:
 //   - nil on successful fill
 //   - ErrNoValidFill if no valid fill can be found
-func fillRecursive(entries []*grid.Entry, index int, g *grid.Grid, wordlist Wordlist, config FillConfig) error {
+func fillRecursive(entries []*grid.Entry, index int, g *grid.Grid, wordlist Wordlist, config FillConfig, usedWords map[string]bool) error {
 	// Base case: all entries have been filled successfully
 	if index >= len(entries) {
 		return nil
@@ -43,16 +44,22 @@ func fillRecursive(entries []*grid.Entry, index int, g *grid.Grid, wordlist Word
 	// Get the current pattern for this entry
 	pattern := getPattern(entry)
 
-	// Get candidate words matching the pattern
-	candidates := wordlist.Match(pattern)
+	// Get candidate words matching the pattern with score filtering
+	candidates := wordlist.MatchWithScores(pattern, config.MinScore)
 
 	// Try each candidate word
-	for _, word := range candidates {
+	for _, candidate := range candidates {
+		word := candidate.Word
+
 		// Skip words that don't meet the minimum score threshold
-		// Note: The wordlist.Match should return words sorted by score,
-		// but we check here for safety
-		// For now, we'll try all candidates since we don't have score info
-		// in the Match return value
+		if candidate.Score < config.MinScore {
+			continue
+		}
+
+		// Skip words that have already been used (prevent duplicates)
+		if usedWords[word] {
+			continue
+		}
 
 		// Check if this word conflicts with existing filled cells
 		if conflictsWithFilled(entry, word) {
@@ -66,15 +73,19 @@ func fillRecursive(entries []*grid.Entry, index int, g *grid.Grid, wordlist Word
 			continue
 		}
 
+		// Track this word as used
+		usedWords[word] = true
+
 		// Recursively try to fill the remaining entries
-		err = fillRecursive(entries, index+1, g, wordlist, config)
+		err = fillRecursive(entries, index+1, g, wordlist, config, usedWords)
 		if err == nil {
 			// Success! The recursion completed successfully
 			return nil
 		}
 
-		// Backtrack: remove the word and try the next candidate
+		// Backtrack: remove the word and untrack it
 		removeWord(entry, g)
+		delete(usedWords, word)
 	}
 
 	// No valid candidate found for this entry
@@ -83,7 +94,7 @@ func fillRecursive(entries []*grid.Entry, index int, g *grid.Grid, wordlist Word
 
 // Fill attempts to fill the grid with words using backtracking.
 // It sorts entries by constraint before attempting to fill, and respects
-// the MaxRetries limit.
+// the MaxRetries limit. Enforces MinScore threshold and prevents duplicate words.
 //
 // Parameters:
 //   - g: The grid to fill
@@ -111,8 +122,11 @@ func Fill(g *grid.Grid, wordlist Wordlist, config FillConfig) error {
 		// Sort entries by constraint for efficient backtracking
 		sortedEntries := sortByConstraint(g.Entries, g, wordlist)
 
-		// Attempt to fill recursively
-		err := fillRecursive(sortedEntries, 0, g, wordlist, config)
+		// Initialize used words tracking for this fill attempt
+		usedWords := make(map[string]bool)
+
+		// Attempt to fill recursively with quality controls
+		err := fillRecursive(sortedEntries, 0, g, wordlist, config, usedWords)
 		if err == nil {
 			// Success!
 			return nil

@@ -29,12 +29,30 @@ func (m *MockWordlistWithScores) Match(pattern string) []string {
 	return result
 }
 
+func (m *MockWordlistWithScores) MatchWithScores(pattern string, minScore int) []WordCandidate {
+	words, ok := m.words[pattern]
+	if !ok {
+		return []WordCandidate{}
+	}
+	result := []WordCandidate{}
+	for _, w := range words {
+		if w.Score >= minScore {
+			result = append(result, WordCandidate{
+				Word:  w.Text,
+				Score: w.Score,
+			})
+		}
+	}
+	return result
+}
+
 func TestFillRecursive_EmptyEntries(t *testing.T) {
 	g := grid.NewEmptyGrid(grid.GridConfig{Size: 5})
-	wordlist := &MockWordlist{matchCounts: map[string]int{}}
+	wordlist := &MockWordlistWithScores{words: map[string][]WordWithScore{}}
 	config := FillConfig{MinScore: 50, MaxRetries: 100}
+	usedWords := make(map[string]bool)
 
-	err := fillRecursive([]*grid.Entry{}, 0, g, wordlist, config)
+	err := fillRecursive([]*grid.Entry{}, 0, g, wordlist, config, usedWords)
 	if err != nil {
 		t.Errorf("fillRecursive(empty entries) = %v, want nil", err)
 	}
@@ -68,8 +86,9 @@ func TestFillRecursive_SingleEntry_Success(t *testing.T) {
 	}
 
 	config := FillConfig{MinScore: 50, MaxRetries: 100}
+	usedWords := make(map[string]bool)
 
-	err := fillRecursive([]*grid.Entry{entry}, 0, g, wordlist, config)
+	err := fillRecursive([]*grid.Entry{entry}, 0, g, wordlist, config, usedWords)
 	if err != nil {
 		t.Errorf("fillRecursive() = %v, want nil", err)
 	}
@@ -108,8 +127,9 @@ func TestFillRecursive_SingleEntry_NoMatch(t *testing.T) {
 	}
 
 	config := FillConfig{MinScore: 50, MaxRetries: 100}
+	usedWords := make(map[string]bool)
 
-	err := fillRecursive([]*grid.Entry{entry}, 0, g, wordlist, config)
+	err := fillRecursive([]*grid.Entry{entry}, 0, g, wordlist, config, usedWords)
 	if !errors.Is(err, ErrNoValidFill) {
 		t.Errorf("fillRecursive() = %v, want ErrNoValidFill", err)
 	}
@@ -158,8 +178,9 @@ func TestFillRecursive_TwoEntries_NoCrossing_Success(t *testing.T) {
 	}
 
 	config := FillConfig{MinScore: 50, MaxRetries: 100}
+	usedWords := make(map[string]bool)
 
-	err := fillRecursive([]*grid.Entry{entry1, entry2}, 0, g, wordlist, config)
+	err := fillRecursive([]*grid.Entry{entry1, entry2}, 0, g, wordlist, config, usedWords)
 	if err != nil {
 		t.Errorf("fillRecursive() = %v, want nil", err)
 	}
@@ -221,8 +242,9 @@ func TestFillRecursive_TwoEntries_WithCrossing_Success(t *testing.T) {
 	}
 
 	config := FillConfig{MinScore: 50, MaxRetries: 100}
+	usedWords := make(map[string]bool)
 
-	err := fillRecursive([]*grid.Entry{acrossEntry, downEntry}, 0, g, wordlist, config)
+	err := fillRecursive([]*grid.Entry{acrossEntry, downEntry}, 0, g, wordlist, config, usedWords)
 	if err != nil {
 		t.Errorf("fillRecursive() = %v, want nil", err)
 	}
@@ -292,8 +314,9 @@ func TestFillRecursive_Backtracking(t *testing.T) {
 	}
 
 	config := FillConfig{MinScore: 50, MaxRetries: 100}
+	usedWords := make(map[string]bool)
 
-	err := fillRecursive([]*grid.Entry{acrossEntry, downEntry}, 0, g, wordlist, config)
+	err := fillRecursive([]*grid.Entry{acrossEntry, downEntry}, 0, g, wordlist, config, usedWords)
 	if err != nil {
 		t.Errorf("fillRecursive() = %v, want nil (should backtrack and find solution)", err)
 	}
@@ -357,8 +380,9 @@ func TestFillRecursive_ImpossibleToFill(t *testing.T) {
 	}
 
 	config := FillConfig{MinScore: 50, MaxRetries: 100}
+	usedWords := make(map[string]bool)
 
-	err := fillRecursive([]*grid.Entry{acrossEntry, downEntry}, 0, g, wordlist, config)
+	err := fillRecursive([]*grid.Entry{acrossEntry, downEntry}, 0, g, wordlist, config, usedWords)
 	if !errors.Is(err, ErrNoValidFill) {
 		t.Errorf("fillRecursive() = %v, want ErrNoValidFill", err)
 	}
@@ -366,7 +390,7 @@ func TestFillRecursive_ImpossibleToFill(t *testing.T) {
 
 func TestFill_NilInputs(t *testing.T) {
 	g := grid.NewEmptyGrid(grid.GridConfig{Size: 5})
-	wordlist := &MockWordlist{matchCounts: map[string]int{}}
+	wordlist := &MockWordlistWithScores{words: map[string][]WordWithScore{}}
 	config := FillConfig{}
 
 	// Test nil grid
@@ -579,8 +603,9 @@ func TestFillRecursive_ConflictDetection(t *testing.T) {
 	}
 
 	config := FillConfig{MinScore: 50, MaxRetries: 100}
+	usedWords := make(map[string]bool)
 
-	err := fillRecursive([]*grid.Entry{entry}, 0, g, wordlist, config)
+	err := fillRecursive([]*grid.Entry{entry}, 0, g, wordlist, config, usedWords)
 	if err != nil {
 		t.Errorf("fillRecursive() = %v, want nil (should find AXE)", err)
 	}
@@ -592,4 +617,211 @@ func TestFillRecursive_ConflictDetection(t *testing.T) {
 			t.Errorf("cell %d: got %c, want %c", i, cell.Letter, expected[i])
 		}
 	}
+}
+
+func TestFillRecursive_MinScoreEnforcement(t *testing.T) {
+	g := grid.NewEmptyGrid(grid.GridConfig{Size: 5})
+
+	entry := &grid.Entry{
+		Number:    1,
+		Direction: grid.ACROSS,
+		StartRow:  0,
+		StartCol:  0,
+		Length:    3,
+		Cells: []*grid.Cell{
+			g.Cells[0][0],
+			g.Cells[0][1],
+			g.Cells[0][2],
+		},
+	}
+
+	g.Entries = []*grid.Entry{entry}
+
+	// Wordlist with low-scoring and high-scoring words
+	wordlist := &MockWordlistWithScores{
+		words: map[string][]WordWithScore{
+			"___": {
+				{Text: "BAD", Score: 30},  // Below threshold
+				{Text: "CAT", Score: 80},  // Above threshold
+				{Text: "DOG", Score: 75},  // Above threshold
+			},
+		},
+	}
+
+	config := FillConfig{MinScore: 50, MaxRetries: 100}
+	usedWords := make(map[string]bool)
+
+	err := fillRecursive([]*grid.Entry{entry}, 0, g, wordlist, config, usedWords)
+	if err != nil {
+		t.Errorf("fillRecursive() = %v, want nil", err)
+	}
+
+	// Verify that BAD was not used (score too low)
+	result := ""
+	for _, cell := range entry.Cells {
+		result += string(cell.Letter)
+	}
+
+	if result == "BAD" {
+		t.Error("Should not use BAD (score 30 < MinScore 50)")
+	}
+
+	if result != "CAT" && result != "DOG" {
+		t.Errorf("Expected CAT or DOG, got %s", result)
+	}
+}
+
+func TestFillRecursive_DuplicatePrevention(t *testing.T) {
+	g := grid.NewEmptyGrid(grid.GridConfig{Size: 5})
+
+	// Create two non-crossing entries
+	entry1 := &grid.Entry{
+		Number:    1,
+		Direction: grid.ACROSS,
+		StartRow:  0,
+		StartCol:  0,
+		Length:    3,
+		Cells: []*grid.Cell{
+			g.Cells[0][0],
+			g.Cells[0][1],
+			g.Cells[0][2],
+		},
+	}
+
+	entry2 := &grid.Entry{
+		Number:    2,
+		Direction: grid.ACROSS,
+		StartRow:  2,
+		StartCol:  0,
+		Length:    3,
+		Cells: []*grid.Cell{
+			g.Cells[2][0],
+			g.Cells[2][1],
+			g.Cells[2][2],
+		},
+	}
+
+	g.Entries = []*grid.Entry{entry1, entry2}
+
+	// Wordlist with multiple words
+	wordlist := &MockWordlistWithScores{
+		words: map[string][]WordWithScore{
+			"___": {
+				{Text: "CAT", Score: 80},
+				{Text: "DOG", Score: 75},
+				{Text: "BAT", Score: 70},
+			},
+		},
+	}
+
+	config := FillConfig{MinScore: 50, MaxRetries: 100}
+	usedWords := make(map[string]bool)
+
+	err := fillRecursive([]*grid.Entry{entry1, entry2}, 0, g, wordlist, config, usedWords)
+	if err != nil {
+		t.Errorf("fillRecursive() = %v, want nil", err)
+	}
+
+	// Verify both entries are filled
+	if !isEntryFilled(entry1) {
+		t.Error("entry1 should be filled")
+	}
+	if !isEntryFilled(entry2) {
+		t.Error("entry2 should be filled")
+	}
+
+	// Get the words used
+	word1 := ""
+	for _, cell := range entry1.Cells {
+		word1 += string(cell.Letter)
+	}
+
+	word2 := ""
+	for _, cell := range entry2.Cells {
+		word2 += string(cell.Letter)
+	}
+
+	// Verify no duplicates
+	if word1 == word2 {
+		t.Errorf("Duplicate words detected: both entries use %s", word1)
+	}
+}
+
+func TestFill_WithQualityControls(t *testing.T) {
+	g := grid.NewEmptyGrid(grid.GridConfig{Size: 5})
+
+	entry1 := &grid.Entry{
+		Number:    1,
+		Direction: grid.ACROSS,
+		StartRow:  0,
+		StartCol:  0,
+		Length:    3,
+		Cells: []*grid.Cell{
+			g.Cells[0][0],
+			g.Cells[0][1],
+			g.Cells[0][2],
+		},
+	}
+
+	entry2 := &grid.Entry{
+		Number:    2,
+		Direction: grid.ACROSS,
+		StartRow:  2,
+		StartCol:  0,
+		Length:    3,
+		Cells: []*grid.Cell{
+			g.Cells[2][0],
+			g.Cells[2][1],
+			g.Cells[2][2],
+		},
+	}
+
+	g.Entries = []*grid.Entry{entry1, entry2}
+
+	wordlist := &MockWordlistWithScores{
+		words: map[string][]WordWithScore{
+			"___": {
+				{Text: "CAT", Score: 80},
+				{Text: "DOG", Score: 75},
+				{Text: "BAT", Score: 70},
+				{Text: "RAT", Score: 65},
+			},
+		},
+	}
+
+	// Test with custom MinScore
+	config := FillConfig{MinScore: 60, MaxRetries: 10}
+
+	err := Fill(g, wordlist, config)
+	if err != nil {
+		t.Errorf("Fill() = %v, want nil", err)
+	}
+
+	// Verify all entries are filled
+	if !isEntryFilled(entry1) {
+		t.Error("entry1 should be filled")
+	}
+	if !isEntryFilled(entry2) {
+		t.Error("entry2 should be filled")
+	}
+
+	// Get the words used
+	word1 := ""
+	for _, cell := range entry1.Cells {
+		word1 += string(cell.Letter)
+	}
+
+	word2 := ""
+	for _, cell := range entry2.Cells {
+		word2 += string(cell.Letter)
+	}
+
+	// Verify no duplicates
+	if word1 == word2 {
+		t.Errorf("Duplicate words detected: both entries use %s", word1)
+	}
+
+	// Verify scores meet threshold (RAT has score 65 but should be filtered out)
+	// We can't directly test scores without exposing them, but we can verify
+	// the fill succeeded with the quality constraints
 }

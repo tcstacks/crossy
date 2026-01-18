@@ -278,6 +278,19 @@ func (m *MockWordlist) Match(pattern string) []string {
 	return result
 }
 
+func (m *MockWordlist) MatchWithScores(pattern string, minScore int) []WordCandidate {
+	// For this simple mock, just return the same as Match but with dummy scores
+	words := m.Match(pattern)
+	result := make([]WordCandidate, len(words))
+	for i, w := range words {
+		result[i] = WordCandidate{
+			Word:  w,
+			Score: 50, // Default score that meets minimum
+		}
+	}
+	return result
+}
+
 func TestCountCrossings(t *testing.T) {
 	// Create a 5x5 grid with entries
 	g := grid.NewEmptyGrid(grid.GridConfig{Size: 5})

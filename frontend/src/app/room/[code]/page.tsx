@@ -465,7 +465,7 @@ export default function RoomPage() {
           </div>
 
           {/* Grid Container */}
-          <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
+          <div className="flex-1 flex items-center justify-center p-2 sm:p-4 overflow-auto">
             <CrosswordGrid
               onCellUpdate={handleCellUpdate}
               onCursorMove={handleCursorMove}

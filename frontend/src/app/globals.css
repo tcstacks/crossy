@@ -13,6 +13,13 @@ body {
   background: linear-gradient(180deg, var(--background-start) 0%, var(--background-end) 100%);
   background-attachment: fixed;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Fun floating shapes background */
@@ -48,11 +55,13 @@ body {
     0 10px 40px -10px rgba(192, 38, 211, 0.4),
     0 0 0 4px rgba(255, 255, 255, 0.2);
   touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Mobile responsive adjustments */
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .crossword-grid {
+    max-width: min(600px, 95vw);
     gap: 2px;
     padding: 4px;
     border-radius: 0.75rem;
@@ -61,7 +70,8 @@ body {
 
 @media (max-width: 480px) {
   .crossword-grid {
-    gap: 1px;
+    max-width: min(600px, 98vw);
+    gap: 1.5px;
     padding: 3px;
   }
 }
@@ -78,18 +88,33 @@ body {
   text-transform: uppercase;
   cursor: pointer;
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   border-radius: 8px;
   transition: all 0.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  min-height: 32px;
+  min-width: 32px;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.crossword-cell:hover:not(.black) {
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(192, 38, 211, 0.2);
+@media (hover: hover) {
+  .crossword-cell:hover:not(.black) {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(192, 38, 211, 0.2);
+  }
 }
 
 .crossword-cell:active:not(.black) {
   transform: scale(0.95);
+}
+
+@media (max-width: 640px) {
+  .crossword-cell {
+    min-height: 28px;
+    min-width: 28px;
+    border-radius: 6px;
+  }
 }
 
 .crossword-cell.black {
@@ -241,9 +266,12 @@ body {
 
 /* Mobile bottom sheet */
 .bottom-sheet {
-  @apply fixed inset-x-0 bottom-0 rounded-t-3xl shadow-2xl transform transition-transform;
+  @apply fixed inset-x-0 bottom-0 rounded-t-3xl shadow-2xl;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
+  z-index: 40;
+  will-change: transform;
+  -webkit-overflow-scrolling: touch;
 }
 
 .bottom-sheet.closed {
@@ -255,7 +283,14 @@ body {
 }
 
 .bottom-sheet-handle {
-  @apply w-16 h-1.5 bg-gradient-to-r from-primary-300 to-primary-500 rounded-full mx-auto my-4;
+  @apply w-16 h-1.5 bg-gradient-to-r from-primary-300 to-primary-500 rounded-full mx-auto my-4 cursor-grab active:cursor-grabbing;
+  touch-action: none;
+}
+
+@media (max-width: 640px) {
+  .bottom-sheet {
+    max-height: 70vh;
+  }
 }
 
 /* Timer display */
@@ -285,11 +320,26 @@ body {
   background: linear-gradient(135deg, #ff6b9d 0%, #c44cff 50%, #4cc9ff 100%);
 }
 
-/* PWA styles */
+/* PWA and Safe Area styles */
 @media (display-mode: standalone) {
   body {
     padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+@supports (padding: max(0px)) {
+  body {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+  }
+
+  .bottom-sheet {
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
+
+  header {
+    padding-top: max(0px, env(safe-area-inset-top));
   }
 }
 
@@ -316,6 +366,7 @@ body {
   box-shadow: 0 4px 12px -2px rgba(180, 120, 200, 0.15);
   min-height: 44px;
   min-width: 44px;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .btn:focus-visible {
@@ -474,7 +525,7 @@ a.fun-link:hover::after {
   transform: scaleX(1);
 }
 
-/* Toast animations */
+/* Animations */
 @keyframes slide-in {
   from {
     transform: translateX(400px);
@@ -483,6 +534,54 @@ a.fun-link:hover::after {
   to {
     transform: translateX(0);
     opacity: 1;
+  }
+}
+
+@keyframes pulse-soft {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes wiggle {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+@keyframes jelly {
+  0%, 100% {
+    transform: scale(1, 1);
+  }
+  25% {
+    transform: scale(0.9, 1.1);
+  }
+  50% {
+    transform: scale(1.1, 0.9);
+  }
+  75% {
+    transform: scale(0.95, 1.05);
   }
 }
 

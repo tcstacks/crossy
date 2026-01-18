@@ -148,11 +148,12 @@ export function MobileClueDisplay({ onExpand }: MobileClueDisplayProps) {
   if (!selectedClue) {
     return (
       <div
-        className="bg-gray-100 px-4 py-3 text-gray-600 text-center cursor-pointer"
+        className="bg-gray-100 px-4 py-3 text-gray-600 text-center cursor-pointer min-h-[44px] flex items-center justify-center"
         onClick={onExpand}
         role="button"
         tabIndex={0}
         aria-label="Show clue list"
+        style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
@@ -167,11 +168,12 @@ export function MobileClueDisplay({ onExpand }: MobileClueDisplayProps) {
 
   return (
     <div
-      className="bg-gray-100 px-4 py-3 cursor-pointer"
+      className="bg-gray-100 px-4 py-3 cursor-pointer min-h-[44px]"
       onClick={onExpand}
       role="button"
       tabIndex={0}
       aria-label={`Current clue: ${selectedClue.number} ${selectedClue.direction === 'across' ? 'Across' : 'Down'}, ${selectedClue.text}. Tap to expand clue list`}
+      style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
@@ -211,6 +213,36 @@ interface ClueBottomSheetProps {
 
 export function ClueBottomSheet({ isOpen, onClose }: ClueBottomSheetProps) {
   const [activeTab, setActiveTab] = useState<'across' | 'down'>('across');
+  const [startY, setStartY] = useState(0);
+  const [currentY, setCurrentY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    setStartY(e.touches[0].clientY);
+    setCurrentY(e.touches[0].clientY);
+    setIsDragging(true);
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isDragging) return;
+    const newY = e.touches[0].clientY;
+    if (newY > startY) {
+      setCurrentY(newY);
+    }
+  }, [isDragging, startY]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (!isDragging) return;
+    const deltaY = currentY - startY;
+    if (deltaY > 100) {
+      onClose();
+    }
+    setIsDragging(false);
+    setStartY(0);
+    setCurrentY(0);
+  }, [isDragging, currentY, startY, onClose]);
+
+  const translateY = isDragging && currentY > startY ? currentY - startY : 0;
 
   return (
     <div
@@ -221,9 +253,16 @@ export function ClueBottomSheet({ isOpen, onClose }: ClueBottomSheetProps) {
       role="dialog"
       aria-label="Crossword clues"
       aria-modal="false"
+      style={{
+        transform: `translateY(${isOpen ? translateY : '100%'}px)`,
+        transition: isDragging ? 'none' : 'transform 0.3s ease-out',
+      }}
     >
       <div
         className="bottom-sheet-handle"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         onClick={onClose}
         role="button"
         tabIndex={0}

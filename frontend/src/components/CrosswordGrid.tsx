@@ -418,6 +418,7 @@ export function CrosswordGrid({
         width: '100%',
         maxWidth: 'min(600px, 90vw)',
         aspectRatio: `${puzzle.gridWidth} / ${puzzle.gridHeight}`,
+        touchAction: 'manipulation',
       }}
       role="grid"
       aria-label="Crossword puzzle grid"

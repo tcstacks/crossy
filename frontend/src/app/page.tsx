@@ -8,7 +8,7 @@ import { Mascot, MascotWithSpeech } from '@/components/Mascot';
 import { useGameStore } from '@/store/gameStore';
 import { api } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
-import type { Puzzle } from '@/types';
+import type { Puzzle, UserStats } from '@/types';
 
 const getDifficultyBadge = (difficulty: string) => {
   switch (difficulty) {
@@ -27,6 +27,7 @@ export default function HomePage() {
   const router = useRouter();
   const { isAuthenticated } = useGameStore();
   const [todayPuzzle, setTodayPuzzle] = useState<Puzzle | null>(null);
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,8 +43,20 @@ export default function HomePage() {
       }
     };
 
+    const fetchUserStats = async () => {
+      if (isAuthenticated) {
+        try {
+          const stats = await api.getMyStats();
+          setUserStats(stats);
+        } catch (err) {
+          console.error('Failed to load user stats:', err);
+        }
+      }
+    };
+
     fetchTodayPuzzle();
-  }, []);
+    fetchUserStats();
+  }, [isAuthenticated]);
 
   const handlePlaySolo = () => {
     if (!isAuthenticated) {
@@ -168,6 +181,38 @@ export default function HomePage() {
             )}
           </div>
         </section>
+
+        {/* Streak Display */}
+        {isAuthenticated && userStats && (
+          <section className="max-w-2xl mx-auto mb-12">
+            <div className="card bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-3xl">🔥</span>
+                    <h2 className="font-bold text-xl text-purple-900">Your Streak</h2>
+                  </div>
+                  <p className="text-sm text-purple-600">
+                    Keep playing daily to maintain your streak!
+                  </p>
+                </div>
+                <div className="text-center">
+                  <div className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-orange-500 to-pink-600">
+                    {userStats.streakCurrent}
+                  </div>
+                  <div className="text-xs text-purple-600 mt-1">
+                    {userStats.streakCurrent === 1 ? 'day' : 'days'}
+                  </div>
+                  {userStats.streakBest > 0 && (
+                    <div className="text-xs text-purple-500 mt-2">
+                      Best: {userStats.streakBest} {userStats.streakBest === 1 ? 'day' : 'days'}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Quick Actions */}
         <section className="max-w-4xl mx-auto mb-12">

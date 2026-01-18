@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { User, Puzzle, Room, Player, Cell, Message, Clue } from '@/types';
+import type { User, Puzzle, Room, Player, Cell, Message, Clue, RaceProgress } from '@/types';
 
 interface CursorPosition {
   x: number;
@@ -39,6 +39,7 @@ interface GameState {
   playerCursors: PlayerCursor[];
   messages: Message[];
   isHost: boolean;
+  raceLeaderboard: RaceProgress[];
 
   // UI
   showChat: boolean;
@@ -68,6 +69,7 @@ interface GameState {
   endGame: (solveTime: number) => void;
   incrementHints: () => void;
   resetGame: () => void;
+  setRaceLeaderboard: (leaderboard: RaceProgress[]) => void;
 }
 
 const initialCells: Cell[][] = [];
@@ -91,6 +93,7 @@ export const useGameStore = create<GameState>()(
       playerCursors: [],
       messages: [],
       isHost: false,
+      raceLeaderboard: [],
       showChat: false,
       showClues: true,
       hintsUsed: 0,
@@ -227,8 +230,11 @@ export const useGameStore = create<GameState>()(
           playerCursors: [],
           messages: [],
           isHost: false,
+          raceLeaderboard: [],
           hintsUsed: 0,
         }),
+
+      setRaceLeaderboard: (leaderboard) => set({ raceLeaderboard: leaderboard }),
     }),
     {
       name: 'crossplay-storage',

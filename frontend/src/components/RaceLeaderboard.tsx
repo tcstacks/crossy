@@ -5,27 +5,33 @@ import { useGameStore } from '@/store/gameStore';
 import { cn } from '@/lib/utils';
 
 export function RaceLeaderboard() {
-  const { players, puzzle, cells } = useGameStore();
+  const { raceLeaderboard, players } = useGameStore();
 
   const leaderboardData = useMemo(() => {
-    if (!puzzle) return [];
+    if (raceLeaderboard.length === 0) return [];
 
-    const totalCells = puzzle.grid.flat().filter((cell) => cell.letter !== null).length;
+    // Sort by: finished players first (by rank), then by progress
+    return [...raceLeaderboard].sort((a, b) => {
+      // Both finished - sort by rank
+      if (a.rank && b.rank) {
+        return a.rank - b.rank;
+      }
+      // Only a finished - a comes first
+      if (a.rank) return -1;
+      // Only b finished - b comes first
+      if (b.rank) return 1;
+      // Neither finished - sort by progress
+      return b.progress - a.progress;
+    });
+  }, [raceLeaderboard]);
 
-    return players
-      .map((player) => {
-        const cellsCompleted = player.contribution;
-        const progress = totalCells > 0 ? (cellsCompleted / totalCells) * 100 : 0;
-        return {
-          ...player,
-          cellsCompleted,
-          progress,
-        };
-      })
-      .sort((a, b) => b.cellsCompleted - a.cellsCompleted);
-  }, [players, puzzle, cells]);
+  // Get player colors from players list
+  const getPlayerColor = (userId: string) => {
+    const player = players.find(p => p.userId === userId);
+    return player?.color || '#888888';
+  };
 
-  if (!puzzle || leaderboardData.length === 0) {
+  if (leaderboardData.length === 0) {
     return null;
   }
 
@@ -43,47 +49,62 @@ export function RaceLeaderboard() {
       </div>
 
       <div className="space-y-2">
-        {leaderboardData.map((player, index) => (
-          <div
-            key={player.userId}
-            className={cn(
-              'relative rounded-lg p-3 transition-all',
-              index === 0 && 'bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-400',
-              index === 1 && 'bg-gradient-to-r from-gray-50 to-slate-50 border-2 border-gray-300',
-              index === 2 && 'bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-300',
-              index > 2 && 'bg-gray-50 border border-gray-200'
-            )}
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-lg font-bold text-gray-500 w-6">
-                {index === 0 && '🥇'}
-                {index === 1 && '🥈'}
-                {index === 2 && '🥉'}
-                {index > 2 && `#${index + 1}`}
-              </span>
-              <span
-                className="font-semibold text-sm truncate flex-1"
-                style={{ color: player.color }}
-              >
-                {player.displayName}
-              </span>
-              <span className="text-xs font-bold text-purple-600">
-                {player.cellsCompleted} cells
-              </span>
-            </div>
+        {leaderboardData.map((player, index) => {
+          const playerColor = getPlayerColor(player.userId);
+          const isFinished = player.rank !== undefined;
 
-            {/* Progress bar */}
-            <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-500 ease-out"
-                style={{
-                  width: `${player.progress}%`,
-                  backgroundColor: player.color,
-                }}
-              />
+          return (
+            <div
+              key={player.userId}
+              className={cn(
+                'relative rounded-lg p-3 transition-all',
+                index === 0 && 'bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-400',
+                index === 1 && 'bg-gradient-to-r from-gray-50 to-slate-50 border-2 border-gray-300',
+                index === 2 && 'bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-300',
+                index > 2 && 'bg-gray-50 border border-gray-200',
+                isFinished && 'opacity-90'
+              )}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-lg font-bold text-gray-500 w-6">
+                  {index === 0 && '🥇'}
+                  {index === 1 && '🥈'}
+                  {index === 2 && '🥉'}
+                  {index > 2 && `#${index + 1}`}
+                </span>
+                <span
+                  className="font-semibold text-sm truncate flex-1"
+                  style={{ color: playerColor }}
+                >
+                  {player.displayName}
+                </span>
+                {isFinished ? (
+                  <span className="text-xs font-bold text-green-600">
+                    ✓ {player.solveTime}s
+                  </span>
+                ) : (
+                  <span className="text-xs font-bold text-purple-600">
+                    {Math.round(player.progress)}%
+                  </span>
+                )}
+              </div>
+
+              {/* Progress bar */}
+              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div
+                  className={cn(
+                    "h-full rounded-full transition-all duration-500 ease-out",
+                    isFinished && "bg-green-500"
+                  )}
+                  style={{
+                    width: `${player.progress}%`,
+                    backgroundColor: isFinished ? undefined : playerColor,
+                  }}
+                />
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="mt-3 pt-3 border-t border-gray-200 text-xs text-gray-500 text-center">

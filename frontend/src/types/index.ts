@@ -143,6 +143,7 @@ export type WSMessageType =
   | 'request_hint'
   | 'start_game'
   | 'reaction'
+  | 'pass_turn'
   | 'room_state'
   | 'player_joined'
   | 'player_left'
@@ -153,6 +154,9 @@ export type WSMessageType =
   | 'puzzle_completed'
   | 'error'
   | 'reaction_added'
+  | 'race_progress'
+  | 'player_finished'
+  | 'turn_changed'
   | 'room_deleted';
 
 export interface WSMessage {
@@ -184,4 +188,25 @@ export interface PlayerResult {
   displayName: string;
   contribution: number;
   color: string;
+}
+
+// Race mode types
+export interface RaceProgress {
+  userId: string;
+  displayName: string;
+  progress: number;
+  finishedAt?: string;
+  solveTime?: number;
+  rank?: number;
+}
+
+export interface RaceProgressPayload {
+  leaderboard: RaceProgress[];
+}
+
+export interface PlayerFinishedPayload {
+  userId: string;
+  displayName: string;
+  solveTime: number;
+  rank: number;
 }

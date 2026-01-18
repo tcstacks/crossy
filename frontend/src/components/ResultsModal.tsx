@@ -22,7 +22,8 @@ export function ResultsModal({
   onRematch,
   onHome,
 }: ResultsModalProps) {
-  const { puzzle, hintsUsed, user } = useGameStore();
+  const { puzzle, hintsUsed, user, room } = useGameStore();
+  const isRaceMode = room?.mode === 'race';
 
   const handleShare = useCallback(async () => {
     if (!puzzle) return;
@@ -47,9 +48,11 @@ export function ResultsModal({
 
   if (!isOpen) return null;
 
-  const sortedPlayers = [...players].sort(
-    (a, b) => b.contribution - a.contribution
-  );
+  // In race mode, contribution is actually the rank (inverted for sorting)
+  // Higher contribution = higher rank (i.e., better placement)
+  const sortedPlayers = isRaceMode
+    ? [...players].sort((a, b) => b.contribution - a.contribution)
+    : [...players].sort((a, b) => b.contribution - a.contribution);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -75,18 +78,24 @@ export function ResultsModal({
           </div>
         </div>
 
-        {/* Player contributions */}
+        {/* Player rankings/contributions */}
         {sortedPlayers.length > 1 && (
           <div className="p-6 border-b">
-            <h3 className="font-bold mb-3">Team Contributions</h3>
+            <h3 className="font-bold mb-3">
+              {isRaceMode ? 'Final Rankings' : 'Team Contributions'}
+            </h3>
             <div className="space-y-3">
               {sortedPlayers.map((player, index) => {
                 const isCurrentUser = player.userId === user?.id;
+                const rank = index + 1;
 
                 return (
                   <div key={player.userId} className="flex items-center gap-3">
                     <div className="w-6 text-center font-bold text-gray-400">
-                      {index + 1}
+                      {rank === 1 && '🥇'}
+                      {rank === 2 && '🥈'}
+                      {rank === 3 && '🥉'}
+                      {rank > 3 && rank}
                     </div>
                     <div
                       className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium"
@@ -99,18 +108,20 @@ export function ResultsModal({
                         {player.displayName}
                         {isCurrentUser && ' (You)'}
                       </div>
-                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full"
-                          style={{
-                            width: `${player.contribution}%`,
-                            backgroundColor: player.color,
-                          }}
-                        />
-                      </div>
+                      {!isRaceMode && (
+                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full"
+                            style={{
+                              width: `${player.contribution}%`,
+                              backgroundColor: player.color,
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
                     <div className="text-sm font-medium">
-                      {Math.round(player.contribution)}%
+                      {isRaceMode ? `#${rank}` : `${Math.round(player.contribution)}%`}
                     </div>
                   </div>
                 );

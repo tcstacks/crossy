@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useGameStore } from '@/store/gameStore';
-import type { WSMessage, WSMessageType, Player, Message } from '@/types';
+import type { WSMessage, WSMessageType, Player, Message, RaceProgressPayload, PlayerFinishedPayload } from '@/types';
 
 const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080';
 
@@ -31,6 +31,7 @@ export function useWebSocket(roomCode?: string) {
     startGame,
     endGame,
     setPuzzle,
+    setRaceLeaderboard,
   } = useGameStore();
 
   // Update current room code ref when it changes
@@ -237,6 +238,19 @@ export function useWebSocket(roomCode?: string) {
         break;
       }
 
+      case 'race_progress': {
+        const data = payload as RaceProgressPayload;
+        setRaceLeaderboard(data.leaderboard);
+        break;
+      }
+
+      case 'player_finished': {
+        const data = payload as PlayerFinishedPayload;
+        console.log(`${data.displayName} finished! Rank: ${data.rank}, Time: ${data.solveTime}s`);
+        // The leaderboard will be updated via race_progress message
+        break;
+      }
+
       case 'room_deleted': {
         const data = payload as { reason: string };
         console.log('Room deleted:', data.reason);
@@ -265,6 +279,7 @@ export function useWebSocket(roomCode?: string) {
     startGame,
     endGame,
     setPuzzle,
+    setRaceLeaderboard,
   ]);
 
   // Keep ref updated with latest handleMessage to avoid stale closures

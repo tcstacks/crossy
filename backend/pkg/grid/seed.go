@@ -14,7 +14,7 @@ type SeedConfig struct {
 // The black squares will later be mirrored to create 180-degree rotational symmetry.
 //
 // For a 15x15 grid, the top-left quadrant includes cells where both row and col are < 7.
-// The center cell (7,7) is handled separately to maintain symmetry.
+// The center cell (7,7) is never made black to ensure connectivity validation can proceed.
 //
 // Parameters:
 //   - grid: The grid to seed with black squares
@@ -38,7 +38,11 @@ func seedBlackSquares(grid *Grid, config SeedConfig) {
 	// Since we'll mirror them, we need half of the target (accounting for center cell if grid is odd)
 	blacksToPlace := targetBlackCells / 2
 
+	// Calculate center position for odd-sized grids
+	center := grid.Size / 2
+
 	// Create a list of all possible positions in the top-left quadrant
+	// Exclude center cell to ensure it's never black (required for connectivity check)
 	var positions []struct{ row, col int }
 	for row := 0; row < quadrantSize; row++ {
 		for col := 0; col < quadrantSize; col++ {
@@ -58,4 +62,7 @@ func seedBlackSquares(grid *Grid, config SeedConfig) {
 		grid.Cells[pos.row][pos.col].IsBlack = true
 		placedCount++
 	}
+
+	// Ensure center cell is always white (required for connectivity check)
+	grid.Cells[center][center].IsBlack = false
 }

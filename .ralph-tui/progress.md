@@ -136,3 +136,21 @@ er code requirement)\n     - Case-insensitive code matching\n     - Room state v
 tegration tests in `websocket_test.go`:\n  - Connection establishment\n  - Ping-pong heartbeat verification\n  - Message serialization/deserialization\n  - Error handling (invalid tokens)\n  - Auto-reconnect simulation\n  - Multi-tab support validation\n- ✅ Backend tests pass: `go test ./...` ✓\n- ✅ Frontend typecheck passes: `npm run typecheck` ✓\n- ✅ Frontend lint passes: `npm run lint` ✓ (only 1 warning, not an error)\n\nAll changes have been committed with a comprehensive commit message.\n\n
 
 ---
+## ✓ Iteration 15 - US-016: Lobby system with real-time updates
+*2026-01-18T02:53:43.281Z (212s)*
+
+**Status:** Completed
+
+**Notes:**
+ving the room\n  - Broadcast `room_deleted` event to all remaining players\n  - Delete the room from the database\n  - Clean up all client connections in the room\n\n**Frontend:**\n- Updated types (frontend/src/types/index.ts) to include `room_deleted` message type\n- Enhanced WebSocket hook (frontend/src/hooks/useWebSocket.ts) to handle `room_deleted` event by redirecting users to home page\n\n### Commit\n\nChanges committed with message: `feat: US-016 - Lobby system with real-time updates`\n\n
+
+---
+## ✓ Iteration 16 - US-017: Collaborative mode implementation
+*2026-01-18T02:59:24.310Z (261s)*
+
+**Status:** Completed
+
+**Notes:**
+ackend broadcasts the change to all connected players instantly\n3. **Contribution Tracking**: Each time a player enters a NEW correct answer (not previously correct), their contribution counter increments\n4. **Completion Detection**: After every cell update, the backend checks if all cells are 100% correct, then calculates contribution percentages and broadcasts results\n5. **Results Display**: The ResultsModal shows each player's contribution as a percentage with color-coded progress bars\n\n
+
+---

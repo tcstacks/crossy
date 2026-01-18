@@ -351,11 +351,12 @@
         "cd frontend && npm run lint passes"
       ],
       "priority": 15,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "US-015"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-017",
@@ -372,11 +373,12 @@
         "cd frontend && npm run lint passes"
       ],
       "priority": 16,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "US-016"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-018",
@@ -875,6 +877,6 @@
     }
   ],
   "metadata": {
-    "updatedAt": "2026-01-18T02:50:11.091Z"
+    "updatedAt": "2026-01-18T03:00:16.917Z"
   }
 }

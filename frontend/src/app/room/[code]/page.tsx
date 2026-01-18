@@ -63,6 +63,7 @@ export default function RoomPage() {
     connect,
     disconnect,
     joinRoom,
+    leaveRoom,
     updateCell,
     moveCursor,
     sendMessage,
@@ -251,6 +252,12 @@ export default function RoomPage() {
     }
   }, [room, passTurn]);
 
+  const handleLeaveRoom = useCallback(() => {
+    leaveRoom();
+    resetGame();
+    router.push('/');
+  }, [leaveRoom, resetGame, router]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -386,17 +393,25 @@ export default function RoomPage() {
           {isHost && (
             <button
               onClick={handleStartGame}
-              className="btn btn-primary w-full text-lg py-4"
+              className="btn btn-primary w-full text-lg py-4 mb-4"
             >
               Start Game
             </button>
           )}
 
           {!isHost && (
-            <p className="text-center text-gray-500">
+            <p className="text-center text-gray-500 mb-4">
               Waiting for host to start the game...
             </p>
           )}
+
+          {/* Leave Room Button */}
+          <button
+            onClick={handleLeaveRoom}
+            className="btn btn-secondary w-full"
+          >
+            Leave Room
+          </button>
         </main>
       </div>
     );

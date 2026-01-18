@@ -189,7 +189,7 @@ export default function CreateRoomPage() {
               onChange={(e) => setMaxPlayers(Number(e.target.value))}
               className="input"
             >
-              {[2, 3, 4, 5, 6, 7, 8].map((n) => (
+              {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
                 <option key={n} value={n}>
                   {n} players
                 </option>

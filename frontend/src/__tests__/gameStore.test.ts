@@ -28,7 +28,7 @@ describe('GameStore', () => {
   describe('Authentication', () => {
     it('should set user and token', () => {
       const store = useGameStore.getState();
-      const user = { id: 'user1', email: 'test@example.com', displayName: 'Test User', isGuest: false };
+      const user = { id: 'user1', email: 'test@example.com', displayName: 'Test User', isGuest: false, createdAt: new Date().toISOString() };
       const token = 'test-token';
 
       store.setUser(user, token);
@@ -41,7 +41,7 @@ describe('GameStore', () => {
 
     it('should logout correctly', () => {
       const store = useGameStore.getState();
-      store.setUser({ id: '1', email: 'test@example.com', displayName: 'Test', isGuest: false }, 'token');
+      store.setUser({ id: '1', email: 'test@example.com', displayName: 'Test', isGuest: false, createdAt: new Date().toISOString() }, 'token');
       store.logout();
 
       const state = useGameStore.getState();
@@ -120,7 +120,7 @@ describe('GameStore', () => {
         maxPlayers: 4,
         isPublic: false,
         spectatorMode: true,
-        timerMode: 'none',
+        timerMode: 'none' as const,
         hintsEnabled: true,
       },
       state: 'lobby' as const,
@@ -129,7 +129,7 @@ describe('GameStore', () => {
 
     it('should set room and determine if user is host', () => {
       const store = useGameStore.getState();
-      store.setUser({ id: 'user1', email: 'test@example.com', displayName: 'Host', isGuest: false }, 'token');
+      store.setUser({ id: 'user1', email: 'test@example.com', displayName: 'Host', isGuest: false, createdAt: new Date().toISOString() }, 'token');
       store.setRoom(mockRoom);
 
       const state = useGameStore.getState();
@@ -139,7 +139,7 @@ describe('GameStore', () => {
 
     it('should not be host if user is different', () => {
       const store = useGameStore.getState();
-      store.setUser({ id: 'user2', email: 'other@example.com', displayName: 'Other', isGuest: false }, 'token');
+      store.setUser({ id: 'user2', email: 'other@example.com', displayName: 'Other', isGuest: false, createdAt: new Date().toISOString() }, 'token');
       store.setRoom(mockRoom);
 
       const state = useGameStore.getState();

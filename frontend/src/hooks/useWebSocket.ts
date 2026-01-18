@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useGameStore } from '@/store/gameStore';
-import type { WSMessage, WSMessageType, Player, Message, RaceProgressPayload, PlayerFinishedPayload } from '@/types';
+import type { WSMessage, WSMessageType, Player, Message, RaceProgressPayload, PlayerFinishedPayload, TurnChangedPayload } from '@/types';
 
 const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080';
 
@@ -32,6 +32,7 @@ export function useWebSocket(roomCode?: string) {
     endGame,
     setPuzzle,
     setRaceLeaderboard,
+    setCurrentTurn,
   } = useGameStore();
 
   // Update current room code ref when it changes
@@ -251,6 +252,13 @@ export function useWebSocket(roomCode?: string) {
         break;
       }
 
+      case 'turn_changed': {
+        const data = payload as TurnChangedPayload;
+        setCurrentTurn(data.currentPlayerId, data.turnNumber);
+        console.log(`Turn changed: ${data.currentPlayerName}'s turn (turn ${data.turnNumber})`);
+        break;
+      }
+
       case 'room_deleted': {
         const data = payload as { reason: string };
         console.log('Room deleted:', data.reason);
@@ -280,6 +288,7 @@ export function useWebSocket(roomCode?: string) {
     endGame,
     setPuzzle,
     setRaceLeaderboard,
+    setCurrentTurn,
   ]);
 
   // Keep ref updated with latest handleMessage to avoid stale closures
@@ -322,6 +331,10 @@ export function useWebSocket(roomCode?: string) {
     send('reaction', { clueId, emoji });
   }, [send]);
 
+  const passTurn = useCallback(() => {
+    send('pass_turn', {});
+  }, [send]);
+
   useEffect(() => {
     return () => {
       disconnect();
@@ -340,5 +353,6 @@ export function useWebSocket(roomCode?: string) {
     requestHint,
     startGame: startGameAction,
     sendReaction,
+    passTurn,
   };
 }

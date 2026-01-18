@@ -29,7 +29,6 @@ export default function RoomPage() {
   const [showPlayers, setShowPlayers] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
-  const [currentTurnUserId, setCurrentTurnUserId] = useState<string | undefined>(undefined);
   const [results, setResults] = useState<{
     solveTime: number;
     players: PlayerResult[];
@@ -53,6 +52,8 @@ export default function RoomPage() {
     hintsUsed,
     incrementHints,
     selectedCell,
+    currentTurnUserId,
+    setCurrentTurn,
   } = useGameStore();
 
   const {
@@ -65,6 +66,7 @@ export default function RoomPage() {
     sendMessage,
     requestHint,
     startGame,
+    passTurn,
   } = useWebSocket(code);
 
   // Check authentication
@@ -222,20 +224,11 @@ export default function RoomPage() {
   }, []);
 
   const handlePassTurn = useCallback(() => {
-    // In relay mode, pass turn to next player
-    if (room?.mode === 'relay' && players.length > 0) {
-      const currentIndex = players.findIndex((p) => p.userId === currentTurnUserId);
-      const nextIndex = (currentIndex + 1) % players.length;
-      setCurrentTurnUserId(players[nextIndex].userId);
+    // In relay mode, send pass turn message to server
+    if (room?.mode === 'relay') {
+      passTurn();
     }
-  }, [room, players, currentTurnUserId]);
-
-  // Initialize current turn for relay mode
-  useEffect(() => {
-    if (room?.mode === 'relay' && room?.state === 'active' && players.length > 0 && !currentTurnUserId) {
-      setCurrentTurnUserId(players[0].userId);
-    }
-  }, [room, players, currentTurnUserId]);
+  }, [room, passTurn]);
 
   if (isLoading) {
     return (
@@ -406,13 +399,13 @@ export default function RoomPage() {
         onCheckGrid={handleCheckGrid}
         hintsEnabled={room?.config.hintsEnabled}
         roomMode={room?.mode}
-        currentTurnUserId={currentTurnUserId}
+        currentTurnUserId={currentTurnUserId ?? undefined}
       />
 
       {/* Relay Turn Indicator - Only show in relay mode */}
       {room?.mode === 'relay' && (
         <RelayTurnIndicator
-          currentTurnUserId={currentTurnUserId}
+          currentTurnUserId={currentTurnUserId ?? undefined}
           onPassTurn={handlePassTurn}
         />
       )}

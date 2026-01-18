@@ -210,3 +210,10 @@ export interface PlayerFinishedPayload {
   solveTime: number;
   rank: number;
 }
+
+// Relay mode types
+export interface TurnChangedPayload {
+  currentPlayerId: string;
+  currentPlayerName: string;
+  turnNumber: number;
+}

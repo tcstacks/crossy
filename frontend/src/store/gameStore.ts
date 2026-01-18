@@ -40,6 +40,8 @@ interface GameState {
   messages: Message[];
   isHost: boolean;
   raceLeaderboard: RaceProgress[];
+  currentTurnUserId: string | null;
+  turnNumber: number;
 
   // UI
   showChat: boolean;
@@ -70,6 +72,7 @@ interface GameState {
   incrementHints: () => void;
   resetGame: () => void;
   setRaceLeaderboard: (leaderboard: RaceProgress[]) => void;
+  setCurrentTurn: (userId: string, turnNumber: number) => void;
 }
 
 const initialCells: Cell[][] = [];
@@ -94,6 +97,8 @@ export const useGameStore = create<GameState>()(
       messages: [],
       isHost: false,
       raceLeaderboard: [],
+      currentTurnUserId: null,
+      turnNumber: 0,
       showChat: false,
       showClues: true,
       hintsUsed: 0,
@@ -235,6 +240,9 @@ export const useGameStore = create<GameState>()(
         }),
 
       setRaceLeaderboard: (leaderboard) => set({ raceLeaderboard: leaderboard }),
+
+      setCurrentTurn: (userId, turnNumber) =>
+        set({ currentTurnUserId: userId, turnNumber }),
     }),
     {
       name: 'crossplay-storage',

@@ -205,6 +205,9 @@ func NewHub(database *db.Database) *Hub {
 }
 
 func (h *Hub) Run() {
+	// Start relay turn timeout checker
+	go h.checkRelayTurnTimeouts()
+
 	for {
 		select {
 		case client := <-h.register:
@@ -526,13 +529,31 @@ func (h *Hub) handleRelayCellUpdate(client *Client, room *models.Room, p *CellUp
 		return
 	}
 
-	// Update cell (same as collaborative)
+	puzzle, _ := h.db.GetPuzzleByID(room.PuzzleID)
+	if puzzle == nil {
+		return
+	}
+
+	// Get previously completed clues count
+	prevCompletedCount := len(gridState.CompletedClues)
+
+	// Update cell
 	if p.Y >= 0 && p.Y < len(gridState.Cells) && p.X >= 0 && p.X < len(gridState.Cells[p.Y]) {
 		gridState.Cells[p.Y][p.X].Value = p.Value
 		gridState.Cells[p.Y][p.X].LastEditedBy = &client.UserID
 		gridState.LastUpdated = time.Now()
 
+		// Check for newly completed clues
+		gridState.CompletedClues = h.getCompletedClues(puzzle, gridState)
 		h.db.UpdateGridState(gridState)
+
+		// Track newly completed words this turn
+		newCompletedCount := len(gridState.CompletedClues)
+		if newCompletedCount > prevCompletedCount {
+			wordsCompleted := newCompletedCount - prevCompletedCount
+			relayState.WordsThisTurn += wordsCompleted
+			h.db.UpdateRelayState(relayState)
+		}
 
 		// Get player for color
 		players, _ := h.db.GetRoomPlayers(client.RoomID)
@@ -1217,6 +1238,96 @@ func (h *Hub) handlePassTurn(client *Client) {
 	})
 }
 
+func (h *Hub) checkRelayTurnTimeouts() {
+	ticker := time.NewTicker(5 * time.Second) // Check every 5 seconds
+	defer ticker.Stop()
+
+	for range ticker.C {
+		// Get all active relay rooms
+		h.mutex.RLock()
+		roomIDs := make([]string, 0, len(h.rooms))
+		for roomID, room := range h.rooms {
+			if room.Mode == models.RoomModeRelay {
+				roomIDs = append(roomIDs, roomID)
+			}
+		}
+		h.mutex.RUnlock()
+
+		// Check each relay room for turn timeout
+		for _, roomID := range roomIDs {
+			relayState, err := h.db.GetRelayState(roomID)
+			if err != nil || relayState == nil {
+				continue
+			}
+
+			// Skip if no time limit
+			if relayState.TurnTimeLimit == 0 {
+				continue
+			}
+
+			// Check if turn has timed out
+			elapsed := time.Since(relayState.TurnStartedAt)
+			if elapsed.Seconds() >= float64(relayState.TurnTimeLimit) {
+				// Auto-advance to next turn
+				h.advanceTurn(roomID, relayState)
+			}
+		}
+	}
+}
+
+func (h *Hub) advanceTurn(roomID string, relayState *models.RelayState) {
+	// Find next player
+	currentIndex := -1
+	for i, uid := range relayState.TurnOrder {
+		if uid == relayState.CurrentPlayerID {
+			currentIndex = i
+			break
+		}
+	}
+
+	if currentIndex == -1 {
+		return
+	}
+
+	nextIndex := (currentIndex + 1) % len(relayState.TurnOrder)
+	nextPlayerID := relayState.TurnOrder[nextIndex]
+
+	// Update relay state
+	relayState.CurrentPlayerID = nextPlayerID
+	relayState.TurnStartedAt = time.Now()
+	relayState.WordsThisTurn = 0
+	h.db.UpdateRelayState(relayState)
+
+	// Increment turn number
+	h.mutex.Lock()
+	hubRoom := h.rooms[roomID]
+	if hubRoom != nil {
+		hubRoom.TurnNumber++
+	}
+	turnNum := 1
+	if hubRoom != nil {
+		turnNum = hubRoom.TurnNumber
+	}
+	h.mutex.Unlock()
+
+	// Get next player name
+	players, _ := h.db.GetRoomPlayers(roomID)
+	nextPlayer := findPlayer(players, nextPlayerID)
+	playerName := "Unknown"
+	if nextPlayer != nil {
+		playerName = nextPlayer.DisplayName
+	}
+
+	// Broadcast turn change
+	h.broadcastToRoom(roomID, "", MsgTurnChanged, TurnChangedPayload{
+		CurrentPlayerID:   nextPlayerID,
+		CurrentPlayerName: playerName,
+		TurnNumber:        turnNum,
+	})
+
+	log.Printf("Relay turn timeout: room %s advanced to player %s (turn %d)", roomID, nextPlayerID, turnNum)
+}
+
 func (h *Hub) removeClientFromRoom(client *Client) {
 	h.mutex.Lock()
 	hubRoom, exists := h.rooms[client.RoomID]
@@ -1392,6 +1503,63 @@ func findPlayer(players []models.Player, userID string) *models.Player {
 		}
 	}
 	return nil
+}
+
+func (h *Hub) getCompletedClues(puzzle *models.Puzzle, gridState *models.GridState) []string {
+	completed := []string{}
+
+	// Check across clues
+	for _, clue := range puzzle.CluesAcross {
+		if h.isClueComplete(clue, gridState) {
+			clueID := "across-" + string(rune(clue.Number))
+			completed = append(completed, clueID)
+		}
+	}
+
+	// Check down clues
+	for _, clue := range puzzle.CluesDown {
+		if h.isClueComplete(clue, gridState) {
+			clueID := "down-" + string(rune(clue.Number))
+			completed = append(completed, clueID)
+		}
+	}
+
+	return completed
+}
+
+func (h *Hub) isClueComplete(clue models.Clue, gridState *models.GridState) bool {
+	for i := 0; i < clue.Length; i++ {
+		var x, y int
+		if clue.Direction == "across" {
+			x = clue.PositionX + i
+			y = clue.PositionY
+		} else {
+			x = clue.PositionX
+			y = clue.PositionY + i
+		}
+
+		// Check bounds
+		if y < 0 || y >= len(gridState.Cells) || x < 0 || x >= len(gridState.Cells[y]) {
+			return false
+		}
+
+		cell := gridState.Cells[y][x]
+		if cell.Value == nil {
+			return false
+		}
+
+		// Compare with expected answer (case insensitive)
+		if i < len(clue.Answer) {
+			expected := string(clue.Answer[i])
+			actual := *cell.Value
+			if len(actual) > 0 && len(expected) > 0 {
+				if actual[0] != expected[0] && actual[0] != expected[0]+32 && actual[0] != expected[0]-32 {
+					return false
+				}
+			}
+		}
+	}
+	return true
 }
 
 func sanitizePuzzleForClient(puzzle *models.Puzzle) *models.Puzzle {

@@ -16,7 +16,7 @@ export function RelayTurnIndicator({ currentTurnUserId, onPassTurn }: RelayTurnI
   const isMyTurn = currentTurnUserId === user?.id;
   const currentPlayer = players.find((p) => p.userId === currentTurnUserId);
   const currentPlayerIndex = players.findIndex((p) => p.userId === currentTurnUserId);
-  const turnTimeLimit = 120; // 2 minutes per turn
+  const turnTimeLimit = 60; // 60 seconds per turn
 
   useEffect(() => {
     setTurnTimeElapsed(0);

@@ -29,6 +29,14 @@ export function Header() {
           >
             Archive
           </Link>
+          {isAuthenticated && (
+            <Link
+              href="/history"
+              className="text-purple-600 hover:text-purple-800 font-medium hidden sm:block transition-colors"
+            >
+              History
+            </Link>
+          )}
 
           {isAuthenticated ? (
             <div className="flex items-center gap-3">

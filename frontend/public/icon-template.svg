@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#d946ef;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#c45cc9;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded square with gradient -->
+  <rect width="512" height="512" rx="100" fill="url(#grad1)"/>
+
+  <!-- White crossword grid pattern (3x3 grid in center) -->
+  <g transform="translate(156, 156)">
+    <!-- Grid cells with safe zone (80% of icon in center) -->
+    <!-- Horizontal lines -->
+    <line x1="0" y1="0" x2="200" y2="0" stroke="white" stroke-width="8"/>
+    <line x1="0" y1="66.67" x2="200" y2="66.67" stroke="white" stroke-width="6"/>
+    <line x1="0" y1="133.33" x2="200" y2="133.33" stroke="white" stroke-width="6"/>
+    <line x1="0" y1="200" x2="200" y2="200" stroke="white" stroke-width="8"/>
+
+    <!-- Vertical lines -->
+    <line x1="0" y1="0" x2="0" y2="200" stroke="white" stroke-width="8"/>
+    <line x1="66.67" y1="0" x2="66.67" y2="200" stroke="white" stroke-width="6"/>
+    <line x1="133.33" y1="0" x2="133.33" y2="200" stroke="white" stroke-width="6"/>
+    <line x1="200" y1="0" x2="200" y2="200" stroke="white" stroke-width="8"/>
+
+    <!-- Letter "C" in center cell -->
+    <text x="100" y="125" font-family="Arial, sans-serif" font-size="90" font-weight="bold" fill="white" text-anchor="middle">C</text>
+  </g>
+</svg>

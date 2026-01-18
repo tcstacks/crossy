@@ -1,6 +1,7 @@
 package api
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -262,21 +263,51 @@ func (h *Handlers) GetPuzzleByDate(c *gin.Context) {
 func (h *Handlers) GetPuzzleArchive(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	difficulty := c.Query("difficulty") // Optional difficulty filter
 
-	// Public archive only shows published puzzles
-	puzzles, err := h.db.GetPuzzleArchive("published", limit, offset)
+	// Get puzzles with difficulty filter and sorted by date
+	puzzles, err := h.db.GetPuzzleArchiveEnhanced(difficulty, limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 		return
 	}
 
-	// Remove answers for archive listing
-	var sanitizedPuzzles []*models.Puzzle
-	for _, p := range puzzles {
-		sanitizedPuzzles = append(sanitizedPuzzles, sanitizePuzzleForClient(p))
+	// Get user ID if authenticated (optional)
+	var userID string
+	claims := middleware.GetAuthUser(c)
+	if claims != nil {
+		userID = claims.UserID
 	}
 
-	c.JSON(http.StatusOK, sanitizedPuzzles)
+	// Convert to metadata-only response
+	var metadata []models.PuzzleMetadata
+	for _, p := range puzzles {
+		meta := models.PuzzleMetadata{
+			ID:           p.ID,
+			Date:         p.Date,
+			Title:        p.Title,
+			Author:       p.Author,
+			Difficulty:   p.Difficulty,
+			GridWidth:    p.GridWidth,
+			GridHeight:   p.GridHeight,
+			Theme:        p.Theme,
+			AvgSolveTime: p.AvgSolveTime,
+			CreatedAt:    p.CreatedAt,
+			PublishedAt:  p.PublishedAt,
+		}
+
+		// Add completion status for logged-in users
+		if userID != "" {
+			completed, err := h.db.GetUserPuzzleCompletion(userID, p.ID)
+			if err == nil {
+				meta.IsCompleted = &completed
+			}
+		}
+
+		metadata = append(metadata, meta)
+	}
+
+	c.JSON(http.StatusOK, metadata)
 }
 
 func (h *Handlers) GetRandomPuzzle(c *gin.Context) {
@@ -355,6 +386,7 @@ func (h *Handlers) CreateRoom(c *gin.Context) {
 	// Validate puzzle exists
 	puzzle, err := h.db.GetPuzzleByID(req.PuzzleID)
 	if err != nil {
+		log.Printf("CreateRoom: Failed to get puzzle %s: %v", req.PuzzleID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 		return
 	}
@@ -386,6 +418,7 @@ func (h *Handlers) CreateRoom(c *gin.Context) {
 	}
 
 	if err := h.db.CreateRoom(room); err != nil {
+		log.Printf("CreateRoom: Failed to create room: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create room"})
 		return
 	}

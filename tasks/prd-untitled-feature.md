@@ -1,0 +1,1 @@
+The updated PRD is now available at `/Users/dev/proj/crossy/PRD.md` with all references to "CrossPlay" changed to "Crossy".

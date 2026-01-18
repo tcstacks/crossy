@@ -215,3 +215,19 @@ type RoomWithDetails struct {
 	GridState *GridState `json:"gridState,omitempty"`
 	Puzzle    *Puzzle   `json:"puzzle,omitempty"`
 }
+
+// PuzzleMetadata represents puzzle metadata without the full grid
+type PuzzleMetadata struct {
+	ID           string     `json:"id"`
+	Date         *string    `json:"date,omitempty"`
+	Title        string     `json:"title"`
+	Author       string     `json:"author"`
+	Difficulty   Difficulty `json:"difficulty"`
+	GridWidth    int        `json:"gridWidth"`
+	GridHeight   int        `json:"gridHeight"`
+	Theme        *string    `json:"theme,omitempty"`
+	AvgSolveTime *int       `json:"avgSolveTime,omitempty"`
+	CreatedAt    time.Time  `json:"createdAt"`
+	PublishedAt  *time.Time `json:"publishedAt,omitempty"`
+	IsCompleted  *bool      `json:"isCompleted,omitempty"` // Only for logged-in users
+}

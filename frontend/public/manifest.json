@@ -1,11 +1,11 @@
 {
-  "name": "CrossPlay - Multiplayer Crosswords",
-  "short_name": "CrossPlay",
+  "name": "Crossy - Multiplayer Crosswords",
+  "short_name": "Crossy",
   "description": "Solve crossword puzzles together with friends in real-time",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#0ea5e9",
+  "background_color": "#0f172a",
+  "theme_color": "#8b5cf6",
   "orientation": "portrait-primary",
   "icons": [
     {

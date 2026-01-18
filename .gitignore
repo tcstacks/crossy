@@ -32,6 +32,14 @@ out/
 .turbo
 tsconfig.tsbuildinfo
 
+# PWA
+frontend/public/sw.js
+frontend/public/workbox-*.js
+frontend/public/worker-*.js
+frontend/public/sw.js.map
+frontend/public/workbox-*.js.map
+frontend/public/worker-*.js.map
+
 # ===========================================
 # Go
 # ===========================================

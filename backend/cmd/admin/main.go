@@ -25,6 +25,7 @@ func main() {
 	// Define subcommands
 	generateCmd := flag.NewFlagSet("generate", flag.ExitOnError)
 	validateCmd := flag.NewFlagSet("validate", flag.ExitOnError)
+	importCmd := flag.NewFlagSet("import", flag.ExitOnError)
 	batchCmd := flag.NewFlagSet("batch", flag.ExitOnError)
 	weekCmd := flag.NewFlagSet("week", flag.ExitOnError)
 	publishCmd := flag.NewFlagSet("publish", flag.ExitOnError)
@@ -80,6 +81,14 @@ func main() {
 		}
 		runValidate(validateCmd.Arg(0))
 
+	case "import":
+		importCmd.Parse(os.Args[2:])
+		if importCmd.NArg() < 1 {
+			fmt.Println("Usage: admin import <puzzle.json> or admin import <directory>")
+			os.Exit(1)
+		}
+		runImport(importCmd.Arg(0))
+
 	case "batch":
 		batchCmd.Parse(os.Args[2:])
 		runBatch(*batchSize, *batchDifficulty, *batchCount, *batchTheme, *batchOutput)
@@ -122,6 +131,7 @@ Usage:
 Commands:
   generate    Generate a single puzzle
   validate    Validate a puzzle JSON file
+  import      Import puzzle(s) from JSON file(s) to database
   batch       Generate multiple puzzle candidates
   week        Generate puzzles for an entire week
   publish     Publish a draft puzzle
@@ -131,6 +141,8 @@ Commands:
 
 Examples:
   admin generate -difficulty monday -size mini -output puzzle.json
+  admin import puzzle.json
+  admin import ./test-puzzles/batch1/
   admin batch -size daily -difficulty friday -count 10 -output ./puzzles/
   admin week -start 2024-01-01 -save
   admin quality -file puzzle.json
@@ -618,4 +630,94 @@ func truncate(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen-3] + "..."
+}
+
+func runImport(path string) {
+	database := getDatabase()
+	defer database.Close()
+
+	// Check if path is a file or directory
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		log.Fatalf("Failed to access path: %v", err)
+	}
+
+	var files []string
+	if fileInfo.IsDir() {
+		// Read all JSON files from directory
+		entries, err := os.ReadDir(path)
+		if err != nil {
+			log.Fatalf("Failed to read directory: %v", err)
+		}
+		for _, entry := range entries {
+			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".json") {
+				files = append(files, fmt.Sprintf("%s/%s", path, entry.Name()))
+			}
+		}
+	} else {
+		files = []string{path}
+	}
+
+	if len(files) == 0 {
+		fmt.Println("No JSON files found to import")
+		return
+	}
+
+	fmt.Printf("Importing %d puzzle(s)...\n\n", len(files))
+
+	imported := 0
+	failed := 0
+
+	for _, file := range files {
+		// Read file
+		data, err := os.ReadFile(file)
+		if err != nil {
+			fmt.Printf("✗ %s: Failed to read file - %v\n", file, err)
+			failed++
+			continue
+		}
+
+		// Parse JSON
+		var puzzleData models.Puzzle
+		if err := json.Unmarshal(data, &puzzleData); err != nil {
+			fmt.Printf("✗ %s: Failed to parse JSON - %v\n", file, err)
+			failed++
+			continue
+		}
+
+		// Validate puzzle has required fields
+		if puzzleData.Title == "" {
+			fmt.Printf("✗ %s: Missing title\n", file)
+			failed++
+			continue
+		}
+
+		// Ensure status is set (default to draft)
+		if puzzleData.Status == "" {
+			puzzleData.Status = "draft"
+		}
+
+		// Set timestamps if not present
+		now := time.Now()
+		if puzzleData.CreatedAt.IsZero() {
+			puzzleData.CreatedAt = now
+		}
+
+		// Import to database
+		if err := database.CreatePuzzle(&puzzleData); err != nil {
+			fmt.Printf("✗ %s: Failed to import - %v\n", file, err)
+			failed++
+			continue
+		}
+
+		fmt.Printf("✓ %s: Imported successfully (ID: %s, Status: %s)\n",
+			file, puzzleData.ID, puzzleData.Status)
+		imported++
+	}
+
+	fmt.Printf("\n=================================\n")
+	fmt.Printf("Import Summary:\n")
+	fmt.Printf("  Successfully imported: %d\n", imported)
+	fmt.Printf("  Failed: %d\n", failed)
+	fmt.Printf("  Total: %d\n", len(files))
 }

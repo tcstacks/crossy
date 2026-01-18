@@ -379,6 +379,71 @@ func (d *Database) GetPuzzleArchive(status string, limit, offset int) ([]*models
 	return puzzles, nil
 }
 
+// GetPuzzleArchiveEnhanced returns puzzles with optional difficulty filter, sorted by published date
+func (d *Database) GetPuzzleArchiveEnhanced(difficulty string, limit, offset int) ([]*models.Puzzle, error) {
+	query := `
+		SELECT id, date, title, author, difficulty, grid_width, grid_height,
+			   grid, clues_across, clues_down, theme, avg_solve_time, status, created_at, published_at
+		FROM puzzles WHERE status = 'published'
+	`
+	args := []interface{}{}
+	argNum := 1
+
+	// Filter by difficulty if provided
+	if difficulty != "" {
+		query += fmt.Sprintf(" AND difficulty = $%d", argNum)
+		args = append(args, difficulty)
+		argNum++
+	}
+
+	// Sort by published date (newest first), then by date field
+	query += " ORDER BY COALESCE(published_at, created_at) DESC, date DESC"
+	query += fmt.Sprintf(" LIMIT $%d OFFSET $%d", argNum, argNum+1)
+	args = append(args, limit, offset)
+
+	rows, err := d.DB.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var puzzles []*models.Puzzle
+	for rows.Next() {
+		puzzle := &models.Puzzle{}
+		var gridJSON, cluesAcrossJSON, cluesDownJSON []byte
+
+		err := rows.Scan(&puzzle.ID, &puzzle.Date, &puzzle.Title, &puzzle.Author, &puzzle.Difficulty,
+			&puzzle.GridWidth, &puzzle.GridHeight, &gridJSON, &cluesAcrossJSON, &cluesDownJSON,
+			&puzzle.Theme, &puzzle.AvgSolveTime, &puzzle.Status, &puzzle.CreatedAt, &puzzle.PublishedAt)
+		if err != nil {
+			return nil, err
+		}
+
+		json.Unmarshal(gridJSON, &puzzle.Grid)
+		json.Unmarshal(cluesAcrossJSON, &puzzle.CluesAcross)
+		json.Unmarshal(cluesDownJSON, &puzzle.CluesDown)
+
+		puzzles = append(puzzles, puzzle)
+	}
+
+	return puzzles, nil
+}
+
+// GetUserPuzzleCompletion checks if a user has completed a specific puzzle
+func (d *Database) GetUserPuzzleCompletion(userID, puzzleID string) (bool, error) {
+	var completed bool
+	err := d.DB.QueryRow(`
+		SELECT completed FROM puzzle_history
+		WHERE user_id = $1 AND puzzle_id = $2 AND completed = true
+		LIMIT 1
+	`, userID, puzzleID).Scan(&completed)
+
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	return completed, err
+}
+
 func (d *Database) GetRandomPuzzle(difficulty string) (*models.Puzzle, error) {
 	query := `
 		SELECT id, date, title, author, difficulty, grid_width, grid_height,

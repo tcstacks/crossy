@@ -161,12 +161,13 @@ type TurnChangedPayload struct {
 
 // Hub manages all WebSocket connections and rooms
 type Hub struct {
-	db        *db.Database
-	clients   map[string]*Client // userID -> client
-	rooms     map[string]*Room   // roomID -> room
-	register  chan *Client
-	unregister chan *Client
-	mutex     sync.RWMutex
+	db              *db.Database
+	clients         map[string]*Client   // connectionID -> client
+	userConnections map[string][]string  // userID -> []connectionID
+	rooms           map[string]*Room     // roomID -> room
+	register        chan *Client
+	unregister      chan *Client
+	mutex           sync.RWMutex
 }
 
 // Room represents a multiplayer room with connected clients
@@ -174,22 +175,25 @@ type Room struct {
 	ID          string
 	Code        string
 	Mode        models.RoomMode
-	Clients     map[string]*Client // userID -> client
+	Clients     map[string]*Client // connectionID -> client
 	StartTime   *time.Time
 	mutex       sync.RWMutex
 	// Race mode tracking
 	FinishOrder []string           // UserIDs in order of completion
 	// Relay mode tracking
 	TurnNumber  int
+	// Contribution tracking (collaborative mode)
+	ContributionMap map[string]int // userID -> correct cell count
 }
 
 func NewHub(database *db.Database) *Hub {
 	return &Hub{
-		db:        database,
-		clients:   make(map[string]*Client),
-		rooms:     make(map[string]*Room),
-		register:  make(chan *Client),
-		unregister: make(chan *Client),
+		db:              database,
+		clients:         make(map[string]*Client),
+		userConnections: make(map[string][]string),
+		rooms:           make(map[string]*Room),
+		register:        make(chan *Client),
+		unregister:      make(chan *Client),
 	}
 }
 
@@ -198,15 +202,33 @@ func (h *Hub) Run() {
 		select {
 		case client := <-h.register:
 			h.mutex.Lock()
-			h.clients[client.UserID] = client
+			// Store client by connectionID
+			h.clients[client.ConnectionID] = client
+			// Track user's connections
+			h.userConnections[client.UserID] = append(h.userConnections[client.UserID], client.ConnectionID)
 			h.mutex.Unlock()
-			log.Printf("Client registered: %s", client.UserID)
+			log.Printf("Client registered: connectionID=%s, userID=%s", client.ConnectionID, client.UserID)
 
 		case client := <-h.unregister:
 			h.mutex.Lock()
-			if _, ok := h.clients[client.UserID]; ok {
-				delete(h.clients, client.UserID)
+			if _, ok := h.clients[client.ConnectionID]; ok {
+				delete(h.clients, client.ConnectionID)
 				close(client.Send)
+
+				// Remove connection from user's connection list
+				if conns, exists := h.userConnections[client.UserID]; exists {
+					newConns := make([]string, 0, len(conns))
+					for _, connID := range conns {
+						if connID != client.ConnectionID {
+							newConns = append(newConns, connID)
+						}
+					}
+					if len(newConns) > 0 {
+						h.userConnections[client.UserID] = newConns
+					} else {
+						delete(h.userConnections, client.UserID)
+					}
+				}
 			}
 			h.mutex.Unlock()
 
@@ -214,7 +236,7 @@ func (h *Hub) Run() {
 			if client.RoomID != "" {
 				h.removeClientFromRoom(client)
 			}
-			log.Printf("Client unregistered: %s", client.UserID)
+			log.Printf("Client unregistered: connectionID=%s, userID=%s", client.ConnectionID, client.UserID)
 		}
 	}
 }
@@ -228,6 +250,7 @@ func (h *Hub) Unregister(client *Client) {
 }
 
 func (h *Hub) HandleMessage(client *Client, msg *Message) {
+	log.Printf("HandleMessage: Received %s from user %s", msg.Type, client.UserID)
 	switch msg.Type {
 	case MsgJoinRoom:
 		h.handleJoinRoom(client, msg.Payload)
@@ -255,16 +278,22 @@ func (h *Hub) HandleMessage(client *Client, msg *Message) {
 func (h *Hub) handleJoinRoom(client *Client, payload json.RawMessage) {
 	var p JoinRoomPayload
 	if err := json.Unmarshal(payload, &p); err != nil {
+		log.Printf("handleJoinRoom: Failed to unmarshal payload: %v", err)
 		h.sendError(client, "invalid payload")
 		return
 	}
 
+	log.Printf("handleJoinRoom: User %s joining room %s", client.UserID, p.RoomCode)
+
 	// Get room from database
 	room, err := h.db.GetRoomByCode(p.RoomCode)
 	if err != nil || room == nil {
+		log.Printf("handleJoinRoom: Room not found - code: %s, err: %v", p.RoomCode, err)
 		h.sendError(client, "room not found")
 		return
 	}
+
+	log.Printf("handleJoinRoom: Found room %s (ID: %s)", room.Code, room.ID)
 
 	// Get or create room in hub
 	h.mutex.Lock()
@@ -283,7 +312,7 @@ func (h *Hub) handleJoinRoom(client *Client, payload json.RawMessage) {
 
 	// Add client to room
 	hubRoom.mutex.Lock()
-	hubRoom.Clients[client.UserID] = client
+	hubRoom.Clients[client.ConnectionID] = client
 	hubRoom.mutex.Unlock()
 
 	client.RoomID = room.ID
@@ -310,7 +339,7 @@ func (h *Hub) handleJoinRoom(client *Client, payload json.RawMessage) {
 	// Notify other clients
 	player := findPlayer(players, client.UserID)
 	if player != nil {
-		h.broadcastToRoom(room.ID, client.UserID, MsgPlayerJoined, PlayerJoinedPayload{
+		h.broadcastToRoom(room.ID, client.ConnectionID, MsgPlayerJoined, PlayerJoinedPayload{
 			Player: *player,
 		})
 	}
@@ -324,15 +353,19 @@ func (h *Hub) handleLeaveRoom(client *Client) {
 }
 
 func (h *Hub) handleCellUpdate(client *Client, payload json.RawMessage) {
+	log.Printf("handleCellUpdate: called for user %s", client.UserID)
 	if client.RoomID == "" {
+		log.Printf("handleCellUpdate: client has no roomID")
 		return
 	}
 
 	var p CellUpdatePayload
 	if err := json.Unmarshal(payload, &p); err != nil {
+		log.Printf("handleCellUpdate: failed to unmarshal payload: %v", err)
 		h.sendError(client, "invalid payload")
 		return
 	}
+	log.Printf("handleCellUpdate: x=%d, y=%d, value=%v", p.X, p.Y, p.Value)
 
 	// Get room
 	room, _ := h.db.GetRoomByID(client.RoomID)
@@ -357,13 +390,45 @@ func (h *Hub) handleCollaborativeCellUpdate(client *Client, room *models.Room, p
 		return
 	}
 
+	// Get puzzle to validate answer
+	puzzle, _ := h.db.GetPuzzleByID(room.PuzzleID)
+	if puzzle == nil {
+		return
+	}
+
 	// Update cell
 	if p.Y >= 0 && p.Y < len(gridState.Cells) && p.X >= 0 && p.X < len(gridState.Cells[p.Y]) {
+		// Check if this cell was previously incorrect or empty, and is now correct
+		isNewCorrectAnswer := false
+		if p.Value != nil && puzzle.Grid[p.Y][p.X].Letter != nil {
+			prevValue := gridState.Cells[p.Y][p.X].Value
+			newValue := *p.Value
+			expectedValue := *puzzle.Grid[p.Y][p.X].Letter
+
+			// Only track contribution if this is a new correct answer
+			if newValue == expectedValue && (prevValue == nil || *prevValue != expectedValue) {
+				isNewCorrectAnswer = true
+			}
+		}
+
 		gridState.Cells[p.Y][p.X].Value = p.Value
 		gridState.Cells[p.Y][p.X].LastEditedBy = &client.UserID
 		gridState.LastUpdated = time.Now()
 
 		h.db.UpdateGridState(gridState)
+
+		// Track contribution if this is a new correct answer
+		if isNewCorrectAnswer {
+			h.mutex.Lock()
+			hubRoom := h.rooms[client.RoomID]
+			if hubRoom != nil {
+				if hubRoom.ContributionMap == nil {
+					hubRoom.ContributionMap = make(map[string]int)
+				}
+				hubRoom.ContributionMap[client.UserID]++
+			}
+			h.mutex.Unlock()
+		}
 
 		// Get player for color
 		players, _ := h.db.GetRoomPlayers(client.RoomID)
@@ -509,7 +574,7 @@ func (h *Hub) handleCursorMove(client *Client, payload json.RawMessage) {
 	}
 
 	// Broadcast to other players
-	h.broadcastToRoom(client.RoomID, client.UserID, MsgCursorMoved, CursorMovedPayload{
+	h.broadcastToRoom(client.RoomID, client.ConnectionID, MsgCursorMoved, CursorMovedPayload{
 		PlayerID:    client.UserID,
 		DisplayName: player.DisplayName,
 		X:           p.X,
@@ -619,25 +684,37 @@ func (h *Hub) handleRequestHint(client *Client, payload json.RawMessage) {
 }
 
 func (h *Hub) handleStartGame(client *Client) {
+	log.Printf("handleStartGame: called for user %s", client.UserID)
 	if client.RoomID == "" {
+		log.Printf("handleStartGame: client has no roomID")
 		return
 	}
 
-	room, _ := h.db.GetRoomByID(client.RoomID)
-	if room == nil {
+	room, err := h.db.GetRoomByID(client.RoomID)
+	if err != nil {
+		log.Printf("handleStartGame: error getting room: %v", err)
 		return
 	}
+	if room == nil {
+		log.Printf("handleStartGame: room not found")
+		return
+	}
+
+	log.Printf("handleStartGame: room %s, host %s, requester %s, state %s", room.ID, room.HostID, client.UserID, room.State)
 
 	if room.HostID != client.UserID {
+		log.Printf("handleStartGame: user is not host")
 		h.sendError(client, "only host can start the game")
 		return
 	}
 
 	if room.State != models.RoomStateLobby {
+		log.Printf("handleStartGame: room not in lobby state, current state: %s", room.State)
 		h.sendError(client, "game already started")
 		return
 	}
 
+	log.Printf("handleStartGame: updating room state to active")
 	// Update room state
 	h.db.UpdateRoomState(room.ID, models.RoomStateActive)
 
@@ -708,7 +785,9 @@ func (h *Hub) handleStartGame(client *Client) {
 	}
 
 	// Broadcast game started
+	log.Printf("handleStartGame: broadcasting game_started to room %s", client.RoomID)
 	h.broadcastToRoom(client.RoomID, "", MsgGameStarted, nil)
+	log.Printf("handleStartGame: completed successfully")
 }
 
 func (h *Hub) handleReaction(client *Client, payload json.RawMessage) {
@@ -771,17 +850,45 @@ func (h *Hub) checkCollaborativeCompletion(roomID string) {
 			solveTime = int(time.Since(*hubRoom.StartTime).Seconds())
 		}
 
-		// Get player results
+		// Calculate total cells in puzzle
+		totalCells := 0
+		for y := range puzzle.Grid {
+			for x := range puzzle.Grid[y] {
+				if puzzle.Grid[y][x].Letter != nil {
+					totalCells++
+				}
+			}
+		}
+
+		// Calculate contribution percentages
+		h.mutex.Lock()
+		contributionMap := make(map[string]float64)
+		if hubRoom != nil && hubRoom.ContributionMap != nil && totalCells > 0 {
+			for userID, cellCount := range hubRoom.ContributionMap {
+				contribution := float64(cellCount) / float64(totalCells) * 100.0
+				contributionMap[userID] = contribution
+
+				// Update player contribution in database
+				h.db.UpdatePlayerContribution(userID, roomID, contribution)
+			}
+		}
+		h.mutex.Unlock()
+
+		// Get player results with updated contributions
 		players, _ := h.db.GetRoomPlayers(roomID)
 		var results []PlayerResult
 		for _, p := range players {
 			if !p.IsSpectator {
+				contribution := contributionMap[p.UserID]
 				results = append(results, PlayerResult{
 					UserID:       p.UserID,
 					DisplayName:  p.DisplayName,
-					Contribution: p.Contribution,
+					Contribution: contribution,
 					Color:        p.Color,
 				})
+
+				// Update user stats and create puzzle history
+				h.updateUserStatsAfterCompletion(p.UserID, room.PuzzleID, &roomID, solveTime)
 			}
 		}
 
@@ -909,6 +1016,9 @@ func (h *Hub) checkRaceProgress(roomID string, userID string) {
 					SolveTime:   solveTime,
 					Rank:        rp.Rank,
 				})
+
+				// Update user stats and create puzzle history
+				h.updateUserStatsAfterCompletion(player.UserID, room.PuzzleID, &roomID, solveTime)
 			}
 			hubRoom.mutex.Unlock()
 		} else {
@@ -1025,26 +1135,39 @@ func (h *Hub) removeClientFromRoom(client *Client) {
 	}
 
 	hubRoom.mutex.Lock()
-	delete(hubRoom.Clients, client.UserID)
+	delete(hubRoom.Clients, client.ConnectionID)
 	isEmpty := len(hubRoom.Clients) == 0
 	hubRoom.mutex.Unlock()
 
-	// Update player connection status
-	h.db.UpdatePlayerConnection(client.UserID, client.RoomID, false)
-
-	// Get player for notification
-	players, _ := h.db.GetRoomPlayers(client.RoomID)
-	player := findPlayer(players, client.UserID)
-	displayName := "Unknown"
-	if player != nil {
-		displayName = player.DisplayName
+	// Check if user has any other connections in this room
+	hasOtherConnections := false
+	hubRoom.mutex.RLock()
+	for _, c := range hubRoom.Clients {
+		if c.UserID == client.UserID {
+			hasOtherConnections = true
+			break
+		}
 	}
+	hubRoom.mutex.RUnlock()
 
-	// Notify other clients
-	h.broadcastToRoom(client.RoomID, client.UserID, MsgPlayerLeft, PlayerLeftPayload{
-		UserID:      client.UserID,
-		DisplayName: displayName,
-	})
+	// Only update connection status if no other tabs are connected
+	if !hasOtherConnections {
+		h.db.UpdatePlayerConnection(client.UserID, client.RoomID, false)
+
+		// Get player for notification
+		players, _ := h.db.GetRoomPlayers(client.RoomID)
+		player := findPlayer(players, client.UserID)
+		displayName := "Unknown"
+		if player != nil {
+			displayName = player.DisplayName
+		}
+
+		// Notify other clients that user left
+		h.broadcastToRoom(client.RoomID, client.ConnectionID, MsgPlayerLeft, PlayerLeftPayload{
+			UserID:      client.UserID,
+			DisplayName: displayName,
+		})
+	}
 
 	// Clean up empty room
 	if isEmpty {
@@ -1079,12 +1202,14 @@ func (h *Hub) sendToClient(client *Client, msgType MessageType, payload interfac
 	}
 }
 
-func (h *Hub) broadcastToRoom(roomID string, excludeUserID string, msgType MessageType, payload interface{}) {
+func (h *Hub) broadcastToRoom(roomID string, excludeConnectionID string, msgType MessageType, payload interface{}) {
+	log.Printf("broadcastToRoom: type=%s, roomID=%s, excludeConnectionID=%s", msgType, roomID, excludeConnectionID)
 	h.mutex.RLock()
 	hubRoom, exists := h.rooms[roomID]
 	h.mutex.RUnlock()
 
 	if !exists {
+		log.Printf("broadcastToRoom: room %s does not exist", roomID)
 		return
 	}
 
@@ -1104,16 +1229,23 @@ func (h *Hub) broadcastToRoom(roomID string, excludeUserID string, msgType Messa
 	}
 
 	hubRoom.mutex.RLock()
-	for userID, client := range hubRoom.Clients {
-		if userID != excludeUserID {
+	clientCount := len(hubRoom.Clients)
+	log.Printf("broadcastToRoom: sending to %d clients in room", clientCount)
+	for connectionID, client := range hubRoom.Clients {
+		if connectionID != excludeConnectionID {
+			log.Printf("broadcastToRoom: sending to client connectionID=%s, userID=%s", connectionID, client.UserID)
 			select {
 			case client.Send <- msgData:
+				log.Printf("broadcastToRoom: sent to client connectionID=%s", connectionID)
 			default:
-				// Channel full, skip message
+				log.Printf("broadcastToRoom: channel full for client connectionID=%s", connectionID)
 			}
+		} else {
+			log.Printf("broadcastToRoom: skipping excluded client connectionID=%s", connectionID)
 		}
 	}
 	hubRoom.mutex.RUnlock()
+	log.Printf("broadcastToRoom: complete")
 }
 
 func (h *Hub) sendError(client *Client, message string) {
@@ -1161,4 +1293,85 @@ func sanitizePuzzleForClient(puzzle *models.Puzzle) *models.Puzzle {
 	}
 
 	return &sanitized
+}
+
+// updateUserStatsAfterCompletion updates user stats and creates puzzle history after completing a puzzle
+func (h *Hub) updateUserStatsAfterCompletion(userID string, puzzleID string, roomID *string, solveTime int) {
+	// Get current user stats
+	stats, err := h.db.GetUserStats(userID)
+	if err != nil {
+		log.Printf("Error getting user stats for %s: %v", userID, err)
+		return
+	}
+
+	// If stats don't exist, create a new one
+	if stats == nil {
+		stats = &models.UserStats{
+			UserID:        userID,
+			PuzzlesSolved: 0,
+			AvgSolveTime:  0,
+			StreakCurrent: 0,
+			StreakBest:    0,
+		}
+	}
+
+	// Get puzzle to check if it's a daily puzzle
+	puzzle, _ := h.db.GetPuzzleByID(puzzleID)
+	today := time.Now().Format("2006-01-02")
+
+	// Update streak logic (only for daily puzzles with dates)
+	if puzzle != nil && puzzle.Date != nil && *puzzle.Date != "" {
+		if stats.LastPlayedAt != nil {
+			lastPlayed := stats.LastPlayedAt.Format("2006-01-02")
+			yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+
+			// Continue streak if played yesterday or today (same day)
+			if lastPlayed == yesterday {
+				stats.StreakCurrent++
+			} else if lastPlayed == today {
+				// Same day, don't change streak
+			} else {
+				// Streak broken, start new streak
+				stats.StreakCurrent = 1
+			}
+		} else {
+			// First puzzle ever
+			stats.StreakCurrent = 1
+		}
+
+		// Update best streak
+		if stats.StreakCurrent > stats.StreakBest {
+			stats.StreakBest = stats.StreakCurrent
+		}
+	}
+
+	// Update other stats
+	stats.PuzzlesSolved++
+	totalTime := stats.AvgSolveTime * float64(stats.PuzzlesSolved-1)
+	stats.AvgSolveTime = (totalTime + float64(solveTime)) / float64(stats.PuzzlesSolved)
+	now := time.Now()
+	stats.LastPlayedAt = &now
+
+	// Save updated stats
+	if err := h.db.UpdateUserStats(stats); err != nil {
+		log.Printf("Error updating user stats for %s: %v", userID, err)
+	}
+
+	// Create puzzle history record
+	history := &models.PuzzleHistory{
+		ID:          uuid.New().String(),
+		UserID:      userID,
+		PuzzleID:    puzzleID,
+		RoomID:      roomID,
+		SolveTime:   solveTime,
+		Completed:   true,
+		Accuracy:    100.0,
+		HintsUsed:   0,
+		CompletedAt: &now,
+		CreatedAt:   now,
+	}
+
+	if err := h.db.CreatePuzzleHistory(history); err != nil {
+		log.Printf("Error creating puzzle history for %s: %v", userID, err)
+	}
 }

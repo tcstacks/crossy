@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { CrosswordGrid } from '@/components/CrosswordGrid';
@@ -10,6 +10,8 @@ import { Timer } from '@/components/Timer';
 import { PlayerList, PlayerPill } from '@/components/PlayerList';
 import { ResultsModal } from '@/components/ResultsModal';
 import { GameHeader } from '@/components/Header';
+import { RaceLeaderboard } from '@/components/RaceLeaderboard';
+import { RelayTurnIndicator } from '@/components/RelayTurnIndicator';
 import { useGameStore } from '@/store/gameStore';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { api } from '@/lib/api';
@@ -26,6 +28,8 @@ export default function RoomPage() {
   const [showChat, setShowChat] = useState(false);
   const [showPlayers, setShowPlayers] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [unreadMessages, setUnreadMessages] = useState(0);
+  const [currentTurnUserId, setCurrentTurnUserId] = useState<string | undefined>(undefined);
   const [results, setResults] = useState<{
     solveTime: number;
     players: PlayerResult[];
@@ -40,6 +44,7 @@ export default function RoomPage() {
     isHost,
     startTime,
     solveTime,
+    messages,
     setRoom,
     setPlayers,
     setPuzzle,
@@ -143,6 +148,16 @@ export default function RoomPage() {
     }
   }, [solveTime, players]);
 
+  // Track unread messages when chat is closed
+  const prevMessageCountRef = useRef(messages.length);
+  useEffect(() => {
+    if (!showChat && messages.length > prevMessageCountRef.current) {
+      const newMessages = messages.length - prevMessageCountRef.current;
+      setUnreadMessages((prev) => prev + newMessages);
+    }
+    prevMessageCountRef.current = messages.length;
+  }, [messages.length, showChat]);
+
   const handleCellUpdate = useCallback(
     (x: number, y: number, value: string | null) => {
       updateCell(x, y, value);
@@ -184,6 +199,32 @@ export default function RoomPage() {
     // Would create a new room with same settings
     router.push('/room/create');
   }, [router]);
+
+  const handleChatToggle = useCallback(() => {
+    setShowChat((prev) => {
+      if (!prev) {
+        // Opening chat, clear unread count
+        setUnreadMessages(0);
+      }
+      return !prev;
+    });
+  }, []);
+
+  const handlePassTurn = useCallback(() => {
+    // In relay mode, pass turn to next player
+    if (room?.mode === 'relay' && players.length > 0) {
+      const currentIndex = players.findIndex((p) => p.userId === currentTurnUserId);
+      const nextIndex = (currentIndex + 1) % players.length;
+      setCurrentTurnUserId(players[nextIndex].userId);
+    }
+  }, [room, players, currentTurnUserId]);
+
+  // Initialize current turn for relay mode
+  useEffect(() => {
+    if (room?.mode === 'relay' && room?.state === 'active' && players.length > 0 && !currentTurnUserId) {
+      setCurrentTurnUserId(players[0].userId);
+    }
+  }, [room, players, currentTurnUserId]);
 
   if (isLoading) {
     return (
@@ -346,11 +387,22 @@ export default function RoomPage() {
         showPlayers
         playersComponent={<PlayerPill onClick={() => setShowPlayers(true)} />}
         showChat
-        onChatToggle={() => setShowChat(true)}
+        onChatToggle={handleChatToggle}
+        chatUnreadCount={unreadMessages}
         showHints
         onHintRequest={handleHintRequest}
         hintsEnabled={room?.config.hintsEnabled}
+        roomMode={room?.mode}
+        currentTurnUserId={currentTurnUserId}
       />
+
+      {/* Relay Turn Indicator - Only show in relay mode */}
+      {room?.mode === 'relay' && (
+        <RelayTurnIndicator
+          currentTurnUserId={currentTurnUserId}
+          onPassTurn={handlePassTurn}
+        />
+      )}
 
       <main className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* Clue Panel - Desktop */}
@@ -378,6 +430,13 @@ export default function RoomPage() {
             />
           </div>
         </div>
+
+        {/* Race Leaderboard - Only show in race mode */}
+        {room?.mode === 'race' && (
+          <aside className="hidden lg:block w-80 border-l bg-gray-50 overflow-y-auto p-4">
+            <RaceLeaderboard />
+          </aside>
+        )}
       </main>
 
       {/* Mobile Clue Bottom Sheet */}
@@ -392,6 +451,13 @@ export default function RoomPage() {
         onClose={() => setShowChat(false)}
         onSendMessage={handleSendMessage}
       />
+
+      {/* Race Leaderboard - Mobile floating version */}
+      {room?.mode === 'race' && (
+        <div className="lg:hidden fixed bottom-20 right-4 z-40">
+          <RaceLeaderboard />
+        </div>
+      )}
 
       {/* Players Modal (Mobile) */}
       {showPlayers && (

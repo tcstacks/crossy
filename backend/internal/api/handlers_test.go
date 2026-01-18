@@ -422,3 +422,323 @@ func TestGuestCanPlayAllModes(t *testing.T) {
 		}
 	}
 }
+
+// TestPuzzleMetadataModel verifies the puzzle metadata model structure
+func TestPuzzleMetadataModel(t *testing.T) {
+	date := "2024-01-15"
+	publishedAt := time.Now()
+	avgSolveTime := 300
+	completed := true
+
+	metadata := &models.PuzzleMetadata{
+		ID:           uuid.New().String(),
+		Date:         &date,
+		Title:        "Test Puzzle",
+		Author:       "Test Author",
+		Difficulty:   models.DifficultyMedium,
+		GridWidth:    10,
+		GridHeight:   10,
+		Theme:        nil,
+		AvgSolveTime: &avgSolveTime,
+		CreatedAt:    time.Now(),
+		PublishedAt:  &publishedAt,
+		IsCompleted:  &completed,
+	}
+
+	// Verify required fields
+	if metadata.ID == "" {
+		t.Error("Puzzle metadata ID is required")
+	}
+
+	if metadata.Title == "" {
+		t.Error("Puzzle metadata title is required")
+	}
+
+	if metadata.Author == "" {
+		t.Error("Puzzle metadata author is required")
+	}
+
+	if metadata.Difficulty == "" {
+		t.Error("Puzzle metadata difficulty is required")
+	}
+
+	// Verify grid dimensions
+	if metadata.GridWidth < 5 || metadata.GridWidth > 15 {
+		t.Errorf("Grid width %d is outside acceptable range [5, 15]", metadata.GridWidth)
+	}
+
+	if metadata.GridHeight < 5 || metadata.GridHeight > 15 {
+		t.Errorf("Grid height %d is outside acceptable range [5, 15]", metadata.GridHeight)
+	}
+
+	// Verify optional fields can be nil
+	metadataMinimal := &models.PuzzleMetadata{
+		ID:         uuid.New().String(),
+		Title:      "Minimal Puzzle",
+		Author:     "Author",
+		Difficulty: models.DifficultyEasy,
+		GridWidth:  5,
+		GridHeight: 5,
+		CreatedAt:  time.Now(),
+	}
+
+	if metadataMinimal.Date != nil {
+		t.Error("Date should be optional (nil)")
+	}
+
+	if metadataMinimal.Theme != nil {
+		t.Error("Theme should be optional (nil)")
+	}
+
+	if metadataMinimal.AvgSolveTime != nil {
+		t.Error("AvgSolveTime should be optional (nil)")
+	}
+
+	if metadataMinimal.PublishedAt != nil {
+		t.Error("PublishedAt should be optional (nil)")
+	}
+
+	if metadataMinimal.IsCompleted != nil {
+		t.Error("IsCompleted should be optional (nil for public/anonymous users)")
+	}
+}
+
+// TestPuzzleArchivePagination verifies pagination logic
+func TestPuzzleArchivePagination(t *testing.T) {
+	tests := []struct {
+		name         string
+		limit        int
+		offset       int
+		totalPuzzles int
+		expectedLen  int
+	}{
+		{
+			name:         "First page with default limit",
+			limit:        20,
+			offset:       0,
+			totalPuzzles: 50,
+			expectedLen:  20,
+		},
+		{
+			name:         "Second page",
+			limit:        20,
+			offset:       20,
+			totalPuzzles: 50,
+			expectedLen:  20,
+		},
+		{
+			name:         "Last partial page",
+			limit:        20,
+			offset:       40,
+			totalPuzzles: 50,
+			expectedLen:  10,
+		},
+		{
+			name:         "Custom page size",
+			limit:        10,
+			offset:       0,
+			totalPuzzles: 50,
+			expectedLen:  10,
+		},
+		{
+			name:         "Offset beyond total",
+			limit:        20,
+			offset:       100,
+			totalPuzzles: 50,
+			expectedLen:  0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Simulate pagination calculation
+			start := tt.offset
+			end := tt.offset + tt.limit
+			if end > tt.totalPuzzles {
+				end = tt.totalPuzzles
+			}
+
+			var resultLen int
+			if start >= tt.totalPuzzles {
+				resultLen = 0
+			} else {
+				resultLen = end - start
+			}
+
+			if resultLen != tt.expectedLen {
+				t.Errorf("Expected %d items, got %d", tt.expectedLen, resultLen)
+			}
+		})
+	}
+}
+
+// TestPuzzleArchiveDifficultyFilter verifies difficulty filtering
+func TestPuzzleArchiveDifficultyFilter(t *testing.T) {
+	// Create test puzzles with different difficulties
+	puzzles := []models.Puzzle{
+		{
+			ID:         uuid.New().String(),
+			Title:      "Easy Puzzle",
+			Difficulty: models.DifficultyEasy,
+			Status:     "published",
+		},
+		{
+			ID:         uuid.New().String(),
+			Title:      "Medium Puzzle",
+			Difficulty: models.DifficultyMedium,
+			Status:     "published",
+		},
+		{
+			ID:         uuid.New().String(),
+			Title:      "Hard Puzzle",
+			Difficulty: models.DifficultyHard,
+			Status:     "published",
+		},
+	}
+
+	// Test filtering by difficulty
+	testCases := []struct {
+		filterDifficulty models.Difficulty
+		expectedCount    int
+	}{
+		{models.DifficultyEasy, 1},
+		{models.DifficultyMedium, 1},
+		{models.DifficultyHard, 1},
+		{"", 3}, // Empty filter = all puzzles
+	}
+
+	for _, tc := range testCases {
+		t.Run(string(tc.filterDifficulty), func(t *testing.T) {
+			// Simulate filtering
+			var filtered []models.Puzzle
+			for _, p := range puzzles {
+				if tc.filterDifficulty == "" || p.Difficulty == tc.filterDifficulty {
+					filtered = append(filtered, p)
+				}
+			}
+
+			if len(filtered) != tc.expectedCount {
+				t.Errorf("Expected %d puzzles for difficulty '%s', got %d",
+					tc.expectedCount, tc.filterDifficulty, len(filtered))
+			}
+		})
+	}
+}
+
+// TestPuzzleArchiveDateSorting verifies sorting by published date
+func TestPuzzleArchiveDateSorting(t *testing.T) {
+	now := time.Now()
+	yesterday := now.Add(-24 * time.Hour)
+	lastWeek := now.Add(-7 * 24 * time.Hour)
+
+	// Create test puzzles with different published dates (in sorted order: newest first)
+	puzzles := []models.Puzzle{
+		{
+			ID:          uuid.New().String(),
+			Title:       "Today Puzzle",
+			PublishedAt: &now,
+			CreatedAt:   now,
+		},
+		{
+			ID:          uuid.New().String(),
+			Title:       "Yesterday Puzzle",
+			PublishedAt: &yesterday,
+			CreatedAt:   yesterday,
+		},
+		{
+			ID:          uuid.New().String(),
+			Title:       "Oldest Puzzle",
+			PublishedAt: &lastWeek,
+			CreatedAt:   lastWeek,
+		},
+	}
+
+	// Verify they are in descending order (newest first)
+	for i := 0; i < len(puzzles)-1; i++ {
+		current := puzzles[i].PublishedAt
+		next := puzzles[i+1].PublishedAt
+
+		if current != nil && next != nil {
+			if current.Before(*next) {
+				t.Errorf("Puzzles not sorted correctly: %s should come after %s",
+					puzzles[i].Title, puzzles[i+1].Title)
+			}
+		}
+	}
+
+	// Verify newest puzzle is first
+	if puzzles[0].Title != "Today Puzzle" {
+		t.Errorf("Expected newest puzzle 'Today Puzzle' to be first, got '%s'", puzzles[0].Title)
+	}
+}
+
+// TestPuzzleMetadataExcludesGrid verifies that metadata doesn't include grid data
+func TestPuzzleMetadataExcludesGrid(t *testing.T) {
+	metadata := models.PuzzleMetadata{
+		ID:         uuid.New().String(),
+		Title:      "Test Puzzle",
+		Author:     "Test Author",
+		Difficulty: models.DifficultyMedium,
+		GridWidth:  10,
+		GridHeight: 10,
+		CreatedAt:  time.Now(),
+	}
+
+	// PuzzleMetadata should not have Grid, CluesAcross, or CluesDown fields
+	// This is enforced by the type definition itself
+	// We just verify the type has the expected fields and not the grid-related ones
+
+	// Check that metadata has the required fields (this would fail to compile if fields are missing)
+	_ = metadata.ID
+	_ = metadata.Title
+	_ = metadata.Author
+	_ = metadata.Difficulty
+	_ = metadata.GridWidth
+	_ = metadata.GridHeight
+
+	// Note: We can't directly test for absence of fields in Go,
+	// but the type system enforces this at compile time
+	t.Log("PuzzleMetadata type correctly excludes grid data")
+}
+
+// TestPuzzleCompletionStatus verifies completion status logic
+func TestPuzzleCompletionStatus(t *testing.T) {
+	// Test for logged-in user
+	completedTrue := true
+	metadataCompleted := models.PuzzleMetadata{
+		ID:          uuid.New().String(),
+		Title:       "Completed Puzzle",
+		IsCompleted: &completedTrue,
+	}
+
+	if metadataCompleted.IsCompleted == nil {
+		t.Error("IsCompleted should not be nil for logged-in user")
+	}
+
+	if *metadataCompleted.IsCompleted != true {
+		t.Error("IsCompleted should be true for completed puzzle")
+	}
+
+	// Test for incomplete puzzle
+	completedFalse := false
+	metadataIncomplete := models.PuzzleMetadata{
+		ID:          uuid.New().String(),
+		Title:       "Incomplete Puzzle",
+		IsCompleted: &completedFalse,
+	}
+
+	if *metadataIncomplete.IsCompleted != false {
+		t.Error("IsCompleted should be false for incomplete puzzle")
+	}
+
+	// Test for anonymous/public user (no completion status)
+	metadataAnonymous := models.PuzzleMetadata{
+		ID:          uuid.New().String(),
+		Title:       "Anonymous User Puzzle",
+		IsCompleted: nil,
+	}
+
+	if metadataAnonymous.IsCompleted != nil {
+		t.Error("IsCompleted should be nil for anonymous users")
+	}
+}

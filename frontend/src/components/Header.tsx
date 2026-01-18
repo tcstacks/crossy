@@ -80,9 +80,12 @@ interface GameHeaderProps {
   playersComponent?: React.ReactNode;
   showChat?: boolean;
   onChatToggle?: () => void;
+  chatUnreadCount?: number;
   showHints?: boolean;
   onHintRequest?: () => void;
   hintsEnabled?: boolean;
+  roomMode?: 'collaborative' | 'race' | 'relay';
+  currentTurnUserId?: string;
 }
 
 export function GameHeader({
@@ -93,10 +96,14 @@ export function GameHeader({
   playersComponent,
   showChat,
   onChatToggle,
+  chatUnreadCount = 0,
   showHints,
   onHintRequest,
   hintsEnabled = true,
+  roomMode,
+  currentTurnUserId,
 }: GameHeaderProps) {
+  const { user } = useGameStore();
   return (
     <header className="sticky top-0 z-30 backdrop-blur-xl bg-white/80 border-b border-purple-50">
       <div className="container mx-auto px-4 h-14 flex items-center justify-between">
@@ -169,6 +176,11 @@ export function GameHeader({
                   d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
                 />
               </svg>
+              {chatUnreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-lg">
+                  {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
+                </span>
+              )}
             </button>
           )}
         </div>

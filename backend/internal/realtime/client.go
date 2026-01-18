@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -33,6 +34,7 @@ var upgrader = websocket.Upgrader{
 
 // Client represents a WebSocket client connection
 type Client struct {
+	ConnectionID string // Unique per WebSocket connection
 	Hub         *Hub
 	Conn        *websocket.Conn
 	Send        chan []byte
@@ -44,6 +46,7 @@ type Client struct {
 // NewClient creates a new WebSocket client
 func NewClient(hub *Hub, conn *websocket.Conn, userID, displayName string) *Client {
 	return &Client{
+		ConnectionID: uuid.New().String(),
 		Hub:         hub,
 		Conn:        conn,
 		Send:        make(chan []byte, 256),

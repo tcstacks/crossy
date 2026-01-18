@@ -32,17 +32,40 @@ export default function JoinRoomPage() {
       return;
     }
 
+    if (code.trim().length !== 6) {
+      setError('Room code must be 6 characters');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
     try {
-      // Verify room exists
+      // Verify room exists and check capacity
       const response = await api.getRoomByCode(code.toUpperCase());
       if (response.room) {
+        // Check if room is full
+        const { room, players } = response;
+        const maxPlayers = room.config?.maxPlayers ?? 8;
+
+        if (players.length >= maxPlayers) {
+          setError('Room is full');
+          setIsLoading(false);
+          return;
+        }
+
+        // Redirect to room (which will show lobby if state is 'lobby')
         router.push(`/room/${code.toUpperCase()}`);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Room not found');
+      const errorMessage = err instanceof Error ? err.message : 'Room not found';
+
+      // Provide user-friendly error messages
+      if (errorMessage.includes('not found')) {
+        setError('Invalid room code. Please check and try again.');
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setIsLoading(false);
     }

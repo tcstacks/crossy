@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/crossplay/backend/internal/auth"
@@ -612,6 +613,121 @@ func (h *Handlers) JoinRoom(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"room":      room,
 		"player":    player,
+		"puzzle":    sanitizedPuzzle,
+		"gridState": gridState,
+	})
+}
+
+type JoinRoomByCodeRequest struct {
+	Code        string `json:"code" binding:"required,len=6"`
+	DisplayName string `json:"displayName"`
+	IsSpectator bool   `json:"isSpectator"`
+}
+
+func (h *Handlers) JoinRoomByCode(c *gin.Context) {
+	claims := middleware.GetAuthUser(c)
+	if claims == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	var req JoinRoomByCodeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: code must be exactly 6 characters"})
+		return
+	}
+
+	// Normalize code to uppercase for case-insensitive matching
+	code := strings.ToUpper(req.Code)
+
+	// Get room by code
+	room, err := h.db.GetRoomByCode(code)
+	if err != nil {
+		log.Printf("JoinRoomByCode: Database error getting room: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+		return
+	}
+	if room == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "room not found"})
+		return
+	}
+
+	// Validate room is joinable
+	if room.State == models.RoomStateCompleted {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "cannot join completed game"})
+		return
+	}
+
+	// Get current players
+	players, err := h.db.GetRoomPlayers(room.ID)
+	if err != nil {
+		log.Printf("JoinRoomByCode: Database error getting players: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+		return
+	}
+
+	// Check if room is full (only for non-spectators)
+	activePlayers := 0
+	for _, p := range players {
+		if !p.IsSpectator {
+			activePlayers++
+		}
+	}
+
+	if !req.IsSpectator && activePlayers >= room.Config.MaxPlayers {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "room is full"})
+		return
+	}
+
+	// Set display name
+	displayName := req.DisplayName
+	if displayName == "" {
+		displayName = claims.DisplayName
+	}
+
+	// Add player to room
+	player := &models.Player{
+		UserID:      claims.UserID,
+		RoomID:      room.ID,
+		DisplayName: displayName,
+		IsSpectator: req.IsSpectator,
+		IsConnected: true,
+		Color:       getPlayerColor(len(players)),
+		JoinedAt:    time.Now(),
+	}
+
+	if err := h.db.AddPlayer(player); err != nil {
+		log.Printf("JoinRoomByCode: Failed to add player: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to join room"})
+		return
+	}
+
+	// Get puzzle for response
+	puzzle, err := h.db.GetPuzzleByID(room.PuzzleID)
+	if err != nil || puzzle == nil {
+		log.Printf("JoinRoomByCode: Failed to get puzzle: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load puzzle"})
+		return
+	}
+	sanitizedPuzzle := sanitizePuzzleForClient(puzzle)
+
+	// Get grid state
+	gridState, err := h.db.GetGridState(room.ID)
+	if err != nil {
+		log.Printf("JoinRoomByCode: Failed to get grid state: %v", err)
+	}
+
+	// Get all current players for response
+	allPlayers, err := h.db.GetRoomPlayers(room.ID)
+	if err != nil {
+		log.Printf("JoinRoomByCode: Failed to get all players: %v", err)
+		allPlayers = []models.Player{*player}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"room":      room,
+		"player":    player,
+		"players":   allPlayers,
 		"puzzle":    sanitizedPuzzle,
 		"gridState": gridState,
 	})

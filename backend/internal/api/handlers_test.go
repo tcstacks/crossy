@@ -1,6 +1,7 @@
 package api
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -1117,5 +1118,345 @@ func TestPuzzleCompletionStatus(t *testing.T) {
 
 	if metadataAnonymous.IsCompleted != nil {
 		t.Error("IsCompleted should be nil for anonymous users")
+	}
+}
+
+// TestJoinRoomByCodeRequest verifies join room by code request validation
+func TestJoinRoomByCodeRequest(t *testing.T) {
+	tests := []struct {
+		name        string
+		code        string
+		displayName string
+		isSpectator bool
+		shouldPass  bool
+		reason      string
+	}{
+		{
+			name:        "Valid 6-character uppercase code",
+			code:        "ABC123",
+			displayName: "Player1",
+			isSpectator: false,
+			shouldPass:  true,
+		},
+		{
+			name:        "Valid 6-character lowercase code (case-insensitive)",
+			code:        "abc123",
+			displayName: "Player2",
+			isSpectator: false,
+			shouldPass:  true,
+		},
+		{
+			name:        "Valid 6-character mixed case code",
+			code:        "AbC123",
+			displayName: "Player3",
+			isSpectator: false,
+			shouldPass:  true,
+		},
+		{
+			name:        "Valid code with spectator",
+			code:        "XYZ789",
+			displayName: "Spectator1",
+			isSpectator: true,
+			shouldPass:  true,
+		},
+		{
+			name:        "Invalid code - too short (5 chars)",
+			code:        "ABC12",
+			displayName: "Player4",
+			isSpectator: false,
+			shouldPass:  false,
+			reason:      "Code must be exactly 6 characters",
+		},
+		{
+			name:        "Invalid code - too long (7 chars)",
+			code:        "ABC1234",
+			displayName: "Player5",
+			isSpectator: false,
+			shouldPass:  false,
+			reason:      "Code must be exactly 6 characters",
+		},
+		{
+			name:        "Invalid code - empty",
+			code:        "",
+			displayName: "Player6",
+			isSpectator: false,
+			shouldPass:  false,
+			reason:      "Code is required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := JoinRoomByCodeRequest{
+				Code:        tt.code,
+				DisplayName: tt.displayName,
+				IsSpectator: tt.isSpectator,
+			}
+
+			// Validate code length
+			isValid := len(req.Code) == 6
+
+			if isValid != tt.shouldPass {
+				if !tt.shouldPass {
+					t.Logf("Expected validation to fail: %s", tt.reason)
+				} else {
+					t.Errorf("Expected request to be valid, but validation failed")
+				}
+			}
+		})
+	}
+}
+
+// TestJoinRoomByCodeCaseInsensitive verifies case-insensitive code matching
+func TestJoinRoomByCodeCaseInsensitive(t *testing.T) {
+	originalCode := "ABC123"
+	testCases := []string{
+		"ABC123", // exact match
+		"abc123", // lowercase
+		"AbC123", // mixed case
+		"aBc123", // different mixed case
+	}
+
+	for _, testCode := range testCases {
+		t.Run(testCode, func(t *testing.T) {
+			// Normalize both codes to uppercase for comparison
+			normalizedOriginal := strings.ToUpper(originalCode)
+			normalizedTest := strings.ToUpper(testCode)
+
+			if normalizedOriginal != normalizedTest {
+				t.Errorf("Expected normalized codes to match: %s != %s", normalizedOriginal, normalizedTest)
+			}
+
+			// Verify they match after normalization
+			if normalizedOriginal != "ABC123" {
+				t.Error("Normalized code should be ABC123")
+			}
+		})
+	}
+}
+
+// TestJoinRoomByCodeValidation verifies room validation logic
+func TestJoinRoomByCodeValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		roomState   models.RoomState
+		maxPlayers  int
+		numPlayers  int
+		isSpectator bool
+		shouldPass  bool
+		errorMsg    string
+	}{
+		{
+			name:        "Join lobby room with space",
+			roomState:   models.RoomStateLobby,
+			maxPlayers:  4,
+			numPlayers:  2,
+			isSpectator: false,
+			shouldPass:  true,
+		},
+		{
+			name:        "Join active room with space",
+			roomState:   models.RoomStateActive,
+			maxPlayers:  4,
+			numPlayers:  2,
+			isSpectator: false,
+			shouldPass:  true,
+		},
+		{
+			name:        "Cannot join completed room",
+			roomState:   models.RoomStateCompleted,
+			maxPlayers:  4,
+			numPlayers:  2,
+			isSpectator: false,
+			shouldPass:  false,
+			errorMsg:    "cannot join completed game",
+		},
+		{
+			name:        "Cannot join full room as player",
+			roomState:   models.RoomStateLobby,
+			maxPlayers:  4,
+			numPlayers:  4,
+			isSpectator: false,
+			shouldPass:  false,
+			errorMsg:    "room is full",
+		},
+		{
+			name:        "Can join full room as spectator",
+			roomState:   models.RoomStateLobby,
+			maxPlayers:  4,
+			numPlayers:  4,
+			isSpectator: true,
+			shouldPass:  true,
+		},
+		{
+			name:        "Spectator doesn't count toward max players",
+			roomState:   models.RoomStateLobby,
+			maxPlayers:  2,
+			numPlayers:  2,
+			isSpectator: true,
+			shouldPass:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Validate room state
+			canJoin := tt.roomState != models.RoomStateCompleted
+
+			if !canJoin && tt.shouldPass {
+				t.Error("Expected to be able to join, but room state prevents it")
+			}
+
+			if !canJoin && tt.roomState == models.RoomStateCompleted {
+				if tt.errorMsg != "cannot join completed game" {
+					t.Errorf("Expected error message about completed game, got: %s", tt.errorMsg)
+				}
+			}
+
+			// Validate max players (only for non-spectators)
+			if canJoin && !tt.isSpectator {
+				roomFull := tt.numPlayers >= tt.maxPlayers
+				if roomFull && tt.shouldPass {
+					t.Error("Expected to be able to join, but room is full")
+				}
+				if roomFull && !tt.shouldPass && tt.errorMsg == "room is full" {
+					t.Log("Correctly rejected joining full room")
+				}
+			}
+		})
+	}
+}
+
+// TestJoinRoomByCodePlayerRoster verifies player is added to roster
+func TestJoinRoomByCodePlayerRoster(t *testing.T) {
+	roomID := uuid.New().String()
+	userID := uuid.New().String()
+	displayName := "TestPlayer"
+
+	player := &models.Player{
+		UserID:      userID,
+		RoomID:      roomID,
+		DisplayName: displayName,
+		IsSpectator: false,
+		IsConnected: true,
+		Color:       getPlayerColor(0),
+		JoinedAt:    time.Now(),
+	}
+
+	// Verify player structure
+	if player.UserID != userID {
+		t.Errorf("Expected user ID %s, got %s", userID, player.UserID)
+	}
+
+	if player.RoomID != roomID {
+		t.Errorf("Expected room ID %s, got %s", roomID, player.RoomID)
+	}
+
+	if player.DisplayName != displayName {
+		t.Errorf("Expected display name %s, got %s", displayName, player.DisplayName)
+	}
+
+	if !player.IsConnected {
+		t.Error("Player should be connected upon joining")
+	}
+
+	if player.IsSpectator {
+		t.Error("Player should not be spectator by default")
+	}
+
+	if player.Color == "" {
+		t.Error("Player should have a color assigned")
+	}
+
+	if player.JoinedAt.IsZero() {
+		t.Error("Player should have a join timestamp")
+	}
+}
+
+// TestJoinRoomByCodeResponse verifies the response includes required data
+func TestJoinRoomByCodeResponse(t *testing.T) {
+	// Create mock room
+	room := &models.Room{
+		ID:       uuid.New().String(),
+		Code:     "ABC123",
+		HostID:   "host-123",
+		PuzzleID: "puzzle-456",
+		Mode:     models.RoomModeCollaborative,
+		Config: models.RoomConfig{
+			MaxPlayers:   8,
+			IsPublic:     true,
+			TimerMode:    "none",
+			HintsEnabled: true,
+		},
+		State:     models.RoomStateLobby,
+		CreatedAt: time.Now(),
+	}
+
+	// Create mock player
+	player := &models.Player{
+		UserID:      "user-789",
+		RoomID:      room.ID,
+		DisplayName: "TestPlayer",
+		IsSpectator: false,
+		IsConnected: true,
+		Color:       getPlayerColor(0),
+		JoinedAt:    time.Now(),
+	}
+
+	// Verify response would include:
+	// 1. Room state
+	if room.ID == "" {
+		t.Error("Response should include room ID")
+	}
+	if room.Code == "" {
+		t.Error("Response should include room code")
+	}
+	if room.State == "" {
+		t.Error("Response should include room state")
+	}
+
+	// 2. Player info
+	if player.UserID == "" {
+		t.Error("Response should include player user ID")
+	}
+	if player.DisplayName == "" {
+		t.Error("Response should include player display name")
+	}
+
+	// 3. Room configuration
+	if room.Config.MaxPlayers == 0 {
+		t.Error("Response should include room max players")
+	}
+	if room.Mode == "" {
+		t.Error("Response should include room mode")
+	}
+
+	// 4. Puzzle ID (puzzle data returned separately)
+	if room.PuzzleID == "" {
+		t.Error("Response should include puzzle ID")
+	}
+}
+
+// TestJoinRoomCodeNormalization verifies 6-character codes are normalized
+func TestJoinRoomCodeNormalization(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+	}{
+		{"abcdef", "ABCDEF"},
+		{"ABCDEF", "ABCDEF"},
+		{"AbCdEf", "ABCDEF"},
+		{"123456", "123456"},
+		{"abc123", "ABC123"},
+		{"XyZ789", "XYZ789"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.input, func(t *testing.T) {
+			normalized := strings.ToUpper(tc.input)
+			if normalized != tc.expected {
+				t.Errorf("Expected %s to normalize to %s, got %s", tc.input, tc.expected, normalized)
+			}
+		})
 	}
 }

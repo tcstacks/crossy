@@ -3,10 +3,10 @@
   "sessionId": "b95adf80-416f-43a6-9f0e-dc9debfd1765",
   "status": "running",
   "startedAt": "2026-01-18T00:37:59.835Z",
-  "updatedAt": "2026-01-18T02:13:05.327Z",
-  "currentIteration": 8,
+  "updatedAt": "2026-01-18T02:37:03.388Z",
+  "currentIteration": 12,
   "maxIterations": 5,
-  "tasksCompleted": 8,
+  "tasksCompleted": 12,
   "isPaused": false,
   "agentPlugin": "claude",
   "trackerState": {
@@ -71,26 +71,26 @@
       {
         "id": "US-010",
         "title": "Hint system implementation",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-011",
         "title": "Solo gameplay with completion detection",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-012",
         "title": "Progress tracking and puzzle history",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-013",
         "title": "Room creation endpoint",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-014",
@@ -336,12 +336,52 @@
       "durationMs": 139793,
       "startedAt": "2026-01-18T02:03:12.789Z",
       "endedAt": "2026-01-18T02:05:32.582Z"
+    },
+    {
+      "iteration": 9,
+      "status": "completed",
+      "taskId": "US-010",
+      "taskTitle": "Hint system implementation",
+      "taskCompleted": true,
+      "durationMs": 446839,
+      "startedAt": "2026-01-18T02:13:05.324Z",
+      "endedAt": "2026-01-18T02:20:32.163Z"
+    },
+    {
+      "iteration": 10,
+      "status": "completed",
+      "taskId": "US-011",
+      "taskTitle": "Solo gameplay with completion detection",
+      "taskCompleted": true,
+      "durationMs": 210947,
+      "startedAt": "2026-01-18T02:21:06.731Z",
+      "endedAt": "2026-01-18T02:24:37.678Z"
+    },
+    {
+      "iteration": 11,
+      "status": "completed",
+      "taskId": "US-012",
+      "taskTitle": "Progress tracking and puzzle history",
+      "taskCompleted": true,
+      "durationMs": 406849,
+      "startedAt": "2026-01-18T02:24:47.283Z",
+      "endedAt": "2026-01-18T02:31:34.132Z"
+    },
+    {
+      "iteration": 12,
+      "status": "completed",
+      "taskId": "US-013",
+      "taskTitle": "Room creation endpoint",
+      "taskCompleted": true,
+      "durationMs": 269585,
+      "startedAt": "2026-01-18T02:31:41.555Z",
+      "endedAt": "2026-01-18T02:36:11.140Z"
     }
   ],
   "skippedTaskIds": [],
   "cwd": "/Users/dev/proj/crossy",
   "activeTaskIds": [
-    "US-010"
+    "US-014"
   ],
   "subagentPanelVisible": false
 }

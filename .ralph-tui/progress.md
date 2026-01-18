@@ -82,3 +82,39 @@ after letter input\n\n**3. frontend/src/lib/utils.ts:**\n- Added `isClueComplete
 on for urgency\n  - Properly decrements and calls `onComplete` callback\n\n### Acceptance Criteria Met:\n- ✅ Timer starts on game start\n- ✅ Displays in MM:SS or HH:MM:SS format\n- ✅ Stopwatch mode counts up from 00:00\n- ✅ Countdown mode decrements properly\n- ✅ Color changes at time thresholds (green/yellow/red)\n- ✅ cd frontend && npm run typecheck passes\n- ✅ cd frontend && npm run lint passes\n\n### Commit:\nCreated commit `2a00504` with message: `feat: US-009 - Timer display component`\n\n
 
 ---
+## ✓ Iteration 9 - US-010: Hint system implementation
+*2026-01-18T02:20:32.169Z (447s)*
+
+**Status:** Completed
+
+**Notes:**
+✓\n- **cd frontend && npm run typecheck** passes ✓\n- **cd frontend && npm run lint** passes ✓\n\n### 🎯 Key Features Implemented\n\n1. **HintMenu Component** - Dropdown menu with three hint options\n2. **Backend WebSocket handlers** - All three hint types with proper state management\n3. **Multiplayer support** - Hints broadcast to all players in rooms\n4. **Protected cells** - Revealed cells cannot be edited\n5. **Visual feedback** - Blue for revealed, red for incorrect, green for correct\n\n
+
+---
+## ✓ Iteration 10 - US-011: Solo gameplay with completion detection
+*2026-01-18T02:24:37.683Z (211s)*
+
+**Status:** Completed
+
+**Notes:**
+rs on completion** ✅\n   - Already implemented with `ResultsModal` component\n   - Shows solve time, hints used, and share functionality\n\n### Quality Checks - All Passing ✅\n\n- **Backend tests**: `cd backend && go test ./...` ✅ All tests passing\n- **Frontend typecheck**: `cd frontend && npm run typecheck` ✅ No errors\n- **Frontend lint**: `cd frontend && npm run lint` ✅ Passing (1 unrelated warning)\n\n### Commit Created ✅\n```\nfeat: US-011 - Solo gameplay with completion detection\n```\n\n
+
+---
+## ✓ Iteration 11 - US-012: Progress tracking and puzzle history
+*2026-01-18T02:31:34.137Z (407s)*
+
+**Status:** Completed
+
+**Notes:**
+time, accuracy percentage, and hints used\n   - Indicates completion status and multiplayer mode\n\n### All Acceptance Criteria Met ✅\n- ✅ Solve time calculated from first edit to completion\n- ✅ Hints used counted accurately\n- ✅ Accuracy = (correct cells / total cells) * 100\n- ✅ Data saved to puzzle_history table\n- ✅ User can view history of completed puzzles\n- ✅ `cd backend && go test ./...` passes\n- ✅ `cd frontend && npm run typecheck` passes\n- ✅ `cd frontend && npm run lint` passes\n\n
+
+---
+## ✓ Iteration 12 - US-013: Room creation endpoint
+*2026-01-18T02:36:11.145Z (270s)*
+
+**Status:** Completed
+
+**Notes:**
+Validates room state transitions (lobby/active/completed)\n6. **TestInitializeGridState** - Ensures puzzle grid state is properly initialized\n\n### Quality Checks ✅\n\nAll acceptance criteria validated:\n- ✅ `cd backend && go test ./...` - All tests pass (0.193s)\n- ✅ `cd frontend && npm run typecheck` - No type errors\n- ✅ `cd frontend && npm run lint` - Clean (1 pre-existing warning unrelated to changes)\n\n### Commit\n\nCreated commit with message: `feat: US-013 - Room creation endpoint`\n\n
+
+---

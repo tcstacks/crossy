@@ -24,6 +24,7 @@ export default function RandomPuzzlePage() {
     startTime,
     setPuzzle,
     startGame,
+    endGame,
     hintsUsed,
     incrementHints,
     selectedCell,
@@ -36,7 +37,7 @@ export default function RandomPuzzlePage() {
       try {
         const puzzleData = await api.getRandomPuzzle();
         setPuzzle(puzzleData);
-        startGame();
+        // Don't start timer yet - wait for first cell edit
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load puzzle');
       } finally {
@@ -49,7 +50,7 @@ export default function RandomPuzzlePage() {
     return () => {
       // Clean up on unmount
     };
-  }, [setPuzzle, startGame]);
+  }, [setPuzzle]);
 
   // Check for puzzle completion
   useEffect(() => {
@@ -65,10 +66,11 @@ export default function RandomPuzzlePage() {
 
     if (isComplete && startTime) {
       const solveTime = Math.floor((Date.now() - startTime) / 1000);
+      endGame(solveTime);
       setCompletionTime(solveTime);
       setShowResults(true);
     }
-  }, [cells, puzzle, startTime]);
+  }, [cells, puzzle, startTime, endGame]);
 
   const handleRevealLetter = useCallback(() => {
     if (!selectedCell || !puzzle) return;
@@ -183,7 +185,7 @@ export default function RandomPuzzlePage() {
       try {
         const puzzleData = await api.getRandomPuzzle();
         setPuzzle(puzzleData);
-        startGame();
+        // Don't start timer yet - wait for first cell edit
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load puzzle');
       } finally {
@@ -192,7 +194,7 @@ export default function RandomPuzzlePage() {
     };
 
     loadNewPuzzle();
-  }, [resetGame, setPuzzle, startGame]);
+  }, [resetGame, setPuzzle]);
 
   if (isLoading) {
     return (
@@ -254,7 +256,14 @@ export default function RandomPuzzlePage() {
 
           {/* Grid Container */}
           <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
-            <CrosswordGrid />
+            <CrosswordGrid
+              onCellUpdate={(x, y, value) => {
+                // Start timer on first cell edit
+                if (!startTime && value) {
+                  startGame();
+                }
+              }}
+            />
           </div>
         </div>
       </main>

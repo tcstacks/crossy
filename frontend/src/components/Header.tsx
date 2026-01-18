@@ -11,12 +11,12 @@ export function Header() {
   return (
     <header className="sticky top-0 z-30 backdrop-blur-xl bg-white/80 border-b border-purple-50">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 group">
+        <Link href="/" className="flex items-center gap-2 group" aria-label="Crossy home">
           <Mascot size="sm" mood="happy" animate={false} className="group-hover:animate-wiggle" />
           <span className="font-bold text-xl gradient-text">Crossy</span>
         </Link>
 
-        <nav className="flex items-center gap-4">
+        <nav className="flex items-center gap-4" aria-label="Main navigation">
           <Link
             href="/puzzle"
             className="text-purple-600 hover:text-purple-800 font-medium hidden sm:block transition-colors"
@@ -54,12 +54,14 @@ export function Header() {
               <button
                 onClick={logout}
                 className="text-purple-400 hover:text-purple-600 transition-colors p-2 hover:bg-purple-50 rounded-full"
+                aria-label="Logout"
               >
                 <svg
                   className="w-5 h-5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
+                  aria-hidden="true"
                 >
                   <path
                     strokeLinecap="round"
@@ -121,12 +123,17 @@ export function GameHeader({
     <header className="sticky top-0 z-30 backdrop-blur-xl bg-white/80 border-b border-purple-50">
       <div className="container mx-auto px-4 h-14 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/" className="text-purple-400 hover:text-purple-600 transition-colors p-2 hover:bg-purple-50 rounded-full">
+          <Link
+            href="/"
+            className="text-purple-400 hover:text-purple-600 transition-colors p-2 hover:bg-purple-50 rounded-full"
+            aria-label="Back to home"
+          >
             <svg
               className="w-6 h-6"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"
@@ -161,13 +168,14 @@ export function GameHeader({
             <button
               onClick={onChatToggle}
               className="p-2 hover:bg-purple-50 rounded-full transition-colors relative group"
-              title="Open chat"
+              aria-label={chatUnreadCount > 0 ? `Open chat (${chatUnreadCount} unread messages)` : "Open chat"}
             >
               <svg
                 className="w-5 h-5 text-purple-400 group-hover:text-purple-600 transition-colors"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                aria-hidden="true"
               >
                 <path
                   strokeLinecap="round"
@@ -177,7 +185,7 @@ export function GameHeader({
                 />
               </svg>
               {chatUnreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-lg">
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-lg" aria-hidden="true">
                   {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
                 </span>
               )}

@@ -97,7 +97,7 @@ export default function HomePage() {
           <h1 className="text-4xl md:text-6xl font-bold mb-4">
             <span className="gradient-text">Crossy!</span>
           </h1>
-          <p className="text-xl text-purple-700 max-w-2xl mx-auto font-medium">
+          <p className="text-xl md:text-2xl text-purple-700 max-w-2xl mx-auto font-medium">
             Solve puzzles with friends in real-time. Daily challenges,
             multiplayer rooms, and endless fun!
           </p>
@@ -227,7 +227,7 @@ export default function HomePage() {
                   <span className="text-3xl">👋</span>
                 </div>
                 <h3 className="font-bold mb-1 text-purple-900">Join a Room</h3>
-                <p className="text-sm text-purple-600">
+                <p className="text-base text-purple-600">
                   Enter a code to join friends
                 </p>
               </div>
@@ -239,7 +239,7 @@ export default function HomePage() {
                   <span className="text-3xl">🎲</span>
                 </div>
                 <h3 className="font-bold mb-1 text-purple-900">Random Puzzle</h3>
-                <p className="text-sm text-purple-600">
+                <p className="text-base text-purple-600">
                   Play a surprise puzzle
                 </p>
               </div>
@@ -251,7 +251,7 @@ export default function HomePage() {
                   <span className="text-3xl">📚</span>
                 </div>
                 <h3 className="font-bold mb-1 text-purple-900">Archive</h3>
-                <p className="text-sm text-purple-600">
+                <p className="text-base text-purple-600">
                   Browse past puzzles
                 </p>
               </div>
@@ -272,7 +272,7 @@ export default function HomePage() {
               </div>
               <div>
                 <h3 className="font-bold mb-1 text-purple-900">Real-Time Collaboration</h3>
-                <p className="text-sm text-purple-600">
+                <p className="text-base text-purple-600">
                   See your friends&apos; cursors and solve together in perfect sync.
                 </p>
               </div>
@@ -284,7 +284,7 @@ export default function HomePage() {
               </div>
               <div>
                 <h3 className="font-bold mb-1 text-purple-900">Daily Puzzles</h3>
-                <p className="text-sm text-purple-600">
+                <p className="text-base text-purple-600">
                   Fresh puzzles every day, from easy Monday to challenging Saturday.
                 </p>
               </div>
@@ -296,7 +296,7 @@ export default function HomePage() {
               </div>
               <div>
                 <h3 className="font-bold mb-1 text-purple-900">Mobile-First Design</h3>
-                <p className="text-sm text-purple-600">
+                <p className="text-base text-purple-600">
                   Optimized for touch, play anywhere on any device.
                 </p>
               </div>
@@ -308,7 +308,7 @@ export default function HomePage() {
               </div>
               <div>
                 <h3 className="font-bold mb-1 text-purple-900">Stats & Streaks</h3>
-                <p className="text-sm text-purple-600">
+                <p className="text-base text-purple-600">
                   Track your progress and compete for the best times.
                 </p>
               </div>

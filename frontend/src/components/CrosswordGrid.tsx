@@ -419,6 +419,8 @@ export function CrosswordGrid({
         maxWidth: 'min(600px, 90vw)',
         aspectRatio: `${puzzle.gridWidth} / ${puzzle.gridHeight}`,
       }}
+      role="grid"
+      aria-label="Crossword puzzle grid"
       tabIndex={0}
     >
       {puzzle.grid.map((row, y) =>
@@ -444,6 +446,10 @@ export function CrosswordGrid({
                 isCorrect === false && 'incorrect'
               )}
               onClick={() => handleCellClick(x, y)}
+              role="gridcell"
+              aria-label={isBlack ? "Black cell" : `Cell ${cell.number || ''}, ${cellValue || 'empty'}`}
+              aria-selected={isSelected}
+              tabIndex={isBlack ? -1 : 0}
             >
               {cell.number && (
                 <span className="cell-number">{cell.number}</span>

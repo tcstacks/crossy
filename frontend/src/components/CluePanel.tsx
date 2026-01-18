@@ -70,7 +70,12 @@ export function CluePanel({ direction, onClueClick }: CluePanelProps) {
       <h3 className="font-bold text-lg px-4 py-2 bg-gray-100 capitalize sticky top-0 z-10">
         {direction}
       </h3>
-      <div ref={listRef} className="flex-1 overflow-y-auto clue-list p-2">
+      <div
+        ref={listRef}
+        className="flex-1 overflow-y-auto clue-list p-2"
+        role="list"
+        aria-label={`${direction} clues`}
+      >
         {clues
           .slice()
           .sort((a, b) => a.number - b.number)
@@ -94,12 +99,25 @@ export function CluePanel({ direction, onClueClick }: CluePanelProps) {
                   isSelected && 'selected',
                   isCompleted && 'completed'
                 )}
+                role="listitem"
               >
-                <div className="flex items-start gap-2" onClick={() => handleClueClick(clue)}>
-                  <span className="font-bold">{clue.number}.</span>
-                  <span className="clue-text flex-1">{clue.text}</span>
+                <div
+                  className="flex items-start gap-2"
+                  onClick={() => handleClueClick(clue)}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Clue ${clue.number}: ${clue.text}${isCompleted ? ', completed' : ''}`}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleClueClick(clue);
+                    }
+                  }}
+                >
+                  <span className="font-bold" aria-hidden="true">{clue.number}.</span>
+                  <span className="clue-text flex-1" aria-hidden="true">{clue.text}</span>
                   {isCompleted && (
-                    <span className="text-green-600 flex-shrink-0">✓</span>
+                    <span className="text-green-600 flex-shrink-0" aria-hidden="true">✓</span>
                   )}
                 </div>
                 <div className="flex items-center gap-2 mt-1 ml-6">
@@ -130,8 +148,17 @@ export function MobileClueDisplay({ onExpand }: MobileClueDisplayProps) {
   if (!selectedClue) {
     return (
       <div
-        className="bg-gray-100 px-4 py-3 text-gray-500 text-center cursor-pointer"
+        className="bg-gray-100 px-4 py-3 text-gray-600 text-center cursor-pointer"
         onClick={onExpand}
+        role="button"
+        tabIndex={0}
+        aria-label="Show clue list"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onExpand?.();
+          }
+        }}
       >
         Tap a cell to start solving
       </div>
@@ -142,18 +169,28 @@ export function MobileClueDisplay({ onExpand }: MobileClueDisplayProps) {
     <div
       className="bg-gray-100 px-4 py-3 cursor-pointer"
       onClick={onExpand}
+      role="button"
+      tabIndex={0}
+      aria-label={`Current clue: ${selectedClue.number} ${selectedClue.direction === 'across' ? 'Across' : 'Down'}, ${selectedClue.text}. Tap to expand clue list`}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onExpand?.();
+        }
+      }}
     >
       <div className="flex items-center gap-2">
         <span className="font-bold text-primary-600">
           {selectedClue.number}
           {selectedClue.direction === 'across' ? 'A' : 'D'}
         </span>
-        <span className="flex-1 truncate">{selectedClue.text}</span>
+        <span className="flex-1 truncate" aria-hidden="true">{selectedClue.text}</span>
         <svg
           className="w-5 h-5 text-gray-400"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
+          aria-hidden="true"
         >
           <path
             strokeLinecap="round"
@@ -181,18 +218,36 @@ export function ClueBottomSheet({ isOpen, onClose }: ClueBottomSheetProps) {
         'bottom-sheet max-h-[60vh]',
         isOpen ? 'open' : 'closed'
       )}
+      role="dialog"
+      aria-label="Crossword clues"
+      aria-modal="false"
     >
-      <div className="bottom-sheet-handle" onClick={onClose} />
+      <div
+        className="bottom-sheet-handle"
+        onClick={onClose}
+        role="button"
+        tabIndex={0}
+        aria-label="Close clue panel"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClose();
+          }
+        }}
+      />
 
-      <div className="flex border-b">
+      <div className="flex border-b" role="tablist" aria-label="Clue direction">
         <button
           className={cn(
             'flex-1 py-3 font-medium',
             activeTab === 'across'
               ? 'text-primary-600 border-b-2 border-primary-600'
-              : 'text-gray-500'
+              : 'text-gray-600'
           )}
           onClick={() => setActiveTab('across')}
+          role="tab"
+          aria-selected={activeTab === 'across'}
+          aria-controls="across-clues"
         >
           Across
         </button>
@@ -201,9 +256,12 @@ export function ClueBottomSheet({ isOpen, onClose }: ClueBottomSheetProps) {
             'flex-1 py-3 font-medium',
             activeTab === 'down'
               ? 'text-primary-600 border-b-2 border-primary-600'
-              : 'text-gray-500'
+              : 'text-gray-600'
           )}
           onClick={() => setActiveTab('down')}
+          role="tab"
+          aria-selected={activeTab === 'down'}
+          aria-controls="down-clues"
         >
           Down
         </button>

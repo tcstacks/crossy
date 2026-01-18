@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 82, 60, 100;
+  --foreground-rgb: 64, 42, 80;
   --background-start: #fefaff;
   --background-end: #fdf2ff;
 }
@@ -174,6 +174,10 @@ body {
   @apply p-3 rounded-2xl cursor-pointer transition-all duration-200;
   background: rgba(255, 255, 255, 0.6);
   backdrop-filter: blur(8px);
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .clue-item:hover {
@@ -187,8 +191,12 @@ body {
   box-shadow: 0 4px 16px rgba(192, 38, 211, 0.2);
 }
 
+.clue-item:focus-visible {
+  @apply ring-4 ring-primary-500 ring-offset-2;
+}
+
 .clue-item.completed {
-  @apply text-gray-400;
+  @apply text-gray-500;
 }
 
 .clue-item.completed .clue-text {
@@ -211,11 +219,11 @@ body {
 }
 
 .chat-message .message-header {
-  @apply flex items-center gap-2 text-xs text-gray-500 font-medium;
+  @apply flex items-center gap-2 text-xs text-gray-600 font-medium;
 }
 
 .chat-message .message-text {
-  @apply text-sm p-3 rounded-2xl;
+  @apply text-base p-3 rounded-2xl;
   background: linear-gradient(135deg, #f0abfc 0%, #e879f9 100%);
   color: white;
   max-width: 80%;
@@ -295,15 +303,23 @@ body {
   scrollbar-width: none;
 }
 
-/* Focus styles */
+/* Focus styles - Enhanced for visibility */
 *:focus-visible {
-  @apply outline-none ring-2 ring-primary-400 ring-offset-2;
+  @apply outline-none ring-4 ring-primary-500 ring-offset-2;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
 }
 
 /* Button styles - soft and friendly */
 .btn {
-  @apply px-6 py-3 rounded-full font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
+  @apply px-6 py-3 rounded-full font-semibold transition-all duration-200 focus:outline-none;
   box-shadow: 0 4px 12px -2px rgba(180, 120, 200, 0.15);
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.btn:focus-visible {
+  @apply ring-4 ring-primary-500 ring-offset-2;
 }
 
 .btn:hover {
@@ -316,9 +332,14 @@ body {
 }
 
 .btn-primary {
-  @apply text-white focus:ring-primary-300;
+  @apply text-white;
   background: linear-gradient(135deg, #dc7be8 0%, #c45cc9 100%);
   box-shadow: 0 4px 12px -2px rgba(196, 92, 201, 0.35);
+  font-size: 16px;
+}
+
+.btn-primary:focus-visible {
+  @apply ring-4 ring-primary-400 ring-offset-2;
 }
 
 .btn-primary:hover {
@@ -327,9 +348,14 @@ body {
 }
 
 .btn-secondary {
-  @apply text-primary-700 focus:ring-primary-200;
+  @apply text-primary-700;
   background: linear-gradient(135deg, #fef7ff 0%, #fceeff 100%);
   box-shadow: 0 4px 12px -2px rgba(180, 120, 200, 0.12);
+  font-size: 16px;
+}
+
+.btn-secondary:focus-visible {
+  @apply ring-4 ring-primary-300 ring-offset-2;
 }
 
 .btn-secondary:hover {
@@ -337,14 +363,25 @@ body {
 }
 
 .btn-ghost {
-  @apply bg-transparent text-primary-600 hover:bg-primary-50 focus:ring-primary-300;
+  @apply bg-transparent text-primary-600 hover:bg-primary-50;
   box-shadow: none;
+  font-size: 16px;
+}
+
+.btn-ghost:focus-visible {
+  @apply ring-4 ring-primary-400 ring-offset-2;
 }
 
 /* Input styles */
 .input {
-  @apply w-full px-5 py-3 border-2 border-primary-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-transparent transition-all duration-200;
+  @apply w-full px-5 py-3 border-2 border-primary-200 rounded-2xl focus:outline-none focus:border-transparent transition-all duration-200;
   background: rgba(255, 255, 255, 0.8);
+  font-size: 16px;
+  min-height: 44px;
+}
+
+.input:focus-visible {
+  @apply ring-4 ring-primary-500 ring-offset-2;
 }
 
 .input:hover {

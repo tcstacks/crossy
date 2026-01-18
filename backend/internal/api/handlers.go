@@ -312,7 +312,16 @@ func (h *Handlers) GetPuzzleArchive(c *gin.Context) {
 
 func (h *Handlers) GetRandomPuzzle(c *gin.Context) {
 	difficulty := c.Query("difficulty")
-	puzzle, err := h.db.GetRandomPuzzle(difficulty)
+
+	// Get user ID if authenticated (optional)
+	var userID string
+	claims := middleware.GetAuthUser(c)
+	if claims != nil {
+		userID = claims.UserID
+	}
+
+	// Use user-aware random puzzle selection
+	puzzle, err := h.db.GetRandomPuzzleForUser(userID, difficulty)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 		return

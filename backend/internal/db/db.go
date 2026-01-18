@@ -445,16 +445,47 @@ func (d *Database) GetUserPuzzleCompletion(userID, puzzleID string) (bool, error
 }
 
 func (d *Database) GetRandomPuzzle(difficulty string) (*models.Puzzle, error) {
+	return d.GetRandomPuzzleForUser("", difficulty)
+}
+
+// GetRandomPuzzleForUser returns a random puzzle with optional difficulty filter,
+// excluding completed puzzles and the last returned puzzle for the user
+func (d *Database) GetRandomPuzzleForUser(userID, difficulty string) (*models.Puzzle, error) {
+	ctx := context.Background()
+
 	query := `
 		SELECT id, date, title, author, difficulty, grid_width, grid_height,
 			   grid, clues_across, clues_down, theme, avg_solve_time, status, created_at, published_at
 		FROM puzzles WHERE status = 'published'
 	`
 	args := []interface{}{}
+	argNum := 1
 
+	// Exclude completed puzzles for logged-in users
+	if userID != "" {
+		query += fmt.Sprintf(` AND id NOT IN (
+			SELECT puzzle_id FROM puzzle_history
+			WHERE user_id = $%d AND completed = true
+		)`, argNum)
+		args = append(args, userID)
+		argNum++
+	}
+
+	// Apply difficulty filter
 	if difficulty != "" {
-		query += " AND difficulty = $1"
+		query += fmt.Sprintf(" AND difficulty = $%d", argNum)
 		args = append(args, difficulty)
+		argNum++
+	}
+
+	// Get last returned puzzle from Redis to exclude it
+	var lastPuzzleID string
+	if userID != "" {
+		lastPuzzleID, _ = d.Redis.Get(ctx, "last_random_puzzle:"+userID).Result()
+		if lastPuzzleID != "" {
+			query += fmt.Sprintf(" AND id != $%d", argNum)
+			args = append(args, lastPuzzleID)
+		}
 	}
 
 	query += " ORDER BY RANDOM() LIMIT 1"
@@ -476,6 +507,11 @@ func (d *Database) GetRandomPuzzle(difficulty string) (*models.Puzzle, error) {
 	json.Unmarshal(gridJSON, &puzzle.Grid)
 	json.Unmarshal(cluesAcrossJSON, &puzzle.CluesAcross)
 	json.Unmarshal(cluesDownJSON, &puzzle.CluesDown)
+
+	// Store this puzzle ID as the last returned for this user (expires in 1 hour)
+	if userID != "" {
+		d.Redis.Set(ctx, "last_random_puzzle:"+userID, puzzle.ID, time.Hour)
+	}
 
 	return puzzle, nil
 }

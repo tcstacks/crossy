@@ -3,10 +3,10 @@
   "sessionId": "b95adf80-416f-43a6-9f0e-dc9debfd1765",
   "status": "running",
   "startedAt": "2026-01-18T00:37:59.835Z",
-  "updatedAt": "2026-01-18T03:00:16.924Z",
-  "currentIteration": 16,
+  "updatedAt": "2026-01-18T03:23:13.334Z",
+  "currentIteration": 19,
   "maxIterations": 5,
-  "tasksCompleted": 16,
+  "tasksCompleted": 19,
   "isPaused": false,
   "agentPlugin": "claude",
   "trackerState": {
@@ -119,20 +119,20 @@
       {
         "id": "US-018",
         "title": "Cursor tracking for multiplayer",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-019",
         "title": "Live chat system",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-020",
         "title": "Race mode implementation",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-021",
@@ -416,12 +416,42 @@
       "durationMs": 260664,
       "startedAt": "2026-01-18T02:55:03.641Z",
       "endedAt": "2026-01-18T02:59:24.305Z"
+    },
+    {
+      "iteration": 17,
+      "status": "completed",
+      "taskId": "US-018",
+      "taskTitle": "Cursor tracking for multiplayer",
+      "taskCompleted": true,
+      "durationMs": 326245,
+      "startedAt": "2026-01-18T03:00:16.916Z",
+      "endedAt": "2026-01-18T03:05:43.161Z"
+    },
+    {
+      "iteration": 18,
+      "status": "completed",
+      "taskId": "US-019",
+      "taskTitle": "Live chat system",
+      "taskCompleted": true,
+      "durationMs": 224206,
+      "startedAt": "2026-01-18T03:06:32.753Z",
+      "endedAt": "2026-01-18T03:10:16.959Z"
+    },
+    {
+      "iteration": 19,
+      "status": "completed",
+      "taskId": "US-020",
+      "taskTitle": "Race mode implementation",
+      "taskCompleted": true,
+      "durationMs": 404057,
+      "startedAt": "2026-01-18T03:10:46.021Z",
+      "endedAt": "2026-01-18T03:17:30.078Z"
     }
   ],
   "skippedTaskIds": [],
   "cwd": "/Users/dev/proj/crossy",
   "activeTaskIds": [
-    "US-018"
+    "US-021"
   ],
   "subagentPanelVisible": false
 }

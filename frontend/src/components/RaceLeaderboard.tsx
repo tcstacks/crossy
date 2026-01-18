@@ -5,7 +5,21 @@ import { useGameStore } from '@/store/gameStore';
 import { cn } from '@/lib/utils';
 
 export function RaceLeaderboard() {
-  const { raceLeaderboard, players } = useGameStore();
+  const { raceLeaderboard, players, puzzle } = useGameStore();
+
+  // Calculate total cells in the puzzle (non-black cells)
+  const totalCells = useMemo(() => {
+    if (!puzzle) return 0;
+    let count = 0;
+    for (let y = 0; y < puzzle.gridHeight; y++) {
+      for (let x = 0; x < puzzle.gridWidth; x++) {
+        if (puzzle.grid[y][x].letter !== null) {
+          count++;
+        }
+      }
+    }
+    return count;
+  }, [puzzle]);
 
   const leaderboardData = useMemo(() => {
     if (raceLeaderboard.length === 0) return [];
@@ -52,6 +66,7 @@ export function RaceLeaderboard() {
         {leaderboardData.map((player, index) => {
           const playerColor = getPlayerColor(player.userId);
           const isFinished = player.rank !== undefined;
+          const filledCells = Math.round((player.progress / 100) * totalCells);
 
           return (
             <div
@@ -65,7 +80,7 @@ export function RaceLeaderboard() {
                 isFinished && 'opacity-90'
               )}
             >
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-1">
                 <span className="text-lg font-bold text-gray-500 w-6">
                   {index === 0 && '🥇'}
                   {index === 1 && '🥈'}
@@ -87,6 +102,11 @@ export function RaceLeaderboard() {
                     {Math.round(player.progress)}%
                   </span>
                 )}
+              </div>
+
+              {/* Cell count */}
+              <div className="text-xs text-gray-500 mb-1 ml-8">
+                {filledCells}/{totalCells} cells
               </div>
 
               {/* Progress bar */}

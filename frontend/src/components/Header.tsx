@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useGameStore } from '@/store/gameStore';
+import HintMenu from './HintMenu';
 import { Mascot } from './Mascot';
 
 export function Header() {
@@ -82,7 +83,9 @@ interface GameHeaderProps {
   onChatToggle?: () => void;
   chatUnreadCount?: number;
   showHints?: boolean;
-  onHintRequest?: () => void;
+  onRevealLetter?: () => void;
+  onRevealWord?: () => void;
+  onCheckGrid?: () => void;
   hintsEnabled?: boolean;
   roomMode?: 'collaborative' | 'race' | 'relay';
   currentTurnUserId?: string;
@@ -98,7 +101,9 @@ export function GameHeader({
   onChatToggle,
   chatUnreadCount = 0,
   showHints,
-  onHintRequest,
+  onRevealLetter,
+  onRevealWord,
+  onCheckGrid,
   hintsEnabled = true,
   roomMode,
   currentTurnUserId,
@@ -135,26 +140,13 @@ export function GameHeader({
 
           {showPlayers && playersComponent}
 
-          {showHints && hintsEnabled && (
-            <button
-              onClick={onHintRequest}
-              className="p-2 hover:bg-purple-50 rounded-full transition-colors group"
-              title="Get a hint"
-            >
-              <svg
-                className="w-5 h-5 text-purple-400 group-hover:text-purple-600 transition-colors"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                />
-              </svg>
-            </button>
+          {showHints && hintsEnabled && onRevealLetter && onRevealWord && onCheckGrid && (
+            <HintMenu
+              onRevealLetter={onRevealLetter}
+              onRevealWord={onRevealWord}
+              onCheckGrid={onCheckGrid}
+              disabled={false}
+            />
           )}
 
           {showChat && (

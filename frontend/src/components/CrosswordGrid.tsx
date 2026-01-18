@@ -183,6 +183,12 @@ export function CrosswordGrid({
       // Handle letter input
       if (e.key.length === 1 && e.key.match(/[a-zA-Z]/)) {
         e.preventDefault();
+
+        // Prevent editing revealed cells
+        if (cells[y]?.[x]?.isRevealed) {
+          return;
+        }
+
         const value = e.key.toUpperCase();
 
         updateCell(x, y, value);
@@ -231,6 +237,11 @@ export function CrosswordGrid({
       // Handle backspace
       if (e.key === 'Backspace') {
         e.preventDefault();
+
+        // Prevent editing revealed cells
+        if (cells[y]?.[x]?.isRevealed) {
+          return;
+        }
 
         // Clear current cell if it has a value
         if (cells[y]?.[x]?.value) {

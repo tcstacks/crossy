@@ -100,11 +100,13 @@ type PlayerLeftPayload struct {
 }
 
 type CellUpdatedPayload struct {
-	X        int    `json:"x"`
-	Y        int    `json:"y"`
-	Value    string `json:"value"`
-	PlayerID string `json:"playerId"`
-	Color    string `json:"color"`
+	X          int    `json:"x"`
+	Y          int    `json:"y"`
+	Value      string `json:"value"`
+	PlayerID   string `json:"playerId"`
+	Color      string `json:"color"`
+	IsRevealed bool   `json:"isRevealed,omitempty"`
+	IsCorrect  *bool  `json:"isCorrect,omitempty"`
 }
 
 type CursorMovedPayload struct {
@@ -663,23 +665,101 @@ func (h *Hub) handleRequestHint(client *Client, payload json.RawMessage) {
 				h.db.UpdateGridState(gridState)
 
 				h.broadcastToRoom(client.RoomID, "", MsgCellUpdated, CellUpdatedPayload{
-					X:        p.X,
-					Y:        p.Y,
-					Value:    *letter,
-					PlayerID: "system",
-					Color:    "#888888",
+					X:          p.X,
+					Y:          p.Y,
+					Value:      *letter,
+					PlayerID:   "system",
+					Color:      "#888888",
+					IsRevealed: true,
 				})
 			}
 		}
-	case "check":
-		// Check if current answer is correct
+
+	case "word":
+		// Reveal entire word
 		if p.Y >= 0 && p.Y < len(puzzle.Grid) && p.X >= 0 && p.X < len(puzzle.Grid[p.Y]) {
-			letter := puzzle.Grid[p.Y][p.X].Letter
-			currentValue := gridState.Cells[p.Y][p.X].Value
-			isCorrect := letter != nil && currentValue != nil && *letter == *currentValue
-			gridState.Cells[p.Y][p.X].IsCorrect = &isCorrect
-			h.db.UpdateGridState(gridState)
+			// Find which clue this cell belongs to
+			var targetClue *models.Clue
+			var direction string
+
+			// Check across clues
+			for _, clue := range puzzle.CluesAcross {
+				if clue.PositionY == p.Y && p.X >= clue.PositionX && p.X < clue.PositionX+clue.Length {
+					targetClue = &clue
+					direction = "across"
+					break
+				}
+			}
+
+			// Check down clues if not found
+			if targetClue == nil {
+				for _, clue := range puzzle.CluesDown {
+					if clue.PositionX == p.X && p.Y >= clue.PositionY && p.Y < clue.PositionY+clue.Length {
+						targetClue = &clue
+						direction = "down"
+						break
+					}
+				}
+			}
+
+			// Reveal all cells in the word
+			if targetClue != nil {
+				for i := 0; i < targetClue.Length; i++ {
+					var cellX, cellY int
+					if direction == "across" {
+						cellX = targetClue.PositionX + i
+						cellY = targetClue.PositionY
+					} else {
+						cellX = targetClue.PositionX
+						cellY = targetClue.PositionY + i
+					}
+
+					letter := puzzle.Grid[cellY][cellX].Letter
+					if letter != nil {
+						gridState.Cells[cellY][cellX].Value = letter
+						gridState.Cells[cellY][cellX].IsRevealed = true
+
+						h.broadcastToRoom(client.RoomID, "", MsgCellUpdated, CellUpdatedPayload{
+							X:          cellX,
+							Y:          cellY,
+							Value:      *letter,
+							PlayerID:   "system",
+							Color:      "#888888",
+							IsRevealed: true,
+						})
+					}
+				}
+				gridState.LastUpdated = time.Now()
+				h.db.UpdateGridState(gridState)
+			}
 		}
+
+	case "check":
+		// Check all cells and highlight incorrect ones
+		for y := 0; y < len(puzzle.Grid); y++ {
+			for x := 0; x < len(puzzle.Grid[y]); x++ {
+				letter := puzzle.Grid[y][x].Letter
+				currentValue := gridState.Cells[y][x].Value
+
+				// Only check cells that have user input and aren't black squares
+				if letter != nil && currentValue != nil && *currentValue != "" {
+					isCorrect := *letter == *currentValue
+					gridState.Cells[y][x].IsCorrect = &isCorrect
+
+					// Broadcast the validation result
+					h.broadcastToRoom(client.RoomID, "", MsgCellUpdated, CellUpdatedPayload{
+						X:         x,
+						Y:         y,
+						Value:     *currentValue,
+						PlayerID:  client.UserID,
+						Color:     "#888888",
+						IsCorrect: &isCorrect,
+					})
+				}
+			}
+		}
+		gridState.LastUpdated = time.Now()
+		h.db.UpdateGridState(gridState)
 	}
 }
 

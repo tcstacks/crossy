@@ -138,9 +138,26 @@ export function useWebSocket() {
           value: string;
           playerId: string;
           color: string;
+          isRevealed?: boolean;
+          isCorrect?: boolean;
         };
         if (data.playerId !== user?.id) {
           updateCell(data.x, data.y, data.value || null, data.playerId);
+        }
+        // Always update revealed and correct states, even for current user
+        if (data.isRevealed !== undefined || data.isCorrect !== undefined) {
+          const cells = useGameStore.getState().cells;
+          if (cells[data.y]?.[data.x]) {
+            const updatedCell = { ...cells[data.y][data.x] };
+            if (data.isRevealed !== undefined) {
+              updatedCell.isRevealed = data.isRevealed;
+            }
+            if (data.isCorrect !== undefined) {
+              updatedCell.isCorrect = data.isCorrect;
+            }
+            cells[data.y][data.x] = updatedCell;
+            useGameStore.getState().setCells([...cells]);
+          }
         }
         break;
       }

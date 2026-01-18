@@ -76,18 +76,103 @@ export default function PuzzlePage() {
     }
   }, [cells, puzzle, startTime]);
 
-  const handleHintRequest = useCallback(() => {
+  const handleRevealLetter = useCallback(() => {
     if (!selectedCell || !puzzle) return;
 
     const { x, y } = selectedCell;
     const letter = puzzle.grid[y]?.[x]?.letter;
 
     if (letter) {
-      const { updateCell } = useGameStore.getState();
-      updateCell(x, y, letter);
+      const { cells } = useGameStore.getState();
+      const updatedCells = cells.map((row) => [...row]);
+      updatedCells[y][x] = {
+        ...updatedCells[y][x],
+        value: letter,
+        isRevealed: true,
+      };
+      useGameStore.getState().setCells(updatedCells);
       incrementHints();
     }
   }, [selectedCell, puzzle, incrementHints]);
+
+  const handleRevealWord = useCallback(() => {
+    if (!selectedCell || !puzzle) return;
+
+    const { x, y } = selectedCell;
+    const { cells, selectedClue } = useGameStore.getState();
+
+    // Find the clue for the selected cell
+    let targetClue = selectedClue || null;
+    if (!targetClue) {
+      // Try to find a clue that contains this cell
+      targetClue = [...puzzle.cluesAcross, ...puzzle.cluesDown].find(
+        (clue) => {
+          if (clue.direction === 'across') {
+            return (
+              clue.positionY === y &&
+              x >= clue.positionX &&
+              x < clue.positionX + clue.length
+            );
+          } else {
+            return (
+              clue.positionX === x &&
+              y >= clue.positionY &&
+              y < clue.positionY + clue.length
+            );
+          }
+        }
+      ) || null;
+    }
+
+    if (targetClue) {
+      const updatedCells = cells.map((row) => [...row]);
+      const answer = targetClue.answer || '';
+
+      for (let i = 0; i < answer.length; i++) {
+        const cellX =
+          targetClue.direction === 'across'
+            ? targetClue.positionX + i
+            : targetClue.positionX;
+        const cellY =
+          targetClue.direction === 'across'
+            ? targetClue.positionY
+            : targetClue.positionY + i;
+
+        updatedCells[cellY][cellX] = {
+          ...updatedCells[cellY][cellX],
+          value: answer[i],
+          isRevealed: true,
+        };
+      }
+
+      useGameStore.getState().setCells(updatedCells);
+      incrementHints();
+    }
+  }, [selectedCell, puzzle, incrementHints]);
+
+  const handleCheckGrid = useCallback(() => {
+    if (!puzzle) return;
+
+    const { cells } = useGameStore.getState();
+    const updatedCells = cells.map((row) => [...row]);
+
+    for (let y = 0; y < puzzle.grid.length; y++) {
+      for (let x = 0; x < puzzle.grid[y].length; x++) {
+        const correctLetter = puzzle.grid[y][x]?.letter;
+        const currentValue = cells[y]?.[x]?.value;
+
+        if (correctLetter && currentValue) {
+          const isCorrect = correctLetter === currentValue;
+          updatedCells[y][x] = {
+            ...updatedCells[y][x],
+            isCorrect,
+          };
+        }
+      }
+    }
+
+    useGameStore.getState().setCells(updatedCells);
+  }, [puzzle]);
 
   const handleHome = useCallback(() => {
     resetGame();
@@ -128,7 +213,9 @@ export default function PuzzlePage() {
         showTimer
         timerComponent={<Timer startTime={startTime} />}
         showHints
-        onHintRequest={handleHintRequest}
+        onRevealLetter={handleRevealLetter}
+        onRevealWord={handleRevealWord}
+        onCheckGrid={handleCheckGrid}
         hintsEnabled
       />
 

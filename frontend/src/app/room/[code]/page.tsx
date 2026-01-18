@@ -179,11 +179,22 @@ export default function RoomPage() {
     [sendMessage]
   );
 
-  const handleHintRequest = useCallback(() => {
+  const handleRevealLetter = useCallback(() => {
     if (!selectedCell || !room?.config.hintsEnabled) return;
     requestHint('letter', selectedCell.x, selectedCell.y);
     incrementHints();
   }, [selectedCell, room, requestHint, incrementHints]);
+
+  const handleRevealWord = useCallback(() => {
+    if (!selectedCell || !room?.config.hintsEnabled) return;
+    requestHint('word', selectedCell.x, selectedCell.y);
+    incrementHints();
+  }, [selectedCell, room, requestHint, incrementHints]);
+
+  const handleCheckGrid = useCallback(() => {
+    if (!selectedCell || !room?.config.hintsEnabled) return;
+    requestHint('check', selectedCell.x, selectedCell.y);
+  }, [selectedCell, room, requestHint]);
 
   const handleStartGame = useCallback(() => {
     startGame();
@@ -390,7 +401,9 @@ export default function RoomPage() {
         onChatToggle={handleChatToggle}
         chatUnreadCount={unreadMessages}
         showHints
-        onHintRequest={handleHintRequest}
+        onRevealLetter={handleRevealLetter}
+        onRevealWord={handleRevealWord}
+        onCheckGrid={handleCheckGrid}
         hintsEnabled={room?.config.hintsEnabled}
         roomMode={room?.mode}
         currentTurnUserId={currentTurnUserId}

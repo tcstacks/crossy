@@ -3,10 +3,10 @@
   "sessionId": "b95adf80-416f-43a6-9f0e-dc9debfd1765",
   "status": "running",
   "startedAt": "2026-01-18T00:37:59.835Z",
-  "updatedAt": "2026-01-18T00:48:43.134Z",
-  "currentIteration": 3,
+  "updatedAt": "2026-01-18T02:13:05.327Z",
+  "currentIteration": 8,
   "maxIterations": 5,
-  "tasksCompleted": 3,
+  "tasksCompleted": 8,
   "isPaused": false,
   "agentPlugin": "claude",
   "trackerState": {
@@ -41,32 +41,32 @@
       {
         "id": "US-005",
         "title": "Puzzle archive endpoint with pagination",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-006",
         "title": "Random puzzle endpoint",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-007",
         "title": "Crossword grid component",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-008",
         "title": "Clue panel component",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-009",
         "title": "Timer display component",
-        "status": "open",
-        "completedInSession": false
+        "status": "completed",
+        "completedInSession": true
       },
       {
         "id": "US-010",
@@ -286,12 +286,62 @@
       "durationMs": 221603,
       "startedAt": "2026-01-18T00:45:00.510Z",
       "endedAt": "2026-01-18T00:48:42.113Z"
+    },
+    {
+      "iteration": 4,
+      "status": "completed",
+      "taskId": "US-005",
+      "taskTitle": "Puzzle archive endpoint with pagination",
+      "taskCompleted": true,
+      "durationMs": 226401,
+      "startedAt": "2026-01-18T00:48:43.123Z",
+      "endedAt": "2026-01-18T00:52:29.524Z"
+    },
+    {
+      "iteration": 5,
+      "status": "completed",
+      "taskId": "US-006",
+      "taskTitle": "Random puzzle endpoint",
+      "taskCompleted": true,
+      "durationMs": 171979,
+      "startedAt": "2026-01-18T00:52:30.531Z",
+      "endedAt": "2026-01-18T00:55:22.510Z"
+    },
+    {
+      "iteration": 6,
+      "status": "completed",
+      "taskId": "US-007",
+      "taskTitle": "Crossword grid component",
+      "taskCompleted": true,
+      "durationMs": 173565,
+      "startedAt": "2026-01-18T01:04:40.402Z",
+      "endedAt": "2026-01-18T01:07:33.967Z"
+    },
+    {
+      "iteration": 7,
+      "status": "completed",
+      "taskId": "US-008",
+      "taskTitle": "Clue panel component",
+      "taskCompleted": true,
+      "durationMs": 227948,
+      "startedAt": "2026-01-18T01:30:36.181Z",
+      "endedAt": "2026-01-18T01:34:24.129Z"
+    },
+    {
+      "iteration": 8,
+      "status": "completed",
+      "taskId": "US-009",
+      "taskTitle": "Timer display component",
+      "taskCompleted": true,
+      "durationMs": 139793,
+      "startedAt": "2026-01-18T02:03:12.789Z",
+      "endedAt": "2026-01-18T02:05:32.582Z"
     }
   ],
   "skippedTaskIds": [],
   "cwd": "/Users/dev/proj/crossy",
   "activeTaskIds": [
-    "US-005"
+    "US-010"
   ],
   "subagentPanelVisible": false
 }

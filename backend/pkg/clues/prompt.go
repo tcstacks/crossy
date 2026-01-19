@@ -112,7 +112,8 @@ func getDifficultyGuidelines(difficulty Difficulty) string {
 }
 
 // ParseClueResponse parses the LLM JSON response into a map of word to clue
-func ParseClueResponse(responseText string) (map[string]string, error) {
+// It validates that all requested words have corresponding clues in the response
+func ParseClueResponse(responseText string, requestedWords []string) (map[string]string, error) {
 	// Clean up the response - sometimes LLMs include markdown code blocks
 	responseText = strings.TrimSpace(responseText)
 	responseText = strings.TrimPrefix(responseText, "```json")
@@ -127,6 +128,19 @@ func ParseClueResponse(responseText string) (map[string]string, error) {
 
 	if response.Clues == nil || len(response.Clues) == 0 {
 		return nil, fmt.Errorf("response contains no clues")
+	}
+
+	// Validate that all requested words have clues
+	if len(requestedWords) > 0 {
+		var missingWords []string
+		for _, word := range requestedWords {
+			if _, ok := response.Clues[word]; !ok {
+				missingWords = append(missingWords, word)
+			}
+		}
+		if len(missingWords) > 0 {
+			return nil, fmt.Errorf("missing clues for words: %s", strings.Join(missingWords, ", "))
+		}
 	}
 
 	return response.Clues, nil

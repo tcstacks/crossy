@@ -181,10 +181,11 @@ func TestGetDifficultyGuidelines(t *testing.T) {
 
 func TestParseClueResponse(t *testing.T) {
 	tests := []struct {
-		name         string
-		responseText string
-		wantClues    map[string]string
-		wantErr      bool
+		name           string
+		responseText   string
+		requestedWords []string
+		wantClues      map[string]string
+		wantErr        bool
 	}{
 		{
 			name: "valid JSON response",
@@ -194,6 +195,7 @@ func TestParseClueResponse(t *testing.T) {
 					"DOG": "Canine companion"
 				}
 			}`,
+			requestedWords: []string{"CAT", "DOG"},
 			wantClues: map[string]string{
 				"CAT": "Feline pet",
 				"DOG": "Canine companion",
@@ -207,6 +209,7 @@ func TestParseClueResponse(t *testing.T) {
 					"HOUSE": "Place to live"
 				}
 			}` + "\n```",
+			requestedWords: []string{"HOUSE"},
 			wantClues: map[string]string{
 				"HOUSE": "Place to live",
 			},
@@ -219,30 +222,35 @@ func TestParseClueResponse(t *testing.T) {
 					"TREE": "Wooden giant"
 				}
 			}` + "  \n\n",
+			requestedWords: []string{"TREE"},
 			wantClues: map[string]string{
 				"TREE": "Wooden giant",
 			},
 			wantErr: false,
 		},
 		{
-			name:         "invalid JSON",
-			responseText: `{"clues": {invalid json}}`,
-			wantErr:      true,
+			name:           "invalid JSON",
+			responseText:   `{"clues": {invalid json}}`,
+			requestedWords: []string{},
+			wantErr:        true,
 		},
 		{
-			name:         "empty response",
-			responseText: "",
-			wantErr:      true,
+			name:           "empty response",
+			responseText:   "",
+			requestedWords: []string{},
+			wantErr:        true,
 		},
 		{
-			name:         "no clues field",
-			responseText: `{"other": "field"}`,
-			wantErr:      true,
+			name:           "no clues field",
+			responseText:   `{"other": "field"}`,
+			requestedWords: []string{},
+			wantErr:        true,
 		},
 		{
-			name:         "empty clues object",
-			responseText: `{"clues": {}}`,
-			wantErr:      true,
+			name:           "empty clues object",
+			responseText:   `{"clues": {}}`,
+			requestedWords: []string{},
+			wantErr:        true,
 		},
 		{
 			name: "single clue",
@@ -251,8 +259,59 @@ func TestParseClueResponse(t *testing.T) {
 					"WORD": "A clue"
 				}
 			}`,
+			requestedWords: []string{"WORD"},
 			wantClues: map[string]string{
 				"WORD": "A clue",
+			},
+			wantErr: false,
+		},
+		{
+			name: "missing requested word",
+			responseText: `{
+				"clues": {
+					"CAT": "Feline pet"
+				}
+			}`,
+			requestedWords: []string{"CAT", "DOG"},
+			wantErr:        true,
+		},
+		{
+			name: "missing multiple requested words",
+			responseText: `{
+				"clues": {
+					"CAT": "Feline pet"
+				}
+			}`,
+			requestedWords: []string{"CAT", "DOG", "BIRD"},
+			wantErr:        true,
+		},
+		{
+			name: "response with extra words not requested",
+			responseText: `{
+				"clues": {
+					"CAT": "Feline pet",
+					"DOG": "Canine companion",
+					"BIRD": "Flying creature"
+				}
+			}`,
+			requestedWords: []string{"CAT", "DOG"},
+			wantClues: map[string]string{
+				"CAT":  "Feline pet",
+				"DOG":  "Canine companion",
+				"BIRD": "Flying creature",
+			},
+			wantErr: false,
+		},
+		{
+			name: "no requested words validation",
+			responseText: `{
+				"clues": {
+					"TEST": "A test"
+				}
+			}`,
+			requestedWords: []string{},
+			wantClues: map[string]string{
+				"TEST": "A test",
 			},
 			wantErr: false,
 		},
@@ -260,7 +319,7 @@ func TestParseClueResponse(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			clues, err := ParseClueResponse(tt.responseText)
+			clues, err := ParseClueResponse(tt.responseText, tt.requestedWords)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseClueResponse() error = %v, wantErr %v", err, tt.wantErr)
@@ -304,9 +363,11 @@ func TestParseClueResponse_MarkdownVariations(t *testing.T) {
 		"```json\n  " + baseJSON + "  \n```",
 	}
 
+	requestedWords := []string{"TEST"}
+
 	for i, variation := range variations {
 		t.Run(string(rune('A'+i)), func(t *testing.T) {
-			clues, err := ParseClueResponse(variation)
+			clues, err := ParseClueResponse(variation, requestedWords)
 			if err != nil {
 				t.Errorf("ParseClueResponse() variation %d error = %v", i, err)
 				return
@@ -413,5 +474,122 @@ func TestBuildPrompt_Requirements(t *testing.T) {
 		if !strings.Contains(prompt, phrase) {
 			t.Errorf("buildPrompt() missing required phrase: %q", phrase)
 		}
+	}
+}
+
+func TestParseClueResponse_WordValidation(t *testing.T) {
+	tests := []struct {
+		name           string
+		responseText   string
+		requestedWords []string
+		wantErr        bool
+		errContains    string
+	}{
+		{
+			name: "all requested words present",
+			responseText: `{
+				"clues": {
+					"APPLE": "A fruit",
+					"BANANA": "Yellow fruit",
+					"CHERRY": "Red fruit"
+				}
+			}`,
+			requestedWords: []string{"APPLE", "BANANA", "CHERRY"},
+			wantErr:        false,
+		},
+		{
+			name: "one missing word",
+			responseText: `{
+				"clues": {
+					"APPLE": "A fruit",
+					"BANANA": "Yellow fruit"
+				}
+			}`,
+			requestedWords: []string{"APPLE", "BANANA", "CHERRY"},
+			wantErr:        true,
+			errContains:    "CHERRY",
+		},
+		{
+			name: "multiple missing words",
+			responseText: `{
+				"clues": {
+					"APPLE": "A fruit"
+				}
+			}`,
+			requestedWords: []string{"APPLE", "BANANA", "CHERRY", "DATE"},
+			wantErr:        true,
+			errContains:    "missing clues for words",
+		},
+		{
+			name: "all words missing",
+			responseText: `{
+				"clues": {
+					"WRONG": "Not requested"
+				}
+			}`,
+			requestedWords: []string{"APPLE", "BANANA"},
+			wantErr:        true,
+			errContains:    "APPLE",
+		},
+		{
+			name: "empty requested words list",
+			responseText: `{
+				"clues": {
+					"APPLE": "A fruit"
+				}
+			}`,
+			requestedWords: []string{},
+			wantErr:        false,
+		},
+		{
+			name: "nil requested words list",
+			responseText: `{
+				"clues": {
+					"APPLE": "A fruit"
+				}
+			}`,
+			requestedWords: nil,
+			wantErr:        false,
+		},
+		{
+			name: "response has more words than requested",
+			responseText: `{
+				"clues": {
+					"APPLE": "A fruit",
+					"BANANA": "Yellow fruit",
+					"CHERRY": "Red fruit",
+					"DATE": "Sweet fruit",
+					"ELDERBERRY": "Dark fruit"
+				}
+			}`,
+			requestedWords: []string{"APPLE", "BANANA"},
+			wantErr:        false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clues, err := ParseClueResponse(tt.responseText, tt.requestedWords)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseClueResponse() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if tt.wantErr && tt.errContains != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("ParseClueResponse() error should contain %q, got %v", tt.errContains, err)
+				}
+			}
+
+			if !tt.wantErr {
+				// Verify all requested words are in the result
+				for _, word := range tt.requestedWords {
+					if _, ok := clues[word]; !ok {
+						t.Errorf("ParseClueResponse() missing clue for requested word %q", word)
+					}
+				}
+			}
+		})
 	}
 }

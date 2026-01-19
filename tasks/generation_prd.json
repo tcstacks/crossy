@@ -591,11 +591,12 @@
         "go build ./cmd/crossgen && ./crossgen validate works"
       ],
       "priority": 31,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "US-GEN-029"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-GEN-032",
@@ -610,13 +611,14 @@
         "go build ./cmd/crossgen && ./crossgen convert works"
       ],
       "priority": 32,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "US-GEN-026",
         "US-GEN-027",
         "US-GEN-029"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-GEN-033",
@@ -630,12 +632,13 @@
         "go build ./cmd/crossgen && ./crossgen stats works"
       ],
       "priority": 33,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "US-GEN-023",
         "US-GEN-029"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-GEN-034",
@@ -680,6 +683,6 @@
     }
   ],
   "metadata": {
-    "updatedAt": "2026-01-19T17:45:10.204Z"
+    "updatedAt": "2026-01-19T18:00:35.878Z"
   }
 }

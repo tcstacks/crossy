@@ -510,11 +510,12 @@
         "go test ./pkg/output/... passes"
       ],
       "priority": 27,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "US-GEN-025"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-GEN-028",
@@ -528,13 +529,14 @@
         "go test ./pkg/puzzle/... passes"
       ],
       "priority": 28,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "US-GEN-009",
         "US-GEN-017",
         "US-GEN-024"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-GEN-029",
@@ -676,6 +678,6 @@
     }
   ],
   "metadata": {
-    "updatedAt": "2026-01-19T17:29:04.618Z"
+    "updatedAt": "2026-01-19T17:37:57.244Z"
   }
 }

@@ -18,11 +18,11 @@ type ClueJSON struct {
 // PuzzleJSON represents a puzzle in the JSON format for export
 type PuzzleJSON struct {
 	// Metadata
-	ID         string    `json:"id"`
-	Title      string    `json:"title"`
-	Author     string    `json:"author"`
-	Difficulty string    `json:"difficulty"`
-	CreatedAt  time.Time `json:"createdAt"`
+	ID          string     `json:"id"`
+	Title       string     `json:"title"`
+	Author      string     `json:"author"`
+	Difficulty  string     `json:"difficulty"`
+	CreatedAt   time.Time  `json:"createdAt"`
 	PublishedAt *time.Time `json:"publishedAt,omitempty"`
 
 	// Grid
@@ -96,4 +96,13 @@ func (p *PuzzleJSON) MarshalJSON() ([]byte, error) {
 func ToJSON(puzzle *models.Puzzle) ([]byte, error) {
 	puzzleJSON := FormatJSON(puzzle)
 	return json.MarshalIndent(puzzleJSON, "", "  ")
+}
+
+// FromJSON parses JSON bytes and returns a models.Puzzle
+func FromJSON(data []byte) (*models.Puzzle, error) {
+	var puzzle models.Puzzle
+	if err := json.Unmarshal(data, &puzzle); err != nil {
+		return nil, err
+	}
+	return &puzzle, nil
 }

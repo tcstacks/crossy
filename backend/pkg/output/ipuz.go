@@ -32,16 +32,16 @@ type IPuzClues struct {
 
 // IPuzPuzzle represents the complete ipuz format structure
 type IPuzPuzzle struct {
-	Version    string         `json:"version"`
-	Kind       []string       `json:"kind"`
-	Title      string         `json:"title,omitempty"`
-	Author     string         `json:"author,omitempty"`
-	Copyright  string         `json:"copyright,omitempty"`
-	Difficulty string         `json:"difficulty,omitempty"`
-	Dimensions IPuzDimensions `json:"dimensions"`
+	Version    string          `json:"version"`
+	Kind       []string        `json:"kind"`
+	Title      string          `json:"title,omitempty"`
+	Author     string          `json:"author,omitempty"`
+	Copyright  string          `json:"copyright,omitempty"`
+	Difficulty string          `json:"difficulty,omitempty"`
+	Dimensions IPuzDimensions  `json:"dimensions"`
 	Puzzle     [][]interface{} `json:"puzzle"`
 	Solution   [][]interface{} `json:"solution"`
-	Clues      IPuzClues      `json:"clues"`
+	Clues      IPuzClues       `json:"clues"`
 }
 
 // FormatIPuz converts a models.Puzzle to ipuz JSON format
@@ -157,6 +157,126 @@ func ToIPuz(puzzle *models.Puzzle) ([]byte, error) {
 		return nil, err
 	}
 	return json.MarshalIndent(ipuzPuzzle, "", "  ")
+}
+
+// FromIPuz parses ipuz JSON bytes and returns a models.Puzzle
+func FromIPuz(data []byte) (*models.Puzzle, error) {
+	var ipuz IPuzPuzzle
+	if err := json.Unmarshal(data, &ipuz); err != nil {
+		return nil, fmt.Errorf("failed to parse ipuz: %w", err)
+	}
+
+	// Create the grid
+	grid := make([][]models.GridCell, ipuz.Dimensions.Height)
+	for y := 0; y < ipuz.Dimensions.Height; y++ {
+		grid[y] = make([]models.GridCell, ipuz.Dimensions.Width)
+		for x := 0; x < ipuz.Dimensions.Width; x++ {
+			cell := models.GridCell{}
+
+			// Get the solution (letter or black square)
+			if y < len(ipuz.Solution) && x < len(ipuz.Solution[y]) {
+				switch sol := ipuz.Solution[y][x].(type) {
+				case string:
+					if sol == "#" {
+						// Black cell
+						cell.Letter = nil
+					} else {
+						// Letter cell
+						cell.Letter = &sol
+					}
+				}
+			}
+
+			// Get the puzzle cell (for numbers and circling)
+			if y < len(ipuz.Puzzle) && x < len(ipuz.Puzzle[y]) {
+				switch puz := ipuz.Puzzle[y][x].(type) {
+				case float64:
+					// Numeric value
+					if puz > 0 {
+						num := int(puz)
+						cell.Number = &num
+					}
+				case map[string]interface{}:
+					// IPuzCell object
+					if cellNum, ok := puz["cell"].(float64); ok && cellNum > 0 {
+						num := int(cellNum)
+						cell.Number = &num
+					}
+					if isCircled, ok := puz["isCircled"].(bool); ok {
+						cell.IsCircled = isCircled
+					}
+				}
+			}
+
+			grid[y][x] = cell
+		}
+	}
+
+	// Parse clues
+	acrossClues := make([]models.Clue, 0)
+	for _, clue := range ipuz.Clues.Across {
+		if len(clue) >= 2 {
+			number := 0
+			text := ""
+
+			if num, ok := clue[0].(float64); ok {
+				number = int(num)
+			}
+			if txt, ok := clue[1].(string); ok {
+				text = txt
+			}
+
+			acrossClues = append(acrossClues, models.Clue{
+				Number:    number,
+				Text:      text,
+				Direction: "across",
+			})
+		}
+	}
+
+	downClues := make([]models.Clue, 0)
+	for _, clue := range ipuz.Clues.Down {
+		if len(clue) >= 2 {
+			number := 0
+			text := ""
+
+			if num, ok := clue[0].(float64); ok {
+				number = int(num)
+			}
+			if txt, ok := clue[1].(string); ok {
+				text = txt
+			}
+
+			downClues = append(downClues, models.Clue{
+				Number:    number,
+				Text:      text,
+				Direction: "down",
+			})
+		}
+	}
+
+	// Map difficulty string to enum
+	difficulty := models.DifficultyMedium
+	switch ipuz.Difficulty {
+	case "easy", "Easy":
+		difficulty = models.DifficultyEasy
+	case "medium", "Medium":
+		difficulty = models.DifficultyMedium
+	case "hard", "Hard":
+		difficulty = models.DifficultyHard
+	}
+
+	return &models.Puzzle{
+		Title:       ipuz.Title,
+		Author:      ipuz.Author,
+		Difficulty:  difficulty,
+		GridWidth:   ipuz.Dimensions.Width,
+		GridHeight:  ipuz.Dimensions.Height,
+		Grid:        grid,
+		CluesAcross: acrossClues,
+		CluesDown:   downClues,
+		Status:      "draft",
+	}, nil
 }
 
 // ValidateIPuz validates that a puzzle can be converted to ipuz format

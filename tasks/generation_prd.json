@@ -550,9 +550,10 @@
         "go build ./cmd/crossgen builds successfully"
       ],
       "priority": 29,
-      "passes": false,
+      "passes": true,
       "notes": "",
-      "dependsOn": []
+      "dependsOn": [],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-GEN-030",
@@ -569,12 +570,13 @@
         "go build ./cmd/crossgen && ./crossgen generate --count 10 works"
       ],
       "priority": 30,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "US-GEN-028",
         "US-GEN-029"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-GEN-031",
@@ -678,6 +680,6 @@
     }
   ],
   "metadata": {
-    "updatedAt": "2026-01-19T17:37:57.244Z"
+    "updatedAt": "2026-01-19T17:45:10.204Z"
   }
 }

@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/crossplay/backend/pkg/fill"
 )
 
 // Word represents a word with its score
@@ -104,4 +106,60 @@ func (wl *Wordlist) Size() int {
 		count += len(words)
 	}
 	return count
+}
+
+// Match finds all words matching a pattern (e.g., "J__Z" matches JAZZ, JIZZ, etc.)
+// Underscore '_' matches any letter. Returns words sorted by score descending.
+func (wl *Wordlist) Match(pattern string) []string {
+	patternLen := len(pattern)
+	candidates, exists := wl.ByLength[patternLen]
+	if !exists {
+		return []string{}
+	}
+
+	var matches []string
+	for _, word := range candidates {
+		if matchesPattern(word.Text, pattern) {
+			matches = append(matches, word.Text)
+		}
+	}
+
+	return matches
+}
+
+// MatchWithScores finds all words matching a pattern with scores above minScore
+// Returns WordCandidate structs sorted by score descending
+func (wl *Wordlist) MatchWithScores(pattern string, minScore int) []fill.WordCandidate {
+	patternLen := len(pattern)
+	candidates, exists := wl.ByLength[patternLen]
+	if !exists {
+		return []fill.WordCandidate{}
+	}
+
+	var matches []fill.WordCandidate
+	for _, word := range candidates {
+		if word.Score >= minScore && matchesPattern(word.Text, pattern) {
+			matches = append(matches, fill.WordCandidate{
+				Word:  word.Text,
+				Score: word.Score,
+			})
+		}
+	}
+
+	return matches
+}
+
+// matchesPattern checks if a word matches a pattern where '_' matches any letter
+func matchesPattern(word, pattern string) bool {
+	if len(word) != len(pattern) {
+		return false
+	}
+
+	for i := 0; i < len(word); i++ {
+		if pattern[i] != '_' && pattern[i] != word[i] {
+			return false
+		}
+	}
+
+	return true
 }

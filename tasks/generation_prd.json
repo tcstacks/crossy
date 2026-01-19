@@ -322,11 +322,12 @@
         "go test ./pkg/fill/... passes"
       ],
       "priority": 17,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "US-GEN-016"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-GEN-018",
@@ -341,9 +342,10 @@
         "go test ./pkg/clues/providers/... passes"
       ],
       "priority": 18,
-      "passes": false,
+      "passes": true,
       "notes": "",
-      "dependsOn": []
+      "dependsOn": [],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-GEN-019",
@@ -358,9 +360,10 @@
         "go test ./pkg/clues/providers/... passes"
       ],
       "priority": 19,
-      "passes": false,
+      "passes": true,
       "notes": "",
-      "dependsOn": []
+      "dependsOn": [],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-GEN-020",
@@ -374,12 +377,13 @@
         "go test ./pkg/clues/... passes"
       ],
       "priority": 20,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "US-GEN-018",
         "US-GEN-019"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-GEN-021",
@@ -393,11 +397,12 @@
         "go test ./pkg/clues/... passes"
       ],
       "priority": 21,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "US-GEN-020"
-      ]
+      ],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-GEN-022",
@@ -411,9 +416,10 @@
         "go test ./pkg/clues/... passes"
       ],
       "priority": 22,
-      "passes": false,
+      "passes": true,
       "notes": "",
-      "dependsOn": []
+      "dependsOn": [],
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "US-GEN-023",
@@ -666,6 +672,6 @@
     }
   ],
   "metadata": {
-    "updatedAt": "2026-01-18T22:31:02.051Z"
+    "updatedAt": "2026-01-19T17:20:26.180Z"
   }
 }

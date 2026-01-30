@@ -29,7 +29,7 @@ export default function AuthPage() {
       <header className="backdrop-blur-xl bg-white/80 border-b border-purple-50">
         <div className="container mx-auto px-4 h-16 flex items-center">
           <Link href="/" className="flex items-center gap-2 group">
-            <Mascot size="sm" mood="happy" animate={false} className="group-hover:animate-wiggle" />
+            <Mascot size="sm" mood="main" animate={false} className="group-hover:animate-wiggle" />
             <span className="font-bold text-xl gradient-text">Crossy</span>
           </Link>
         </div>
@@ -40,7 +40,7 @@ export default function AuthPage() {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
-              <Mascot size="lg" mood="excited" />
+              <Mascot size="lg" mood="cheer" />
             </div>
             <h1 className="text-2xl font-bold mb-2 text-purple-900">Welcome to Crossy!</h1>
             <p className="text-purple-600">

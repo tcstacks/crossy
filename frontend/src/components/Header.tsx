@@ -9,30 +9,30 @@ export function Header() {
   const { user, isAuthenticated, logout } = useGameStore();
 
   return (
-    <header className="sticky top-0 z-30 backdrop-blur-xl bg-white/80 border-b border-purple-50">
+    <header className="sticky top-0 z-30 backdrop-blur-xl bg-white/80 border-b-2 border-crossy-dark-purple">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2 group" aria-label="Crossy home">
-          <Mascot size="sm" mood="happy" animate={false} className="group-hover:animate-wiggle" />
-          <span className="font-bold text-xl gradient-text">Crossy</span>
+          <Mascot size="sm" mood="small" animate={false} className="group-hover:animate-wiggle" />
+          <span className="font-bold text-xl font-pixel text-crossy-purple">Crossy</span>
         </Link>
 
         <nav className="flex items-center gap-4" aria-label="Main navigation">
           <Link
             href="/puzzle"
-            className="text-purple-600 hover:text-purple-800 font-medium hidden sm:block transition-colors"
+            className="text-crossy-purple hover:text-crossy-hover-purple font-display font-semibold hidden sm:block transition-colors"
           >
             Today&apos;s Puzzle
           </Link>
           <Link
             href="/archive"
-            className="text-purple-600 hover:text-purple-800 font-medium hidden sm:block transition-colors"
+            className="text-crossy-purple hover:text-crossy-hover-purple font-display font-semibold hidden sm:block transition-colors"
           >
             Archive
           </Link>
           {isAuthenticated && (
             <Link
               href="/history"
-              className="text-purple-600 hover:text-purple-800 font-medium hidden sm:block transition-colors"
+              className="text-crossy-purple hover:text-crossy-hover-purple font-display font-semibold hidden sm:block transition-colors"
             >
               History
             </Link>
@@ -42,18 +42,18 @@ export function Header() {
             <div className="flex items-center gap-3">
               <Link
                 href="/profile"
-                className="flex items-center gap-2 hover:bg-purple-50 px-3 py-2 rounded-full transition-colors"
+                className="flex items-center gap-2 hover:bg-crossy-light-purple px-3 py-2 rounded-full transition-colors"
               >
-                <div className="w-8 h-8 bg-gradient-to-br from-candy-pink to-candy-purple text-white rounded-full flex items-center justify-center font-bold shadow-md">
+                <div className="w-8 h-8 bg-crossy-purple text-white rounded-full flex items-center justify-center font-bold shadow-md border-2 border-crossy-dark-purple">
                   {user?.displayName?.charAt(0).toUpperCase()}
                 </div>
-                <span className="hidden sm:block font-medium text-purple-800">
+                <span className="hidden sm:block font-display font-semibold text-crossy-dark-purple">
                   {user?.displayName}
                 </span>
               </Link>
               <button
                 onClick={logout}
-                className="text-purple-400 hover:text-purple-600 transition-colors p-2 hover:bg-purple-50 rounded-full"
+                className="text-crossy-purple hover:text-crossy-hover-purple transition-colors p-2 hover:bg-crossy-light-purple rounded-full"
                 aria-label="Logout"
               >
                 <svg
@@ -73,7 +73,7 @@ export function Header() {
               </button>
             </div>
           ) : (
-            <Link href="/auth" className="btn btn-primary">
+            <Link href="/auth" className="crossy-button text-sm px-4 py-2">
               Sign In
             </Link>
           )}
@@ -120,12 +120,12 @@ export function GameHeader({
 }: GameHeaderProps) {
   const { user } = useGameStore();
   return (
-    <header className="sticky top-0 z-30 backdrop-blur-xl bg-white/80 border-b border-purple-50">
+    <header className="sticky top-0 z-30 backdrop-blur-xl bg-white/80 border-b-2 border-crossy-dark-purple">
       <div className="container mx-auto px-4 h-14 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link
             href="/"
-            className="text-purple-400 hover:text-purple-600 transition-colors p-2 hover:bg-purple-50 rounded-full"
+            className="text-crossy-purple hover:text-crossy-hover-purple transition-colors p-2 hover:bg-crossy-light-purple rounded-full"
             aria-label="Back to home"
           >
             <svg
@@ -144,7 +144,7 @@ export function GameHeader({
             </svg>
           </Link>
           {title && (
-            <h1 className="font-bold text-lg truncate max-w-[200px] sm:max-w-none text-purple-900">
+            <h1 className="font-display font-bold text-lg truncate max-w-[200px] sm:max-w-none text-crossy-dark-purple">
               {title}
             </h1>
           )}
@@ -167,11 +167,11 @@ export function GameHeader({
           {showChat && (
             <button
               onClick={onChatToggle}
-              className="p-2 hover:bg-purple-50 rounded-full transition-colors relative group"
+              className="p-2 hover:bg-crossy-light-purple rounded-full transition-colors relative group"
               aria-label={chatUnreadCount > 0 ? `Open chat (${chatUnreadCount} unread messages)` : "Open chat"}
             >
               <svg
-                className="w-5 h-5 text-purple-400 group-hover:text-purple-600 transition-colors"
+                className="w-5 h-5 text-crossy-purple group-hover:text-crossy-hover-purple transition-colors"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -185,7 +185,7 @@ export function GameHeader({
                 />
               </svg>
               {chatUnreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-lg" aria-hidden="true">
+                <span className="absolute -top-1 -right-1 bg-crossy-red text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-lg border border-crossy-dark-purple" aria-hidden="true">
                   {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
                 </span>
               )}

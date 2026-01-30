@@ -89,7 +89,7 @@ export default function HomePage() {
           <div className="flex justify-center mb-6">
             <MascotWithSpeech
               size="xl"
-              mood="celebrating"
+              mood="cheer"
               message="Let's solve some puzzles together!"
             />
           </div>
@@ -128,7 +128,7 @@ export default function HomePage() {
               </div>
             ) : error ? (
               <div className="text-center py-8">
-                <Mascot size="md" mood="thinking" className="mx-auto mb-4" animate={false} />
+                <Mascot size="md" mood="hint" className="mx-auto mb-4" animate={false} />
                 <p className="text-purple-700 mb-4">{error}</p>
                 <button
                   onClick={() => window.location.reload()}
@@ -175,7 +175,7 @@ export default function HomePage() {
               </>
             ) : (
               <div className="text-center py-8">
-                <Mascot size="md" mood="thinking" className="mx-auto mb-4" animate={false} />
+                <Mascot size="md" mood="hint" className="mx-auto mb-4" animate={false} />
                 <p className="text-purple-600 font-medium">No puzzle available for today</p>
               </div>
             )}
@@ -323,7 +323,7 @@ export default function HomePage() {
           <div className="card">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <Mascot size="sm" mood="happy" animate={false} />
+                <Mascot size="sm" mood="main" animate={false} />
                 <span className="font-bold text-purple-900">Crossy</span>
               </div>
               <p className="text-sm text-purple-600 font-medium flex items-center gap-2">

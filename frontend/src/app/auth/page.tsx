@@ -24,13 +24,13 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen fun-bg flex flex-col">
+    <div className="min-h-screen bg-crossy-light-bg flex flex-col">
       {/* Header */}
-      <header className="backdrop-blur-xl bg-white/80 border-b border-purple-50">
+      <header className="backdrop-blur-xl bg-white/80 border-b-2 border-crossy-dark-purple">
         <div className="container mx-auto px-4 h-16 flex items-center">
           <Link href="/" className="flex items-center gap-2 group">
-            <Mascot size="sm" mood="main" animate={false} className="group-hover:animate-wiggle" />
-            <span className="font-bold text-xl gradient-text">Crossy</span>
+            <Mascot size="sm" mood="small" className="group-hover:animate-wiggle" />
+            <span className="font-pixel text-lg text-crossy-purple">Crossy</span>
           </Link>
         </div>
       </header>
@@ -42,13 +42,13 @@ export default function AuthPage() {
             <div className="flex justify-center mb-4">
               <Mascot size="lg" mood="cheer" />
             </div>
-            <h1 className="text-2xl font-bold mb-2 text-purple-900">Welcome to Crossy!</h1>
-            <p className="text-purple-600">
+            <h1 className="text-2xl font-display font-bold mb-2 text-crossy-dark-purple">Welcome to Crossy!</h1>
+            <p className="font-display text-crossy-dark-purple">
               Sign in to save your progress and compete with friends
             </p>
           </div>
 
-          <div className="card">
+          <div className="crossy-card">
             <AuthForms onSuccess={handleSuccess} />
           </div>
         </div>

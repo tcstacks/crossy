@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, FormEvent } from 'react';
+import { CrossyButton, CrossyInput } from '@/components/crossy';
 import { api } from '@/lib/api';
 import { useGameStore } from '@/store/gameStore';
 
@@ -149,34 +150,34 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
   };
 
   return (
-    <div className="w-full max-w-md mx-auto">
+    <div className="w-full max-w-md mx-auto p-6">
       {/* Tabs */}
-      <div className="flex bg-purple-50 rounded-full p-1 mb-6">
+      <div className="flex bg-crossy-light-purple rounded-full p-1 mb-6 border-2 border-crossy-dark-purple">
         <button
-          className={`flex-1 py-2 px-4 rounded-full font-medium transition-all duration-200 ${
+          className={`flex-1 py-2 px-4 rounded-full font-display font-semibold transition-all duration-200 ${
             activeTab === 'login'
-              ? 'bg-white text-purple-700 shadow-md'
-              : 'text-purple-500 hover:text-purple-700'
+              ? 'bg-crossy-purple text-white shadow-md'
+              : 'text-crossy-dark-purple hover:text-crossy-purple'
           }`}
           onClick={() => setActiveTab('login')}
         >
           Sign In
         </button>
         <button
-          className={`flex-1 py-2 px-4 rounded-full font-medium transition-all duration-200 ${
+          className={`flex-1 py-2 px-4 rounded-full font-display font-semibold transition-all duration-200 ${
             activeTab === 'register'
-              ? 'bg-white text-purple-700 shadow-md'
-              : 'text-purple-500 hover:text-purple-700'
+              ? 'bg-crossy-purple text-white shadow-md'
+              : 'text-crossy-dark-purple hover:text-crossy-purple'
           }`}
           onClick={() => setActiveTab('register')}
         >
           Sign Up
         </button>
         <button
-          className={`flex-1 py-2 px-4 rounded-full font-medium transition-all duration-200 ${
+          className={`flex-1 py-2 px-4 rounded-full font-display font-semibold transition-all duration-200 ${
             activeTab === 'guest'
-              ? 'bg-white text-purple-700 shadow-md'
-              : 'text-purple-500 hover:text-purple-700'
+              ? 'bg-crossy-purple text-white shadow-md'
+              : 'text-crossy-dark-purple hover:text-crossy-purple'
           }`}
           onClick={() => setActiveTab('guest')}
         >
@@ -186,8 +187,8 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
 
       {/* Error message */}
       {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-2xl flex items-center gap-2">
-          <span>😅</span>
+        <div className="mb-4 p-3 bg-crossy-red/10 border-2 border-crossy-red text-crossy-red rounded-xl flex items-center gap-2 font-display font-semibold">
+          <span>⚠️</span>
           {error}
         </div>
       )}
@@ -196,54 +197,54 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
       {activeTab === 'login' && (
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label htmlFor="login-email" className="block text-sm font-medium text-purple-700 mb-1">
+            <label htmlFor="login-email" className="block text-sm font-display font-semibold text-crossy-dark-purple mb-2">
               Email
             </label>
-            <input
+            <CrossyInput
               id="login-email"
               type="email"
               value={loginEmail}
               onChange={(e) => setLoginEmail(e.target.value)}
-              className={`input ${validationErrors.loginEmail ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
+              className={validationErrors.loginEmail ? 'border-crossy-red focus:border-crossy-red focus:ring-crossy-red' : ''}
               required
             />
             {validationErrors.loginEmail && (
-              <p className="mt-1 text-xs text-red-600">{validationErrors.loginEmail}</p>
+              <p className="mt-1 text-xs font-display text-crossy-red">{validationErrors.loginEmail}</p>
             )}
           </div>
           <div>
-            <label htmlFor="login-password" className="block text-sm font-medium text-purple-700 mb-1">
+            <label htmlFor="login-password" className="block text-sm font-display font-semibold text-crossy-dark-purple mb-2">
               Password
             </label>
-            <input
+            <CrossyInput
               id="login-password"
               type="password"
               value={loginPassword}
               onChange={(e) => setLoginPassword(e.target.value)}
-              className={`input ${validationErrors.loginPassword ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
+              className={validationErrors.loginPassword ? 'border-crossy-red focus:border-crossy-red focus:ring-crossy-red' : ''}
               required
             />
             {validationErrors.loginPassword && (
-              <p className="mt-1 text-xs text-red-600">{validationErrors.loginPassword}</p>
+              <p className="mt-1 text-xs font-display text-crossy-red">{validationErrors.loginPassword}</p>
             )}
           </div>
-          <button
+          <CrossyButton
             type="submit"
             disabled={isLoading}
-            className="btn btn-primary w-full"
+            variant="primary"
+            className="w-full"
           >
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
-                <span className="spinner w-5 h-5 border-white/30 border-t-white" />
+                <span className="spinner w-5 h-5 border-white" />
                 Signing in...
               </span>
             ) : (
               <span className="flex items-center justify-center gap-2">
-                Sign In
-                <span>✨</span>
+                Sign In ✨
               </span>
             )}
-          </button>
+          </CrossyButton>
         </form>
       )}
 
@@ -251,77 +252,77 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
       {activeTab === 'register' && (
         <form onSubmit={handleRegister} className="space-y-4">
           <div>
-            <label htmlFor="register-name" className="block text-sm font-medium text-purple-700 mb-1">
+            <label htmlFor="register-name" className="block text-sm font-display font-semibold text-crossy-dark-purple mb-2">
               Display Name
             </label>
-            <input
+            <CrossyInput
               id="register-name"
               type="text"
               value={registerDisplayName}
               onChange={(e) => setRegisterDisplayName(e.target.value)}
-              className={`input ${validationErrors.registerDisplayName ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
+              className={validationErrors.registerDisplayName ? 'border-crossy-red focus:border-crossy-red focus:ring-crossy-red' : ''}
               required
               minLength={2}
               maxLength={50}
             />
             {validationErrors.registerDisplayName && (
-              <p className="mt-1 text-xs text-red-600">{validationErrors.registerDisplayName}</p>
+              <p className="mt-1 text-xs font-display text-crossy-red">{validationErrors.registerDisplayName}</p>
             )}
           </div>
           <div>
-            <label htmlFor="register-email" className="block text-sm font-medium text-purple-700 mb-1">
+            <label htmlFor="register-email" className="block text-sm font-display font-semibold text-crossy-dark-purple mb-2">
               Email
             </label>
-            <input
+            <CrossyInput
               id="register-email"
               type="email"
               value={registerEmail}
               onChange={(e) => setRegisterEmail(e.target.value)}
-              className={`input ${validationErrors.registerEmail ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
+              className={validationErrors.registerEmail ? 'border-crossy-red focus:border-crossy-red focus:ring-crossy-red' : ''}
               required
             />
             {validationErrors.registerEmail && (
-              <p className="mt-1 text-xs text-red-600">{validationErrors.registerEmail}</p>
+              <p className="mt-1 text-xs font-display text-crossy-red">{validationErrors.registerEmail}</p>
             )}
           </div>
           <div>
-            <label htmlFor="register-password" className="block text-sm font-medium text-purple-700 mb-1">
+            <label htmlFor="register-password" className="block text-sm font-display font-semibold text-crossy-dark-purple mb-2">
               Password
             </label>
-            <input
+            <CrossyInput
               id="register-password"
               type="password"
               value={registerPassword}
               onChange={(e) => setRegisterPassword(e.target.value)}
-              className={`input ${validationErrors.registerPassword ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
+              className={validationErrors.registerPassword ? 'border-crossy-red focus:border-crossy-red focus:ring-crossy-red' : ''}
               required
               minLength={6}
             />
             {validationErrors.registerPassword ? (
-              <p className="mt-1 text-xs text-red-600">{validationErrors.registerPassword}</p>
+              <p className="mt-1 text-xs font-display text-crossy-red">{validationErrors.registerPassword}</p>
             ) : (
-              <p className="mt-1 text-xs text-purple-500">
+              <p className="mt-1 text-xs font-display text-crossy-dark-purple">
                 At least 6 characters
               </p>
             )}
           </div>
-          <button
+          <CrossyButton
             type="submit"
             disabled={isLoading}
-            className="btn btn-primary w-full"
+            variant="primary"
+            className="w-full"
           >
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
-                <span className="spinner w-5 h-5 border-white/30 border-t-white" />
+                <span className="spinner w-5 h-5 border-white" />
                 Creating account...
               </span>
             ) : (
               <span className="flex items-center justify-center gap-2">
-                Create Account
-                <span>🎉</span>
+                Create Account 🎉
               </span>
             )}
-          </button>
+          </CrossyButton>
         </form>
       )}
 
@@ -329,46 +330,46 @@ export function AuthForms({ onSuccess, defaultTab = 'login' }: AuthFormsProps) {
       {activeTab === 'guest' && (
         <form onSubmit={handleGuest} className="space-y-4">
           <div>
-            <label htmlFor="guest-name" className="block text-sm font-medium text-purple-700 mb-1">
+            <label htmlFor="guest-name" className="block text-sm font-display font-semibold text-crossy-dark-purple mb-2">
               Display Name
             </label>
-            <input
+            <CrossyInput
               id="guest-name"
               type="text"
               value={guestDisplayName}
               onChange={(e) => setGuestDisplayName(e.target.value)}
-              className={`input ${validationErrors.guestDisplayName ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
+              className={validationErrors.guestDisplayName ? 'border-crossy-red focus:border-crossy-red focus:ring-crossy-red' : ''}
               placeholder="Enter your name"
               required
               minLength={2}
               maxLength={50}
             />
             {validationErrors.guestDisplayName ? (
-              <p className="mt-1 text-xs text-red-600">{validationErrors.guestDisplayName}</p>
+              <p className="mt-1 text-xs font-display text-crossy-red">{validationErrors.guestDisplayName}</p>
             ) : (
-              <p className="mt-1 text-xs text-purple-500">
+              <p className="mt-1 text-xs font-display text-crossy-dark-purple">
                 2-50 characters
               </p>
             )}
           </div>
-          <button
+          <CrossyButton
             type="submit"
             disabled={isLoading}
-            className="btn btn-primary w-full"
+            variant="primary"
+            className="w-full"
           >
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
-                <span className="spinner w-5 h-5 border-white/30 border-t-white" />
+                <span className="spinner w-5 h-5 border-white" />
                 Starting...
               </span>
             ) : (
               <span className="flex items-center justify-center gap-2">
-                Play as Guest
-                <span>🎮</span>
+                Play as Guest 🎮
               </span>
             )}
-          </button>
-          <p className="text-center text-sm text-purple-500 bg-purple-50 p-3 rounded-2xl">
+          </CrossyButton>
+          <p className="text-center text-sm font-display text-crossy-dark-purple bg-crossy-light-purple p-3 rounded-xl border border-crossy-purple">
             💡 Guest accounts don&apos;t save progress. Sign up to track your stats!
           </p>
         </form>

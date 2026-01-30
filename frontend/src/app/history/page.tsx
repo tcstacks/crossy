@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { History as HistoryIcon, Clock, CheckCircle2, Lightbulb } from 'lucide-react';
 import { Header } from '@/components/Header';
+import { CrossyButton, CrossyCard, CrossyCardContent } from '@/components/crossy';
 import { useGameStore } from '@/store/gameStore';
 import { api } from '@/lib/api';
 import { formatTime, formatDate } from '@/lib/utils';
@@ -124,17 +126,20 @@ export default function HistoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-crossy-light-bg">
       <Header />
 
       <main className="container mx-auto px-4 py-8 max-w-4xl">
-        <h1 className="text-3xl font-bold mb-6">Puzzle History</h1>
+        <h1 className="text-3xl font-display font-bold mb-6 text-crossy-dark-purple flex items-center gap-2">
+          <HistoryIcon className="w-8 h-8 text-crossy-purple" />
+          Puzzle History
+        </h1>
 
         {/* Filters and Sorting */}
         <div className="mb-6 space-y-4">
           {/* Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-display font-semibold text-crossy-dark-purple mb-2">
               Filter
             </label>
             <div className="flex flex-wrap gap-2">
@@ -146,10 +151,10 @@ export default function HistoryPage() {
                 <button
                   key={option.value}
                   onClick={() => handleFilterChange(option.value as FilterBy)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                  className={`px-4 py-2 rounded-xl text-sm font-display font-semibold transition-all border-2 ${
                     filterBy === option.value
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-white border hover:bg-gray-50'
+                      ? 'bg-crossy-purple text-white border-crossy-dark-purple'
+                      : 'bg-white border-crossy-dark-purple hover:border-crossy-purple text-crossy-dark-purple'
                   }`}
                 >
                   {option.label}
@@ -160,7 +165,7 @@ export default function HistoryPage() {
 
           {/* Sort */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-display font-semibold text-crossy-dark-purple mb-2">
               Sort By
             </label>
             <div className="flex flex-wrap gap-2">
@@ -172,10 +177,10 @@ export default function HistoryPage() {
                 <button
                   key={option.value}
                   onClick={() => handleSortChange(option.value as SortBy)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                  className={`px-4 py-2 rounded-xl text-sm font-display font-semibold transition-all border-2 ${
                     sortBy === option.value
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-white border hover:bg-gray-50'
+                      ? 'bg-crossy-purple text-white border-crossy-dark-purple'
+                      : 'bg-white border-crossy-dark-purple hover:border-crossy-purple text-crossy-dark-purple'
                   }`}
                 >
                   {option.label}
@@ -188,11 +193,11 @@ export default function HistoryPage() {
         {/* History List */}
         {isLoading && history.length === 0 ? (
           <div className="flex justify-center py-12">
-            <div className="spinner w-8 h-8" />
+            <div className="spinner w-8 h-8 border-crossy-purple" />
           </div>
         ) : filteredHistory.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            <p className="text-lg mb-2">No puzzles found</p>
+          <div className="text-center py-12 text-crossy-dark-purple font-display">
+            <p className="text-lg font-semibold mb-2">No puzzles found</p>
             <p className="text-sm">
               {filterBy !== 'all'
                 ? 'Try changing your filter'
@@ -210,81 +215,77 @@ export default function HistoryPage() {
                   <Link
                     key={entry.id}
                     href={`/puzzle/${entry.puzzleId}`}
-                    className="card hover:shadow-lg transition-shadow"
                   >
-                    <div className="flex flex-col gap-3">
-                      {/* Header row */}
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h2 className="font-bold text-lg">
-                              {puzzle ? puzzle.title : `Puzzle #${entry.puzzleId.slice(0, 8)}`}
-                            </h2>
-                            {entry.completed && (
-                              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                                ✓ Completed
-                              </span>
-                            )}
-                            {entry.roomId && (
-                              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                  <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
-                                </svg>
-                                Multiplayer
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
-                            <span>{formatDate(date)}</span>
-                            {puzzle && (
-                              <>
-                                <span>•</span>
-                                <span>{puzzle.gridWidth}×{puzzle.gridHeight}</span>
-                                {puzzle.author && (
+                    <CrossyCard className="hover:scale-[1.01] transition-transform">
+                      <CrossyCardContent className="p-6">
+                        <div className="flex flex-col gap-3">
+                          {/* Header row */}
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h2 className="font-display font-bold text-lg text-crossy-dark-purple">
+                                  {puzzle ? puzzle.title : `Puzzle #${entry.puzzleId.slice(0, 8)}`}
+                                </h2>
+                                {entry.completed && (
+                                  <span className="text-xs bg-crossy-green text-white px-2 py-0.5 rounded-full font-display font-semibold">
+                                    ✓ Completed
+                                  </span>
+                                )}
+                                {entry.roomId && (
+                                  <span className="text-xs bg-crossy-purple text-white px-2 py-0.5 rounded-full font-display font-semibold">
+                                    👥 Multiplayer
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2 text-sm font-display text-crossy-dark-purple">
+                                <span>{formatDate(date)}</span>
+                                {puzzle && (
                                   <>
                                     <span>•</span>
-                                    <span>By {puzzle.author}</span>
+                                    <span className="bg-crossy-light-purple px-2 py-0.5 rounded-full border border-crossy-purple font-semibold">
+                                      {puzzle.gridWidth}×{puzzle.gridHeight}
+                                    </span>
+                                    {puzzle.author && (
+                                      <>
+                                        <span>•</span>
+                                        <span>By {puzzle.author}</span>
+                                      </>
+                                    )}
                                   </>
                                 )}
-                              </>
-                            )}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
 
-                      {/* Stats row */}
-                      <div className="flex flex-wrap gap-6 text-sm">
-                        <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <div>
-                            <span className="font-bold text-primary-600">{formatTime(entry.solveTime)}</span>
-                            <span className="text-gray-500 ml-1">solve time</span>
-                          </div>
-                        </div>
+                          {/* Stats row */}
+                          <div className="flex flex-wrap gap-6 text-sm">
+                            <div className="flex items-center gap-2">
+                              <Clock className="w-4 h-4 text-crossy-purple" />
+                              <div className="font-display">
+                                <span className="font-bold text-crossy-purple">{formatTime(entry.solveTime)}</span>
+                                <span className="text-crossy-dark-purple ml-1">solve time</span>
+                              </div>
+                            </div>
 
-                        <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <div>
-                            <span className="font-bold text-primary-600">{entry.accuracy.toFixed(0)}%</span>
-                            <span className="text-gray-500 ml-1">accuracy</span>
-                          </div>
-                        </div>
+                            <div className="flex items-center gap-2">
+                              <CheckCircle2 className="w-4 h-4 text-crossy-green" />
+                              <div className="font-display">
+                                <span className="font-bold text-crossy-green">{entry.accuracy.toFixed(0)}%</span>
+                                <span className="text-crossy-dark-purple ml-1">accuracy</span>
+                              </div>
+                            </div>
 
-                        <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                          </svg>
-                          <div>
-                            <span className="font-bold text-primary-600">{entry.hintsUsed}</span>
-                            <span className="text-gray-500 ml-1">{entry.hintsUsed === 1 ? 'hint' : 'hints'}</span>
+                            <div className="flex items-center gap-2">
+                              <Lightbulb className="w-4 h-4 text-crossy-orange" />
+                              <div className="font-display">
+                                <span className="font-bold text-crossy-orange">{entry.hintsUsed}</span>
+                                <span className="text-crossy-dark-purple ml-1">{entry.hintsUsed === 1 ? 'hint' : 'hints'}</span>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
+                      </CrossyCardContent>
+                    </CrossyCard>
                   </Link>
                 );
               })}
@@ -293,20 +294,20 @@ export default function HistoryPage() {
             {/* Load More */}
             {hasMore && filterBy === 'all' && (
               <div className="mt-8 text-center">
-                <button
+                <CrossyButton
                   onClick={() => setPage((p) => p + 1)}
                   disabled={isLoading}
-                  className="btn btn-secondary"
+                  variant="secondary"
                 >
                   {isLoading ? (
                     <span className="flex items-center gap-2">
-                      <span className="spinner w-4 h-4" />
+                      <span className="spinner w-4 h-4 border-crossy-dark-purple" />
                       Loading...
                     </span>
                   ) : (
                     'Load More'
                   )}
-                </button>
+                </CrossyButton>
               </div>
             )}
           </>

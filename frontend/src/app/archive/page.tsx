@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { Calendar } from 'lucide-react';
 import { Header } from '@/components/Header';
+import { CrossyButton, CrossyCard, CrossyCardContent } from '@/components/crossy';
 import { api } from '@/lib/api';
 import { getDifficultyColor, getDifficultyLabel, formatDate } from '@/lib/utils';
 import type { Puzzle, Difficulty } from '@/types';
@@ -39,15 +41,18 @@ export default function ArchivePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-crossy-light-bg">
       <Header />
 
       <main className="container mx-auto px-4 py-8 max-w-4xl">
-        <h1 className="text-3xl font-bold mb-6">Puzzle Archive</h1>
+        <h1 className="text-3xl font-display font-bold mb-6 text-crossy-dark-purple flex items-center gap-2">
+          <Calendar className="w-8 h-8 text-crossy-purple" />
+          Puzzle Archive
+        </h1>
 
         {/* Filters */}
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-display font-semibold text-crossy-dark-purple mb-2">
             Filter by Difficulty
           </label>
           <div className="flex flex-wrap gap-2">
@@ -60,10 +65,10 @@ export default function ArchivePage() {
               <button
                 key={option.value}
                 onClick={() => handleDifficultyChange(option.value as Difficulty | '')}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                className={`px-4 py-2 rounded-xl text-sm font-display font-semibold transition-all border-2 ${
                   difficulty === option.value
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-white border hover:bg-gray-50'
+                    ? 'bg-crossy-purple text-white border-crossy-dark-purple'
+                    : 'bg-white border-crossy-dark-purple hover:border-crossy-purple text-crossy-dark-purple'
                 }`}
               >
                 {option.label}
@@ -75,10 +80,10 @@ export default function ArchivePage() {
         {/* Puzzle List */}
         {isLoading && puzzles.length === 0 ? (
           <div className="flex justify-center py-12">
-            <div className="spinner w-8 h-8" />
+            <div className="spinner w-8 h-8 border-crossy-purple" />
           </div>
         ) : puzzles.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-crossy-dark-purple font-display font-semibold">
             No puzzles found
           </div>
         ) : (
@@ -88,36 +93,35 @@ export default function ArchivePage() {
                 <Link
                   key={puzzle.id}
                   href={`/puzzle/${puzzle.date}`}
-                  className="card hover:shadow-lg transition-shadow"
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h2 className="font-bold text-lg mb-1">{puzzle.title}</h2>
-                      <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
-                        {puzzle.date && (
-                          <span>{formatDate(puzzle.date)}</span>
-                        )}
-                        <span>•</span>
-                        <span>By {puzzle.author}</span>
-                        <span>•</span>
-                        <span>
-                          {puzzle.gridWidth}×{puzzle.gridHeight}
+                  <CrossyCard className="hover:scale-[1.02] transition-transform cursor-pointer">
+                    <CrossyCardContent className="p-6">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <h2 className="font-display font-bold text-lg mb-1 text-crossy-dark-purple">{puzzle.title}</h2>
+                          <div className="flex flex-wrap items-center gap-2 text-sm text-crossy-dark-purple font-display">
+                            {puzzle.date && (
+                              <span>{formatDate(puzzle.date)}</span>
+                            )}
+                            <span>•</span>
+                            <span>By {puzzle.author}</span>
+                            <span>•</span>
+                            <span className="bg-crossy-light-purple px-2 py-0.5 rounded-full border border-crossy-purple font-semibold">
+                              {puzzle.gridWidth}×{puzzle.gridHeight}
+                            </span>
+                          </div>
+                          {puzzle.theme && (
+                            <p className="mt-2 text-sm text-crossy-dark-purple font-display">
+                              Theme: {puzzle.theme}
+                            </p>
+                          )}
+                        </div>
+                        <span className={`tag-${puzzle.difficulty} whitespace-nowrap`}>
+                          {getDifficultyLabel(puzzle.difficulty)}
                         </span>
                       </div>
-                      {puzzle.theme && (
-                        <p className="mt-2 text-sm text-gray-500">
-                          Theme: {puzzle.theme}
-                        </p>
-                      )}
-                    </div>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getDifficultyColor(
-                        puzzle.difficulty
-                      )}`}
-                    >
-                      {getDifficultyLabel(puzzle.difficulty)}
-                    </span>
-                  </div>
+                    </CrossyCardContent>
+                  </CrossyCard>
                 </Link>
               ))}
             </div>
@@ -125,20 +129,20 @@ export default function ArchivePage() {
             {/* Load More */}
             {hasMore && (
               <div className="mt-8 text-center">
-                <button
+                <CrossyButton
                   onClick={() => setPage((p) => p + 1)}
                   disabled={isLoading}
-                  className="btn btn-secondary"
+                  variant="secondary"
                 >
                   {isLoading ? (
                     <span className="flex items-center gap-2">
-                      <span className="spinner w-4 h-4" />
+                      <span className="spinner w-4 h-4 border-crossy-dark-purple" />
                       Loading...
                     </span>
                   ) : (
                     'Load More'
                   )}
-                </button>
+                </CrossyButton>
               </div>
             )}
           </>

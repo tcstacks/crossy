@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Clock, Flame, Calendar } from 'lucide-react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 import { Header } from '@/components/Header';
 import { Mascot, MascotWithSpeech } from '@/components/Mascot';
 import { CrossyButton, CrossyCard, CrossyCardContent, CrossyCardHeader } from '@/components/crossy';
@@ -32,6 +34,46 @@ export default function HomePage() {
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // GSAP animation refs
+  const heroRef = useRef(null);
+  const statsRef = useRef(null);
+  const puzzleCardRef = useRef(null);
+  const quickActionsRef = useRef(null);
+
+  // GSAP entrance animations
+  useGSAP(() => {
+    const tl = gsap.timeline();
+
+    // Animate hero section
+    tl.from(heroRef.current, {
+      opacity: 0,
+      y: -30,
+      duration: 0.8,
+      ease: 'power3.out',
+    })
+    // Animate stats cards
+    .from(statsRef.current, {
+      opacity: 0,
+      y: 20,
+      duration: 0.6,
+      ease: 'power2.out',
+    }, '-=0.4')
+    // Animate puzzle card
+    .from(puzzleCardRef.current, {
+      opacity: 0,
+      scale: 0.95,
+      duration: 0.6,
+      ease: 'back.out(1.2)',
+    }, '-=0.3')
+    // Animate quick actions
+    .from(quickActionsRef.current, {
+      opacity: 0,
+      y: 20,
+      duration: 0.6,
+      ease: 'power2.out',
+    }, '-=0.3');
+  }, []);
 
   useEffect(() => {
     const fetchTodayPuzzle = async () => {
@@ -82,7 +124,7 @@ export default function HomePage() {
 
       <main className="container mx-auto px-4 py-8">
         {/* Hero Section */}
-        <section className="text-center mb-12 relative">
+        <section ref={heroRef} className="text-center mb-12 relative">
           <div className="grid-bg" />
 
           <div className="flex justify-center mb-6">
@@ -103,7 +145,7 @@ export default function HomePage() {
         </section>
 
         {/* Today's Puzzle Card */}
-        <section className="max-w-2xl mx-auto mb-12">
+        <section ref={puzzleCardRef} className="max-w-2xl mx-auto mb-12">
           <CrossyCard>
             <CrossyCardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
@@ -179,7 +221,7 @@ export default function HomePage() {
 
         {/* Streak Display */}
         {isAuthenticated && userStats && (
-          <section className="max-w-2xl mx-auto mb-12">
+          <section ref={statsRef} className="max-w-2xl mx-auto mb-12">
             <CrossyCard>
               <CrossyCardContent className="p-6">
                 <div className="flex items-center justify-between">
@@ -212,7 +254,7 @@ export default function HomePage() {
         )}
 
         {/* Quick Actions */}
-        <section className="max-w-4xl mx-auto mb-12">
+        <section ref={quickActionsRef} className="max-w-4xl mx-auto mb-12">
           <h2 className="font-display font-bold text-xl mb-6 text-center text-crossy-dark-purple flex items-center justify-center gap-2">
             <span className="text-2xl">🚀</span>
             Quick Start

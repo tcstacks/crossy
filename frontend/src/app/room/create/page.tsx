@@ -3,8 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import { useGameStore } from '@/store/gameStore';
 import { api } from '@/lib/api';
+import { CrossyButton, CrossyCard, CrossyCardContent } from '@/components/crossy';
+import { Mascot } from '@/components/Mascot';
 import type { RoomMode, RoomConfig, Puzzle } from '@/types';
 import { getDifficultyColor, getDifficultyLabel } from '@/lib/utils';
 
@@ -74,225 +77,220 @@ export default function CreateRoomPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b">
+    <div className="min-h-screen bg-crossy-light-bg">
+      <header className="bg-white border-b-2 border-crossy-dark-purple">
         <div className="container mx-auto px-4 h-16 flex items-center gap-4">
-          <Link href="/" className="text-gray-500 hover:text-gray-700">
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
+          <Link href="/" className="text-crossy-purple hover:text-crossy-hover-purple">
+            <ArrowLeft className="w-6 h-6" />
           </Link>
-          <h1 className="font-bold text-lg">Create Room</h1>
+          <h1 className="font-display font-bold text-lg text-crossy-dark-purple">Create Room</h1>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8 max-w-2xl">
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
-            {error}
-          </div>
+          <CrossyCard className="mb-6 border-crossy-red">
+            <CrossyCardContent className="p-4 text-crossy-red font-display font-semibold">
+              {error}
+            </CrossyCardContent>
+          </CrossyCard>
         )}
 
         {/* Puzzle Card */}
-        <div className="card mb-6">
-          <h2 className="font-bold text-lg mb-4">Today&apos;s Puzzle</h2>
-          {puzzleLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="spinner w-8 h-8" />
-            </div>
-          ) : puzzle ? (
-            <div>
-              <h3 className="text-xl font-bold mb-2">{puzzle.title}</h3>
-              <div className="flex items-center gap-3 text-sm text-gray-600">
-                <span>By {puzzle.author}</span>
-                <span
-                  className={`px-2 py-0.5 rounded-full text-xs font-medium ${getDifficultyColor(
-                    puzzle.difficulty
-                  )}`}
-                >
-                  {getDifficultyLabel(puzzle.difficulty)}
-                </span>
-                <span>
-                  {puzzle.gridWidth}×{puzzle.gridHeight}
-                </span>
+        <CrossyCard className="mb-6">
+          <CrossyCardContent className="p-6">
+            <h2 className="font-display font-bold text-lg mb-4 text-crossy-dark-purple">Today&apos;s Puzzle</h2>
+            {puzzleLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="spinner w-8 h-8 border-crossy-purple" />
               </div>
-            </div>
-          ) : (
-            <p className="text-gray-500">No puzzle available</p>
-          )}
-        </div>
+            ) : puzzle ? (
+              <div>
+                <h3 className="text-xl font-display font-bold mb-2 text-crossy-dark-purple">{puzzle.title}</h3>
+                <div className="flex items-center gap-3 text-sm">
+                  <span className="text-crossy-dark-purple font-display">By {puzzle.author}</span>
+                  <span className={`tag-${puzzle.difficulty}`}>
+                    {getDifficultyLabel(puzzle.difficulty)}
+                  </span>
+                  <span className="text-crossy-dark-purple font-display font-semibold bg-crossy-light-purple px-2 py-1 rounded-full border border-crossy-purple">
+                    {puzzle.gridWidth}×{puzzle.gridHeight}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-crossy-dark-purple font-display">No puzzle available</p>
+            )}
+          </CrossyCardContent>
+        </CrossyCard>
 
         {/* Room Settings */}
-        <div className="card mb-6">
-          <h2 className="font-bold text-lg mb-4">Room Settings</h2>
+        <CrossyCard className="mb-6">
+          <CrossyCardContent className="p-6">
+            <h2 className="font-display font-bold text-lg mb-4 text-crossy-dark-purple">Room Settings</h2>
 
-          {/* Game Mode */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Game Mode
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {[
-                {
-                  value: 'collaborative',
-                  label: 'Collaborative',
-                  desc: 'Work together on one grid',
-                },
-                {
-                  value: 'race',
-                  label: 'Race',
-                  desc: 'First to finish wins',
-                },
-                {
-                  value: 'relay',
-                  label: 'Relay',
-                  desc: 'Take turns solving',
-                },
-              ].map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => setMode(option.value as RoomMode)}
-                  className={`p-4 rounded-lg border-2 text-left transition-colors ${
-                    mode === option.value
-                      ? 'border-primary-500 bg-primary-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="font-medium">{option.label}</div>
-                  <div className="text-xs text-gray-500">{option.desc}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Max Players */}
-          <div className="mb-6">
-            <label
-              htmlFor="maxPlayers"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              Max Players
-            </label>
-            <select
-              id="maxPlayers"
-              value={maxPlayers}
-              onChange={(e) => setMaxPlayers(Number(e.target.value))}
-              className="input"
-            >
-              {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                <option key={n} value={n}>
-                  {n} players
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Timer Mode */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Timer
-            </label>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { value: 'none', label: 'None' },
-                { value: 'stopwatch', label: 'Stopwatch' },
-                { value: 'countdown', label: 'Countdown' },
-              ].map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => setTimerMode(option.value as typeof timerMode)}
-                  className={`p-3 rounded-lg border-2 transition-colors ${
-                    timerMode === option.value
-                      ? 'border-primary-500 bg-primary-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            {timerMode === 'countdown' && (
-              <div className="mt-3">
-                <select
-                  value={timerSeconds}
-                  onChange={(e) => setTimerSeconds(Number(e.target.value))}
-                  className="input"
-                >
-                  <option value={600}>10 minutes</option>
-                  <option value={900}>15 minutes</option>
-                  <option value={1800}>30 minutes</option>
-                  <option value={2700}>45 minutes</option>
-                  <option value={3600}>60 minutes</option>
-                </select>
+            {/* Game Mode */}
+            <div className="mb-6">
+              <label className="block text-sm font-display font-semibold text-crossy-dark-purple mb-2">
+                Game Mode
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {[
+                  {
+                    value: 'collaborative',
+                    label: 'Collaborative',
+                    desc: 'Work together on one grid',
+                    emoji: '🤝',
+                  },
+                  {
+                    value: 'race',
+                    label: 'Race',
+                    desc: 'First to finish wins',
+                    emoji: '🏁',
+                  },
+                  {
+                    value: 'relay',
+                    label: 'Relay',
+                    desc: 'Take turns solving',
+                    emoji: '🔄',
+                  },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setMode(option.value as RoomMode)}
+                    className={`p-4 rounded-xl border-2 text-left transition-all ${
+                      mode === option.value
+                        ? 'border-crossy-purple bg-crossy-light-purple'
+                        : 'border-crossy-dark-purple hover:border-crossy-purple hover:bg-crossy-light-bg'
+                    }`}
+                  >
+                    <div className="text-2xl mb-2">{option.emoji}</div>
+                    <div className="font-display font-semibold text-crossy-dark-purple">{option.label}</div>
+                    <div className="text-xs text-crossy-dark-purple font-display">{option.desc}</div>
+                  </button>
+                ))}
               </div>
-            )}
-          </div>
+            </div>
 
-          {/* Toggles */}
-          <div className="space-y-4">
-            <label className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">
-                Public Room
-              </span>
-              <button
-                onClick={() => setIsPublic(!isPublic)}
-                className={`relative w-12 h-6 rounded-full transition-colors ${
-                  isPublic ? 'bg-primary-600' : 'bg-gray-300'
-                }`}
+            {/* Max Players */}
+            <div className="mb-6">
+              <label
+                htmlFor="maxPlayers"
+                className="block text-sm font-display font-semibold text-crossy-dark-purple mb-2"
               >
-                <span
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                    isPublic ? 'translate-x-7' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-            </label>
+                Max Players
+              </label>
+              <select
+                id="maxPlayers"
+                value={maxPlayers}
+                onChange={(e) => setMaxPlayers(Number(e.target.value))}
+                className="w-full px-4 py-3 border-2 border-crossy-dark-purple rounded-xl focus:outline-none focus:ring-2 focus:ring-crossy-purple bg-white text-crossy-dark-purple font-display"
+              >
+                {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                  <option key={n} value={n}>
+                    {n} players
+                  </option>
+                ))}
+              </select>
+            </div>
 
-            <label className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">
-                Enable Hints
-              </span>
-              <button
-                onClick={() => setHintsEnabled(!hintsEnabled)}
-                className={`relative w-12 h-6 rounded-full transition-colors ${
-                  hintsEnabled ? 'bg-primary-600' : 'bg-gray-300'
-                }`}
-              >
-                <span
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                    hintsEnabled ? 'translate-x-7' : 'translate-x-1'
+            {/* Timer Mode */}
+            <div className="mb-6">
+              <label className="block text-sm font-display font-semibold text-crossy-dark-purple mb-2">
+                Timer
+              </label>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { value: 'none', label: 'None' },
+                  { value: 'stopwatch', label: 'Stopwatch' },
+                  { value: 'countdown', label: 'Countdown' },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setTimerMode(option.value as typeof timerMode)}
+                    className={`p-3 rounded-xl border-2 font-display font-semibold transition-all ${
+                      timerMode === option.value
+                        ? 'border-crossy-purple bg-crossy-light-purple text-crossy-dark-purple'
+                        : 'border-crossy-dark-purple hover:border-crossy-purple text-crossy-dark-purple'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              {timerMode === 'countdown' && (
+                <div className="mt-3">
+                  <select
+                    value={timerSeconds}
+                    onChange={(e) => setTimerSeconds(Number(e.target.value))}
+                    className="w-full px-4 py-3 border-2 border-crossy-dark-purple rounded-xl focus:outline-none focus:ring-2 focus:ring-crossy-purple bg-white text-crossy-dark-purple font-display"
+                  >
+                    <option value={600}>10 minutes</option>
+                    <option value={900}>15 minutes</option>
+                    <option value={1800}>30 minutes</option>
+                    <option value={2700}>45 minutes</option>
+                    <option value={3600}>60 minutes</option>
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* Toggles */}
+            <div className="space-y-4">
+              <label className="flex items-center justify-between">
+                <span className="text-sm font-display font-semibold text-crossy-dark-purple">
+                  Public Room
+                </span>
+                <button
+                  onClick={() => setIsPublic(!isPublic)}
+                  className={`relative w-12 h-6 rounded-full transition-colors border-2 border-crossy-dark-purple ${
+                    isPublic ? 'bg-crossy-purple' : 'bg-crossy-light-bg'
                   }`}
-                />
-              </button>
-            </label>
-          </div>
-        </div>
+                >
+                  <span
+                    className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform border border-crossy-dark-purple ${
+                      isPublic ? 'translate-x-6' : 'translate-x-0.5'
+                    }`}
+                  />
+                </button>
+              </label>
+
+              <label className="flex items-center justify-between">
+                <span className="text-sm font-display font-semibold text-crossy-dark-purple">
+                  Enable Hints
+                </span>
+                <button
+                  onClick={() => setHintsEnabled(!hintsEnabled)}
+                  className={`relative w-12 h-6 rounded-full transition-colors border-2 border-crossy-dark-purple ${
+                    hintsEnabled ? 'bg-crossy-purple' : 'bg-crossy-light-bg'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform border border-crossy-dark-purple ${
+                      hintsEnabled ? 'translate-x-6' : 'translate-x-0.5'
+                    }`}
+                  />
+                </button>
+              </label>
+            </div>
+          </CrossyCardContent>
+        </CrossyCard>
 
         {/* Create Button */}
-        <button
+        <CrossyButton
           onClick={handleCreateRoom}
           disabled={isLoading || !puzzle}
-          className="btn btn-primary w-full text-lg py-4"
+          variant="primary"
+          className="w-full text-lg py-4"
         >
           {isLoading ? (
             <span className="flex items-center justify-center gap-2">
-              <span className="spinner w-5 h-5" />
+              <span className="spinner w-5 h-5 border-white" />
               Creating Room...
             </span>
           ) : (
-            'Create Room'
+            'Create Room 🚀'
           )}
-        </button>
+        </CrossyButton>
       </main>
     </div>
   );

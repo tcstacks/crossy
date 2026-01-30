@@ -3,8 +3,11 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import { useGameStore } from '@/store/gameStore';
 import { api } from '@/lib/api';
+import { CrossyButton, CrossyCard, CrossyCardContent, CrossyInput } from '@/components/crossy';
+import { Mascot } from '@/components/Mascot';
 
 export default function JoinRoomPage() {
   const router = useRouter();
@@ -72,82 +75,79 @@ export default function JoinRoomPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white border-b">
+    <div className="min-h-screen bg-crossy-light-bg flex flex-col">
+      <header className="bg-white border-b-2 border-crossy-dark-purple">
         <div className="container mx-auto px-4 h-16 flex items-center gap-4">
-          <Link href="/" className="text-gray-500 hover:text-gray-700">
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
+          <Link href="/" className="text-crossy-purple hover:text-crossy-hover-purple">
+            <ArrowLeft className="w-6 h-6" />
           </Link>
-          <h1 className="font-bold text-lg">Join Room</h1>
+          <h1 className="font-display font-bold text-lg text-crossy-dark-purple">Join Room</h1>
         </div>
       </header>
 
       <main className="flex-1 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
-          <div className="card">
-            <h2 className="text-2xl font-bold text-center mb-2">
-              Enter Room Code
-            </h2>
-            <p className="text-gray-600 text-center mb-6">
-              Ask the room host for the 6-character code
-            </p>
-
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-center">
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit}>
-              <div className="mb-6">
-                <input
-                  type="text"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.toUpperCase())}
-                  placeholder="ABC123"
-                  className="input text-center text-2xl font-mono tracking-widest uppercase"
-                  maxLength={6}
-                  autoFocus
-                />
+          <CrossyCard>
+            <CrossyCardContent className="p-8">
+              <div className="flex justify-center mb-4">
+                <Mascot size="lg" mood="chat" />
               </div>
 
-              <button
-                type="submit"
-                disabled={isLoading || code.length < 6}
-                className="btn btn-primary w-full text-lg py-4"
-              >
-                {isLoading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="spinner w-5 h-5" />
-                    Joining...
-                  </span>
-                ) : (
-                  'Join Room'
-                )}
-              </button>
-            </form>
-
-            <div className="mt-6 pt-6 border-t text-center">
-              <p className="text-sm text-gray-500 mb-4">
-                Or create your own room
+              <h2 className="text-2xl font-display font-bold text-center mb-2 text-crossy-dark-purple">
+                Enter Room Code
+              </h2>
+              <p className="text-crossy-dark-purple font-display text-center mb-6">
+                Ask the room host for the 6-character code
               </p>
-              <Link href="/room/create" className="btn btn-secondary">
-                Create Room
-              </Link>
-            </div>
-          </div>
+
+              {error && (
+                <div className="mb-4 p-3 bg-crossy-red/10 border-2 border-crossy-red text-crossy-red rounded-xl text-center font-display font-semibold">
+                  {error}
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit}>
+                <div className="mb-6">
+                  <CrossyInput
+                    type="text"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.toUpperCase())}
+                    placeholder="ABC123"
+                    className="text-center text-2xl font-mono tracking-widest uppercase"
+                    maxLength={6}
+                    autoFocus
+                  />
+                </div>
+
+                <CrossyButton
+                  type="submit"
+                  disabled={isLoading || code.length < 6}
+                  variant="primary"
+                  className="w-full text-lg py-4"
+                >
+                  {isLoading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="spinner w-5 h-5 border-white" />
+                      Joining...
+                    </span>
+                  ) : (
+                    'Join Room 👋'
+                  )}
+                </CrossyButton>
+              </form>
+
+              <div className="mt-6 pt-6 border-t-2 border-crossy-dark-purple text-center">
+                <p className="text-sm text-crossy-dark-purple font-display mb-4">
+                  Or create your own room
+                </p>
+                <Link href="/room/create">
+                  <CrossyButton variant="secondary" className="w-full">
+                    Create Room
+                  </CrossyButton>
+                </Link>
+              </div>
+            </CrossyCardContent>
+          </CrossyCard>
         </div>
       </main>
     </div>

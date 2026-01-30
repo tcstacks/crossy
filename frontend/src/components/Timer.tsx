@@ -33,16 +33,16 @@ export function Timer({ startTime, endTime, yellowThreshold = 300, redThreshold 
 
   const getColorClass = () => {
     if (elapsed >= redThreshold) {
-      return 'text-red-600';
+      return 'text-crossy-red';
     }
     if (elapsed >= yellowThreshold) {
-      return 'text-yellow-600';
+      return 'text-crossy-orange';
     }
-    return 'text-green-600';
+    return 'text-crossy-green';
   };
 
   return (
-    <div className={`timer ${getColorClass()}`}>
+    <div className={`font-display font-bold text-2xl tabular-nums ${getColorClass()}`}>
       {formatTime(elapsed)}
     </div>
   );
@@ -87,16 +87,16 @@ export function CountdownTimer({
 
   const getColorClass = () => {
     if (remaining <= redThreshold) {
-      return 'text-red-600 animate-pulse';
+      return 'text-crossy-red animate-pulse';
     }
     if (remaining <= yellowThreshold) {
-      return 'text-yellow-600';
+      return 'text-crossy-orange';
     }
-    return 'text-green-600';
+    return 'text-crossy-green';
   };
 
   return (
-    <div className={`timer ${getColorClass()}`}>
+    <div className={`font-display font-bold text-2xl tabular-nums ${getColorClass()}`}>
       {formatTime(remaining)}
     </div>
   );

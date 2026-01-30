@@ -214,10 +214,10 @@ export default function PuzzlePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-crossy-light-bg flex items-center justify-center">
         <div className="text-center">
-          <div className="spinner w-12 h-12 mx-auto mb-4" />
-          <p className="text-gray-600">Loading puzzle...</p>
+          <div className="spinner w-12 h-12 mx-auto mb-4 border-crossy-purple" />
+          <p className="text-crossy-dark-purple font-display font-semibold">Loading puzzle...</p>
         </div>
       </div>
     );
@@ -225,12 +225,12 @@ export default function PuzzlePage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-crossy-light-bg flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error}</p>
+          <p className="text-crossy-red font-display font-semibold mb-4">{error}</p>
           <button
             onClick={() => router.push('/')}
-            className="btn btn-primary"
+            className="crossy-button"
           >
             Back to Home
           </button>
@@ -240,7 +240,7 @@ export default function PuzzlePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-crossy-light-bg flex flex-col">
       <GameHeader
         title={puzzle?.title}
         showTimer
@@ -254,8 +254,8 @@ export default function PuzzlePage() {
 
       <main className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* Clue Panel - Desktop */}
-        <aside className="hidden lg:block w-80 border-r bg-white overflow-y-auto">
-          <div className="h-1/2 border-b">
+        <aside className="hidden lg:block w-80 border-r-2 border-crossy-dark-purple bg-white overflow-y-auto">
+          <div className="h-1/2 border-b-2 border-crossy-dark-purple">
             <CluePanel direction="across" />
           </div>
           <div className="h-1/2">

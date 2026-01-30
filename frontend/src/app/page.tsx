@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Clock, Flame, Calendar } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { Mascot, MascotWithSpeech } from '@/components/Mascot';
+import { CrossyButton, CrossyCard, CrossyCardContent, CrossyCardHeader } from '@/components/crossy';
 import { useGameStore } from '@/store/gameStore';
 import { api } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
@@ -13,13 +15,13 @@ import type { Puzzle, UserStats } from '@/types';
 const getDifficultyBadge = (difficulty: string) => {
   switch (difficulty) {
     case 'easy':
-      return { class: 'badge-easy', label: 'Easy' };
+      return { class: 'tag-easy', label: 'Easy' };
     case 'medium':
-      return { class: 'badge-medium', label: 'Medium' };
+      return { class: 'tag-medium', label: 'Medium' };
     case 'hard':
-      return { class: 'badge-hard', label: 'Hard' };
+      return { class: 'tag-hard', label: 'Hard' };
     default:
-      return { class: 'badge-medium', label: 'Medium' };
+      return { class: 'tag-medium', label: 'Medium' };
   }
 };
 
@@ -75,16 +77,13 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen fun-bg">
+    <div className="min-h-screen bg-crossy-light-bg">
       <Header />
 
       <main className="container mx-auto px-4 py-8">
         {/* Hero Section */}
         <section className="text-center mb-12 relative">
-          {/* Floating decorative elements */}
-          <div className="absolute top-0 left-10 w-16 h-16 bg-candy-yellow rounded-full opacity-20 animate-float blur-xl" />
-          <div className="absolute top-20 right-20 w-20 h-20 bg-candy-pink rounded-full opacity-20 animate-float blur-xl" style={{ animationDelay: '1s' }} />
-          <div className="absolute bottom-0 left-1/4 w-12 h-12 bg-candy-blue rounded-full opacity-20 animate-float blur-xl" style={{ animationDelay: '0.5s' }} />
+          <div className="grid-bg" />
 
           <div className="flex justify-center mb-6">
             <MascotWithSpeech
@@ -94,10 +93,10 @@ export default function HomePage() {
             />
           </div>
 
-          <h1 className="text-4xl md:text-6xl font-bold mb-4">
-            <span className="gradient-text">Crossy!</span>
+          <h1 className="text-4xl md:text-6xl font-pixel mb-4 text-crossy-purple">
+            Crossy!
           </h1>
-          <p className="text-xl md:text-2xl text-purple-700 max-w-2xl mx-auto font-medium">
+          <p className="text-xl md:text-2xl text-crossy-dark-purple max-w-2xl mx-auto font-display font-semibold">
             Solve puzzles with friends in real-time. Daily challenges,
             multiplayer rooms, and endless fun!
           </p>
@@ -105,214 +104,226 @@ export default function HomePage() {
 
         {/* Today's Puzzle Card */}
         <section className="max-w-2xl mx-auto mb-12">
-          <div className="card relative overflow-hidden">
-            {/* Decorative corner */}
-            <div className="absolute -top-10 -right-10 w-32 h-32 bg-gradient-candy rounded-full opacity-10 blur-2xl" />
-
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-lg text-purple-900 flex items-center gap-2">
-                <span className="text-2xl">✨</span>
-                Today&apos;s Puzzle
-              </h2>
-              {todayPuzzle?.date && (
-                <span className="text-sm text-purple-600 font-medium bg-purple-100 px-3 py-1 rounded-full">
-                  {formatDate(todayPuzzle.date)}
-                </span>
-              )}
-            </div>
-
-            {isLoading ? (
-              <div className="flex flex-col items-center justify-center py-12 gap-4">
-                <div className="spinner w-10 h-10" />
-                <p className="text-purple-600 font-medium">Loading puzzle...</p>
+          <CrossyCard>
+            <CrossyCardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-display font-bold text-lg text-crossy-dark-purple flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-crossy-purple" />
+                  Today&apos;s Puzzle
+                </h2>
+                {todayPuzzle?.date && (
+                  <span className="text-sm text-crossy-dark-purple font-display font-semibold bg-crossy-light-purple px-3 py-1 rounded-full border border-crossy-purple">
+                    {formatDate(todayPuzzle.date)}
+                  </span>
+                )}
               </div>
-            ) : error ? (
-              <div className="text-center py-8">
-                <Mascot size="md" mood="hint" className="mx-auto mb-4" animate={false} />
-                <p className="text-purple-700 mb-4">{error}</p>
-                <button
-                  onClick={() => window.location.reload()}
-                  className="text-primary-600 hover:text-primary-700 font-bold"
-                >
-                  Try again
-                </button>
-              </div>
-            ) : todayPuzzle ? (
-              <>
-                <div className="mb-6">
-                  <h3 className="text-2xl font-bold mb-2 text-purple-900">
-                    {todayPuzzle.title}
-                  </h3>
-                  <div className="flex flex-wrap items-center gap-3 text-sm">
-                    <span className="text-purple-600 font-medium">
-                      By {todayPuzzle.author}
-                    </span>
-                    <span className={`badge ${getDifficultyBadge(todayPuzzle.difficulty).class}`}>
-                      {getDifficultyBadge(todayPuzzle.difficulty).label}
-                    </span>
-                    <span className="text-purple-500 bg-purple-50 px-2 py-0.5 rounded-full font-medium">
-                      {todayPuzzle.gridWidth}×{todayPuzzle.gridHeight}
-                    </span>
+
+              {isLoading ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-4">
+                  <div className="spinner w-10 h-10" />
+                  <p className="text-crossy-purple font-display font-semibold">Loading puzzle...</p>
+                </div>
+              ) : error ? (
+                <div className="text-center py-8">
+                  <Mascot size="md" mood="hint" className="mx-auto mb-4" animate={false} />
+                  <p className="text-crossy-dark-purple font-display mb-4">{error}</p>
+                  <CrossyButton onClick={() => window.location.reload()}>
+                    Try again
+                  </CrossyButton>
+                </div>
+              ) : todayPuzzle ? (
+                <>
+                  <div className="mb-6">
+                    <h3 className="text-2xl font-display font-bold mb-2 text-crossy-dark-purple">
+                      {todayPuzzle.title}
+                    </h3>
+                    <div className="flex flex-wrap items-center gap-3 text-sm">
+                      <span className="text-crossy-dark-purple font-display font-medium">
+                        By {todayPuzzle.author}
+                      </span>
+                      <span className={getDifficultyBadge(todayPuzzle.difficulty).class}>
+                        {getDifficultyBadge(todayPuzzle.difficulty).label}
+                      </span>
+                      <span className="text-crossy-dark-purple bg-crossy-light-purple px-3 py-1 rounded-full font-display font-semibold border border-crossy-purple">
+                        {todayPuzzle.gridWidth}×{todayPuzzle.gridHeight}
+                      </span>
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <button
-                    onClick={handlePlaySolo}
-                    className="btn btn-primary flex-1 flex items-center justify-center gap-2"
-                  >
-                    <span>Play Solo</span>
-                    <span className="text-lg">🎯</span>
-                  </button>
-                  <button
-                    onClick={handleCreateRoom}
-                    className="btn btn-secondary flex-1 flex items-center justify-center gap-2"
-                  >
-                    <span>Create Room</span>
-                    <span className="text-lg">👥</span>
-                  </button>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <CrossyButton
+                      onClick={handlePlaySolo}
+                      variant="primary"
+                      className="flex-1"
+                    >
+                      Play Solo 🎯
+                    </CrossyButton>
+                    <CrossyButton
+                      onClick={handleCreateRoom}
+                      variant="secondary"
+                      className="flex-1"
+                    >
+                      Create Room 👥
+                    </CrossyButton>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <Mascot size="md" mood="hint" className="mx-auto mb-4" animate={false} />
+                  <p className="text-crossy-dark-purple font-display font-semibold">No puzzle available for today</p>
                 </div>
-              </>
-            ) : (
-              <div className="text-center py-8">
-                <Mascot size="md" mood="hint" className="mx-auto mb-4" animate={false} />
-                <p className="text-purple-600 font-medium">No puzzle available for today</p>
-              </div>
-            )}
-          </div>
+              )}
+            </CrossyCardContent>
+          </CrossyCard>
         </section>
 
         {/* Streak Display */}
         {isAuthenticated && userStats && (
           <section className="max-w-2xl mx-auto mb-12">
-            <div className="card bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-3xl">🔥</span>
-                    <h2 className="font-bold text-xl text-purple-900">Your Streak</h2>
-                  </div>
-                  <p className="text-sm text-purple-600">
-                    Keep playing daily to maintain your streak!
-                  </p>
-                </div>
-                <div className="text-center">
-                  <div className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-orange-500 to-pink-600">
-                    {userStats.streakCurrent}
-                  </div>
-                  <div className="text-xs text-purple-600 mt-1">
-                    {userStats.streakCurrent === 1 ? 'day' : 'days'}
-                  </div>
-                  {userStats.streakBest > 0 && (
-                    <div className="text-xs text-purple-500 mt-2">
-                      Best: {userStats.streakBest} {userStats.streakBest === 1 ? 'day' : 'days'}
+            <CrossyCard>
+              <CrossyCardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Flame className="w-7 h-7 text-crossy-orange" />
+                      <h2 className="font-display font-bold text-xl text-crossy-dark-purple">Your Streak</h2>
                     </div>
-                  )}
+                    <p className="text-sm text-crossy-dark-purple font-display">
+                      Keep playing daily to maintain your streak!
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-5xl font-display font-bold text-crossy-orange">
+                      {userStats.streakCurrent}
+                    </div>
+                    <div className="text-xs text-crossy-dark-purple font-display font-semibold mt-1">
+                      {userStats.streakCurrent === 1 ? 'day' : 'days'}
+                    </div>
+                    {userStats.streakBest > 0 && (
+                      <div className="text-xs text-crossy-purple font-display mt-2">
+                        Best: {userStats.streakBest} {userStats.streakBest === 1 ? 'day' : 'days'}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </div>
+              </CrossyCardContent>
+            </CrossyCard>
           </section>
         )}
 
         {/* Quick Actions */}
         <section className="max-w-4xl mx-auto mb-12">
-          <h2 className="font-bold text-xl mb-6 text-center text-purple-900 flex items-center justify-center gap-2">
+          <h2 className="font-display font-bold text-xl mb-6 text-center text-crossy-dark-purple flex items-center justify-center gap-2">
             <span className="text-2xl">🚀</span>
             Quick Start
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Link href="/room/join" className="card group">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-candy-pink to-candy-purple rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300">
-                  <span className="text-3xl">👋</span>
-                </div>
-                <h3 className="font-bold mb-1 text-purple-900">Join a Room</h3>
-                <p className="text-base text-purple-600">
-                  Enter a code to join friends
-                </p>
-              </div>
+            <Link href="/room/join">
+              <CrossyCard className="group hover:scale-105 transition-transform cursor-pointer">
+                <CrossyCardContent className="p-6 text-center">
+                  <div className="w-16 h-16 bg-crossy-purple rounded-2xl flex items-center justify-center mx-auto mb-4 border-2 border-crossy-dark-purple group-hover:animate-pulse">
+                    <span className="text-3xl">👋</span>
+                  </div>
+                  <h3 className="font-display font-bold mb-1 text-crossy-dark-purple">Join a Room</h3>
+                  <p className="text-sm text-crossy-dark-purple font-display">
+                    Enter a code to join friends
+                  </p>
+                </CrossyCardContent>
+              </CrossyCard>
             </Link>
 
-            <Link href="/puzzle/random" className="card group">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-candy-mint to-candy-blue rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300">
-                  <span className="text-3xl">🎲</span>
-                </div>
-                <h3 className="font-bold mb-1 text-purple-900">Random Puzzle</h3>
-                <p className="text-base text-purple-600">
-                  Play a surprise puzzle
-                </p>
-              </div>
+            <Link href="/puzzle/random">
+              <CrossyCard className="group hover:scale-105 transition-transform cursor-pointer">
+                <CrossyCardContent className="p-6 text-center">
+                  <div className="w-16 h-16 bg-crossy-green rounded-2xl flex items-center justify-center mx-auto mb-4 border-2 border-crossy-dark-purple group-hover:animate-pulse">
+                    <span className="text-3xl">🎲</span>
+                  </div>
+                  <h3 className="font-display font-bold mb-1 text-crossy-dark-purple">Random Puzzle</h3>
+                  <p className="text-sm text-crossy-dark-purple font-display">
+                    Play a surprise puzzle
+                  </p>
+                </CrossyCardContent>
+              </CrossyCard>
             </Link>
 
-            <Link href="/archive" className="card group">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-candy-yellow to-candy-orange rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300">
-                  <span className="text-3xl">📚</span>
-                </div>
-                <h3 className="font-bold mb-1 text-purple-900">Archive</h3>
-                <p className="text-base text-purple-600">
-                  Browse past puzzles
-                </p>
-              </div>
+            <Link href="/archive">
+              <CrossyCard className="group hover:scale-105 transition-transform cursor-pointer">
+                <CrossyCardContent className="p-6 text-center">
+                  <div className="w-16 h-16 bg-crossy-orange rounded-2xl flex items-center justify-center mx-auto mb-4 border-2 border-crossy-dark-purple group-hover:animate-pulse">
+                    <span className="text-3xl">📚</span>
+                  </div>
+                  <h3 className="font-display font-bold mb-1 text-crossy-dark-purple">Archive</h3>
+                  <p className="text-sm text-crossy-dark-purple font-display">
+                    Browse past puzzles
+                  </p>
+                </CrossyCardContent>
+              </CrossyCard>
             </Link>
           </div>
         </section>
 
         {/* Features Section */}
         <section className="max-w-4xl mx-auto">
-          <h2 className="font-bold text-2xl mb-8 text-center text-purple-900 flex items-center justify-center gap-2">
+          <h2 className="font-display font-bold text-2xl mb-8 text-center text-crossy-dark-purple flex items-center justify-center gap-2">
             <span className="text-2xl">💜</span>
             Why Crossy?
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="card flex gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-candy-pink to-candy-purple rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
-                <span className="text-xl">⚡</span>
-              </div>
-              <div>
-                <h3 className="font-bold mb-1 text-purple-900">Real-Time Collaboration</h3>
-                <p className="text-base text-purple-600">
-                  See your friends&apos; cursors and solve together in perfect sync.
-                </p>
-              </div>
-            </div>
+            <CrossyCard>
+              <CrossyCardContent className="p-6 flex gap-4">
+                <div className="w-12 h-12 bg-crossy-purple rounded-xl flex items-center justify-center flex-shrink-0 border-2 border-crossy-dark-purple">
+                  <span className="text-xl">⚡</span>
+                </div>
+                <div>
+                  <h3 className="font-display font-bold mb-1 text-crossy-dark-purple">Real-Time Collaboration</h3>
+                  <p className="text-sm text-crossy-dark-purple font-display">
+                    See your friends&apos; cursors and solve together in perfect sync.
+                  </p>
+                </div>
+              </CrossyCardContent>
+            </CrossyCard>
 
-            <div className="card flex gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-candy-mint to-candy-blue rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
-                <span className="text-xl">📅</span>
-              </div>
-              <div>
-                <h3 className="font-bold mb-1 text-purple-900">Daily Puzzles</h3>
-                <p className="text-base text-purple-600">
-                  Fresh puzzles every day, from easy Monday to challenging Saturday.
-                </p>
-              </div>
-            </div>
+            <CrossyCard>
+              <CrossyCardContent className="p-6 flex gap-4">
+                <div className="w-12 h-12 bg-crossy-green rounded-xl flex items-center justify-center flex-shrink-0 border-2 border-crossy-dark-purple">
+                  <span className="text-xl">📅</span>
+                </div>
+                <div>
+                  <h3 className="font-display font-bold mb-1 text-crossy-dark-purple">Daily Puzzles</h3>
+                  <p className="text-sm text-crossy-dark-purple font-display">
+                    Fresh puzzles every day, from easy Monday to challenging Saturday.
+                  </p>
+                </div>
+              </CrossyCardContent>
+            </CrossyCard>
 
-            <div className="card flex gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-candy-yellow to-candy-orange rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
-                <span className="text-xl">📱</span>
-              </div>
-              <div>
-                <h3 className="font-bold mb-1 text-purple-900">Mobile-First Design</h3>
-                <p className="text-base text-purple-600">
-                  Optimized for touch, play anywhere on any device.
-                </p>
-              </div>
-            </div>
+            <CrossyCard>
+              <CrossyCardContent className="p-6 flex gap-4">
+                <div className="w-12 h-12 bg-crossy-orange rounded-xl flex items-center justify-center flex-shrink-0 border-2 border-crossy-dark-purple">
+                  <span className="text-xl">📱</span>
+                </div>
+                <div>
+                  <h3 className="font-display font-bold mb-1 text-crossy-dark-purple">Mobile-First Design</h3>
+                  <p className="text-sm text-crossy-dark-purple font-display">
+                    Optimized for touch, play anywhere on any device.
+                  </p>
+                </div>
+              </CrossyCardContent>
+            </CrossyCard>
 
-            <div className="card flex gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-candy-purple to-candy-pink rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
-                <span className="text-xl">🏆</span>
-              </div>
-              <div>
-                <h3 className="font-bold mb-1 text-purple-900">Stats & Streaks</h3>
-                <p className="text-base text-purple-600">
-                  Track your progress and compete for the best times.
-                </p>
-              </div>
-            </div>
+            <CrossyCard>
+              <CrossyCardContent className="p-6 flex gap-4">
+                <div className="w-12 h-12 bg-crossy-red rounded-xl flex items-center justify-center flex-shrink-0 border-2 border-crossy-dark-purple">
+                  <span className="text-xl">🏆</span>
+                </div>
+                <div>
+                  <h3 className="font-display font-bold mb-1 text-crossy-dark-purple">Stats & Streaks</h3>
+                  <p className="text-sm text-crossy-dark-purple font-display">
+                    Track your progress and compete for the best times.
+                  </p>
+                </div>
+              </CrossyCardContent>
+            </CrossyCard>
           </div>
         </section>
       </main>
@@ -320,17 +331,19 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="mt-12 py-8">
         <div className="container mx-auto px-4">
-          <div className="card">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <Mascot size="sm" mood="main" animate={false} />
-                <span className="font-bold text-purple-900">Crossy</span>
+          <CrossyCard>
+            <CrossyCardContent className="p-6">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <Mascot size="sm" mood="small" animate={false} />
+                  <span className="font-pixel text-crossy-purple">Crossy</span>
+                </div>
+                <p className="text-sm text-crossy-dark-purple font-display font-semibold flex items-center gap-2">
+                  Made with <span className="text-crossy-purple">💜</span> for puzzle enthusiasts
+                </p>
               </div>
-              <p className="text-sm text-purple-600 font-medium flex items-center gap-2">
-                Made with <span className="text-candy-pink">💜</span> for puzzle enthusiasts
-              </p>
-            </div>
-          </div>
+            </CrossyCardContent>
+          </CrossyCard>
         </div>
       </footer>
     </div>

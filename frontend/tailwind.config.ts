@@ -21,6 +21,18 @@ const config: Config = {
           800: '#863b87',
           900: '#6d326d',
         },
+        crossy: {
+          purple: '#7B61FF',
+          'dark-purple': '#2A1E5C',
+          'light-bg': '#F6F5FF',
+          'light-purple': '#F3F1FF',
+          'hover-purple': '#6B51EF',
+          'border-purple': '#D6D2FF',
+          'active-word': '#ECE9FF',
+          green: '#2ECC71',
+          orange: '#F59E0B',
+          red: '#FF4D6A',
+        },
         candy: {
           pink: '#f9a8c9',
           purple: '#c9a8f9',
@@ -50,6 +62,8 @@ const config: Config = {
       fontFamily: {
         sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
         mono: ['var(--font-mono)', 'monospace'],
+        display: ['Space Grotesk', 'var(--font-inter)', 'system-ui', 'sans-serif'],
+        pixel: ['Press Start 2P', 'cursive'],
       },
       borderRadius: {
         'bubble': '2rem',

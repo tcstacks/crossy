@@ -2,24 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Crossy Design System - Root Variables */
 :root {
   --foreground-rgb: 64, 42, 80;
   --background-start: #fefaff;
   --background-end: #fdf2ff;
+  --crossy-purple: #7B61FF;
+  --crossy-dark-purple: #2A1E5C;
+  --crossy-light-bg: #F6F5FF;
+  --crossy-light-purple: #F3F1FF;
+}
+
+/* Base Styles */
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(180deg, var(--background-start) 0%, var(--background-end) 100%);
-  background-attachment: fixed;
-  min-height: 100vh;
+  font-family: 'Inter', sans-serif;
+  background-color: #F6F5FF;
+  color: #2A1E5C;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-html {
-  -webkit-text-size-adjust: 100%;
-  -webkit-tap-highlight-color: transparent;
+  min-height: 100vh;
 }
 
 /* Fun floating shapes background */
@@ -587,4 +594,426 @@ a.fun-link:hover::after {
 
 .animate-slide-in {
   animation: slide-in 0.3s ease-out;
+}
+
+/* ============================================ */
+/* CROSSY DESIGN SYSTEM - Custom Components    */
+/* ============================================ */
+
+/* Typography */
+.font-pixel {
+  font-family: 'Press Start 2P', cursive;
+}
+
+.font-display {
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+/* Card Styles */
+.crossy-card {
+  background: white;
+  border-radius: 24px;
+  border: 3px solid #2A1E5C;
+  box-shadow: 0 8px 0 rgba(42, 30, 92, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.crossy-card:hover {
+  box-shadow: 0 10px 0 rgba(42, 30, 92, 0.12);
+}
+
+/* Button Styles */
+.crossy-button {
+  background: #7B61FF;
+  color: white;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  padding: 12px 24px;
+  border-radius: 14px;
+  border: 2px solid #2A1E5C;
+  box-shadow: 0 4px 0 rgba(42, 30, 92, 0.2);
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.crossy-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 rgba(42, 30, 92, 0.2);
+  background: #6B51EF;
+}
+
+.crossy-button:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 rgba(42, 30, 92, 0.2);
+}
+
+.crossy-button-secondary {
+  background: white;
+  color: #2A1E5C;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  padding: 12px 24px;
+  border-radius: 14px;
+  border: 2px solid #2A1E5C;
+  box-shadow: 0 4px 0 rgba(42, 30, 92, 0.1);
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.crossy-button-secondary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 rgba(42, 30, 92, 0.1);
+  background: #F3F1FF;
+}
+
+.crossy-button-secondary:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 rgba(42, 30, 92, 0.1);
+}
+
+/* Speech Bubble */
+.speech-bubble {
+  background: white;
+  border-radius: 18px;
+  border: 3px solid #2A1E5C;
+  padding: 16px 24px;
+  position: relative;
+  box-shadow: 0 4px 0 rgba(42, 30, 92, 0.1);
+}
+
+.speech-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
+  border-top: 14px solid #2A1E5C;
+}
+
+.speech-bubble::before {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 12px solid white;
+  z-index: 1;
+}
+
+/* Grid Background */
+.grid-bg {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, #7B61FF 1.5px, transparent 1.5px);
+  background-size: 28px 28px;
+  opacity: 0.2;
+  pointer-events: none;
+}
+
+/* Difficulty Tags */
+.tag-easy {
+  background: #2ECC71;
+  color: white;
+  font-size: 11px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+
+.tag-medium {
+  background: #F59E0B;
+  color: white;
+  font-size: 11px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+
+.tag-hard {
+  background: #FF4D6A;
+  color: white;
+  font-size: 11px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+
+/* Game Cells for Gameplay Page - LARGE for all screens */
+.game-cell-large {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  border: 2px solid #2A1E5C;
+  background: white;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  transition: all 0.1s ease;
+  border-radius: 8px;
+}
+
+@media (min-width: 640px) {
+  .game-cell-large {
+    width: 64px;
+    height: 64px;
+    font-size: 26px;
+    border-radius: 10px;
+    border-width: 3px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .game-cell-large {
+    width: 72px;
+    height: 72px;
+    font-size: 28px;
+  }
+}
+
+/* Legacy game-cell for compatibility */
+.game-cell {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  border: 2px solid #2A1E5C;
+  background: white;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  transition: all 0.1s ease;
+  border-radius: 8px;
+}
+
+@media (min-width: 640px) {
+  .game-cell {
+    width: 64px;
+    height: 64px;
+    font-size: 26px;
+    border-radius: 10px;
+    border-width: 3px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .game-cell {
+    width: 72px;
+    height: 72px;
+    font-size: 28px;
+  }
+}
+
+.game-cell:hover:not(.blocked) {
+  background: #F3F1FF;
+}
+
+.game-cell.selected {
+  background: #7B61FF;
+  color: white;
+  border-color: #2A1E5C;
+  box-shadow: 0 0 0 3px rgba(123, 97, 255, 0.3);
+}
+
+.game-cell.active-word {
+  background: #ECE9FF;
+}
+
+.game-cell.correct {
+  background: #2ECC71;
+  color: white;
+  border-color: #2A1E5C;
+}
+
+.game-cell.incorrect {
+  background: #FF4D6A;
+  color: white;
+  border-color: #2A1E5C;
+}
+
+.game-cell.revealed {
+  background: #F59E0B;
+  color: white;
+  border-color: #2A1E5C;
+}
+
+.game-cell.blocked {
+  background: #2A1E5C;
+  border-radius: 4px;
+}
+
+/* Crossy Animations */
+@keyframes bob {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.bob-animation {
+  animation: bob 2.5s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.pulse-glow {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+@keyframes wiggle-slow {
+  0%, 100% {
+    transform: rotate(-3deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
+}
+
+.wiggle-slow {
+  animation: wiggle-slow 3s ease-in-out infinite;
+}
+
+@keyframes celebration-pop {
+  0% {
+    transform: scale(0) rotate(-20deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1) rotate(5deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+    opacity: 1;
+  }
+}
+
+.celebration-pop {
+  animation: celebration-pop 0.6s ease-out;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F6F5FF;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D6D2FF;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #7B61FF;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #D6D2FF #F6F5FF;
+}
+
+/* Selection */
+::selection {
+  background: #7B61FF;
+  color: white;
+}
+
+/* Enhanced Focus Styles */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 2px solid #7B61FF;
+  outline-offset: 2px;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 640px) {
+  .crossy-card {
+    border-radius: 20px;
+    border-width: 2px;
+  }
+
+  .speech-bubble {
+    border-width: 2px;
+    border-radius: 14px;
+    padding: 12px 18px;
+  }
+
+  .speech-bubble::after {
+    bottom: -10px;
+    border-left-width: 10px;
+    border-right-width: 10px;
+    border-top-width: 10px;
+  }
+
+  .speech-bubble::before {
+    bottom: -7px;
+    border-left-width: 8px;
+    border-right-width: 8px;
+    border-top-width: 9px;
+  }
+
+  .crossy-button,
+  .crossy-button-secondary {
+    padding: 10px 18px;
+    font-size: 14px;
+  }
+}
+
+/* Touch Device Optimizations */
+@media (pointer: coarse) {
+  .game-cell {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .bob-animation,
+  .pulse-glow,
+  .wiggle-slow,
+  .celebration-pop {
+    animation: none !important;
+  }
+
+  * {
+    transition-duration: 0.01ms !important;
+  }
 }

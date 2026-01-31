@@ -1,0 +1,623 @@
+{
+  "name": "crossy-crossword-app",
+  "description": "Integrate the new Vite+React frontend with the existing Go backend API to create a fully functional crossword application with authentication, multiplayer, and real-time features.",
+  "branchName": "ralph/frontend-backend-integration",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Create Git Safety Checkpoint",
+      "description": "As a developer, I want to create a git checkpoint before starting integration work so that I can restore to a known-good state if needed.",
+      "acceptanceCriteria": [
+        "All current changes are committed to git",
+        "Create a git tag 'pre-integration-checkpoint' at current HEAD",
+        "Verify tag exists with 'git tag -l'",
+        "Document how to restore: 'git reset --hard pre-integration-checkpoint'",
+        "cd frontend/app && npm run build completes successfully",
+        "npm run lint passes with no errors"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "",
+      "dependsOn": []
+    },
+    {
+      "id": "US-002",
+      "title": "Environment Configuration Setup",
+      "description": "As a developer, I want environment variables configured so that the frontend can connect to the backend API.",
+      "acceptanceCriteria": [
+        "Create frontend/app/.env file with VITE_API_URL=http://localhost:8080, VITE_WS_URL=ws://localhost:8080, VITE_SITE_URL=http://localhost:5173",
+        "Create frontend/app/.env.example with same variables as template",
+        "Add .env to .gitignore if not already present",
+        "Add comment in .env.example explaining each variable",
+        "cd frontend/app && npm run build completes successfully",
+        "npm run lint passes with no errors"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "",
+      "dependsOn": []
+    },
+    {
+      "id": "US-003",
+      "title": "Install Required Dependencies",
+      "description": "As a developer, I want all necessary dependencies installed so that I can build the API integration features.",
+      "acceptanceCriteria": [
+        "Install Zustand for state management: npm install zustand",
+        "Install TanStack Query: npm install @tanstack/react-query",
+        "Install axios for HTTP requests: npm install axios",
+        "Verify all dependencies install without conflicts",
+        "Update package.json is committed",
+        "cd frontend/app && npm run build completes successfully",
+        "npm run lint passes with no errors"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "",
+      "dependsOn": []
+    },
+    {
+      "id": "US-004",
+      "title": "Create API Client Infrastructure",
+      "description": "As a developer, I want a centralized API client with all backend endpoints so that components can easily make API calls.",
+      "acceptanceCriteria": [
+        "Create src/lib/api.ts with axios instance configured to use VITE_API_URL",
+        "Add TypeScript interfaces for all API request/response types in src/types/api.ts",
+        "Implement auth endpoints: register(), login(), guestLogin()",
+        "Implement puzzle endpoints: getTodayPuzzle(), getPuzzleByDate(), getRandomPuzzle(), getPuzzleArchive()",
+        "Implement user endpoints: getMe(), getMyStats(), getMyHistory(), savePuzzleHistory()",
+        "Implement room endpoints: createRoom(), getRoomByCode(), joinRoom(), startRoom(), closeRoom()",
+        "Add axios interceptors for JWT token attachment to requests",
+        "Add error handling for network failures and API errors",
+        "cd frontend/app && npm run build completes successfully",
+        "npm run lint passes with no errors"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [
+        "US-003"
+      ]
+    },
+    {
+      "id": "US-005",
+      "title": "Create Authentication Context and Token Management",
+      "description": "As a user, I want my authentication state managed globally so that I stay logged in across page navigation.",
+      "acceptanceCriteria": [
+        "Create src/contexts/AuthContext.tsx with React Context",
+        "Implement JWT token storage in localStorage",
+        "Add user state with fields: id, email, displayName, isGuest",
+        "Add token state for JWT",
+        "Implement login(), register(), guestLogin(), logout() functions",
+        "Add isAuthenticated computed state",
+        "Wrap App component with AuthProvider in src/main.tsx",
+        "Add token refresh logic for expired tokens",
+        "cd frontend/app && npm run build completes successfully",
+        "npm run lint passes with no errors"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [
+        "US-004"
+      ]
+    },
+    {
+      "id": "US-006",
+      "title": "Create Authentication Modal UI",
+      "description": "As a user, I want to log in, register, or continue as guest via a modal so that I can access the application without leaving the current page.",
+      "acceptanceCriteria": [
+        "Create src/components/AuthModal.tsx using Radix UI Dialog",
+        "Style modal following Crossy design (purple theme, rounded corners, mascot)",
+        "Add three tabs: 'Guest', 'Login', 'Register'",
+        "Guest tab: Display name input + 'Continue as Guest' button",
+        "Login tab: Email/password inputs + 'Login' button + 'Forgot password?' link",
+        "Register tab: Email/password/display name inputs + 'Register' button",
+        "Show loading states during API calls",
+        "Display error messages from API (email taken, wrong password, etc.)",
+        "Close modal automatically on successful auth",
+        "Add Crossy mascot illustration to modal header",
+        "cd frontend/app && npm run build completes successfully",
+        "npm run lint passes with no errors",
+        "Verify in browser: modal opens, tabs work, form validation, API integration, closes on success"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [
+        "US-005"
+      ]
+    },
+    {
+      "id": "US-007",
+      "title": "Add Authentication to Navigation",
+      "description": "As a user, I want to see my login status in the navigation and be able to log in/out so that I can access protected features.",
+      "acceptanceCriteria": [
+        "Update navbar in src/components/Header.tsx or create if missing",
+        "Show 'Login' button when not authenticated (opens AuthModal)",
+        "Show user display name + avatar when authenticated",
+        "Add dropdown menu with: 'Profile', 'History', 'Logout' options",
+        "Logout clears token and user state",
+        "Style following Landing page navbar design",
+        "Add Crossy small mascot icon next to user name",
+        "cd frontend/app && npm run build completes successfully",
+        "npm run lint passes with no errors",
+        "Verify in browser: login button appears, dropdown works, logout clears state"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [
+        "US-006"
+      ]
+    },
+    {
+      "id": "US-008",
+      "title": "Create WebSocket Hook Infrastructure",
+      "description": "As a developer, I want a reusable WebSocket hook so that multiplayer features can connect to the backend in real-time.",
+      "acceptanceCriteria": [
+        "Create src/hooks/useWebSocket.ts custom hook",
+        "Accept roomCode and token as parameters",
+        "Connect to ${VITE_WS_URL}/api/rooms/${roomCode}/ws?token=${token}",
+        "Implement automatic reconnection with exponential backoff (1s, 2s, 4s, 8s max)",
+        "Add connection state: 'connecting', 'connected', 'disconnected', 'error'",
+        "Implement sendMessage(type, payload) function",
+        "Implement on(messageType, handler) for listening to server messages",
+        "Clean up WebSocket connection on unmount",
+        "Add TypeScript types for all WebSocket message types",
+        "cd frontend/app && npm run build completes successfully",
+        "npm run lint passes with no errors"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [
+        "US-003"
+      ]
+    },
+    {
+      "id": "US-009",
+      "title": "Create Game State Store",
+      "description": "As a developer, I want centralized game state management so that game data is consistent across components.",
+      "acceptanceCriteria": [
+        "Create src/store/gameStore.ts using Zustand",
+        "Add state for: currentPuzzle, grid, selectedCell, direction, timer, progress",
+        "Add state for multiplayer: room, players, gameMode, currentTurn",
+        "Add actions: setPuzzle(), updateCell(), selectCell(), toggleDirection()",
+        "Add actions: setRoom(), addPlayer(), removePlayer(), updatePlayerCursor()",
+        "Add computed values: isComplete, filledCells, progressPercent",
+        "Add TypeScript interfaces for all state shapes",
+        "Initialize store in src/main.tsx",
+        "cd frontend/app && npm run build completes successfully",
+        "npm run lint passes with no errors"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [
+        "US-003"
+      ]
+    },
+    {
+      "id": "US-010",
+      "title": "Update Gameplay Page with Real Puzzle Loading",
+      "description": "As a user, I want to play real crossword puzzles from the backend instead of hardcoded data.",
+      "acceptanceCriteria": [
+        "Update src/pages/GameplayPage.tsx to fetch puzzle on mount using getTodayPuzzle()",
+        "Show loading skeleton while puzzle loads (use existing skeleton from components/ui)",
+        "Initialize grid from puzzle data (width, height, cells, clues)",
+        "Map puzzle clues to UI (across/down lists with numbers)",
+        "Remove hardcoded PUZZLE_DATA constant",
+        "Handle puzzle load errors with error message and retry button",
+        "Save puzzle progress to backend on completion using savePuzzleHistory()",
+        "Show success modal with stats when puzzle is completed",
+        "cd frontend/app && npm run build completes successfully",
+        "npm run lint passes with no errors",
+        "Verify in browser: puzzle loads from backend, grid works, completion saves to backend"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [
+        "US-004",
+        "US-009"
+      ]
+    },
+    {
+      "id": "US-011",
+      "title": "Create Profile Page",
+      "description": "As a user, I want to view my profile with statistics so that I can track my crossword performance.",
+      "acceptanceCriteria": [
+        "Create src/pages/ProfilePage.tsx following Crossy design language",
+        "Fetch user data with getMe() and stats with getMyStats() on mount",
+        "Display user info: display name, email (if not guest), join date",
+        "Display stats in card grid: puzzles solved, avg solve time, current streak, best streak, multiplayer wins",
+        "Use purple gradient cards with playful stat animations",
+        "Add Crossy mascot illustrations (from /public/crossy-*.png)",
+        "Show different mascot based on achievement level (e.g., crossy-cheer for high streak)",
+        "Add 'Edit Profile' button (functionality in future story)",
+        "Show loading state while fetching data",
+        "Require authentication (redirect to home with auth modal if not logged in)",
+        "cd frontend/app && npm run build completes successfully",
+        "npm run lint passes with no errors",
+        "Verify in browser: page loads, stats display, auth required, mascots appear"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [
+        "US-004",
+        "US-005"
+      ]
+    },
+    {
+      "id": "US-012",
+      "title": "Create History Page",
+      "description": "As a user, I want to view my puzzle completion history so that I can review past games.",
+      "acceptanceCriteria": [
+        "Create src/pages/HistoryPage.tsx following Crossy design language",
+        "Fetch puzzle history with getMyHistory() on mount",
+        "Display history as cards/list with: puzzle date, completion time, accuracy, difficulty",
+        "Add filters: 'All', 'This Week', 'This Month', 'This Year'",
+        "Add sort options: 'Recent', 'Fastest', 'Best Accuracy'",
+        "Show 'Play Again' button for each puzzle (loads that puzzle in GameplayPage)",
+        "Show empty state with Crossy mascot when no history exists",
+        "Use purple card design with hover effects",
+        "Show loading skeleton while fetching",
+        "Require authentication (redirect if not logged in)",
+        "cd frontend/app && npm run build completes successfully",
+        "npm run lint passes with no errors",
+        "Verify in browser: history loads, filters work, play again works, empty state shows"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [
+        "US-004",
+        "US-005"
+      ]
+    },
+    {
+      "id": "US-013",
+      "title": "Create Archive Page",
+      "description": "As a user, I want to browse and play past puzzles so that I can solve puzzles I missed.",
+      "acceptanceCriteria": [
+        "Create src/pages/ArchivePage.tsx following Crossy design language",
+        "Fetch archive with getPuzzleArchive() on mount",
+        "Display puzzles in grid of cards showing: date, title, difficulty, size (e.g., '15x15')",
+        "Add calendar icon for date, use crossy-calendar.png mascot",
+        "Add difficulty badges (Easy/Medium/Hard) with color coding",
+        "Clicking a puzzle card navigates to /play?date=YYYY-MM-DD",
+        "Add pagination if archive has many puzzles",
+        "Add search/filter by date range or difficulty",
+        "Show completed checkmark on puzzles user has solved",
+        "Use purple theme with card animations on hover",
+        "cd frontend/app && npm run build completes successfully",
+        "npm run lint passes with no errors",
+        "Verify in browser: archive loads, cards display, navigation works, filters work"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [
+        "US-004"
+      ]
+    },
+    {
+      "id": "US-014",
+      "title": "Create Multiplayer - Create Room Page",
+      "description": "As a user, I want to create a multiplayer room so that I can play with friends.",
+      "acceptanceCriteria": [
+        "Create src/pages/CreateRoomPage.tsx following Crossy design language",
+        "Add form with fields: room name, game mode (collaborative/race/relay), max players",
+        "Game mode selector with descriptions and icons: Collaborative: 'Work together to solve the puzzle', Race: 'First to finish wins', Relay: 'Take turns solving'",
+        "Add puzzle selector: 'Today's Puzzle', 'Random Puzzle', 'Choose from Archive'",
+        "Call createRoom() API on form submit",
+        "On success, navigate to /room/{roomCode} (lobby page)",
+        "Show loading state during room creation",
+        "Display errors if room creation fails",
+        "Require authentication",
+        "Add Crossy mascot illustration (crossy-chat.png for multiplayer theme)",
+        "cd frontend/app && npm run build completes successfully",
+        "npm run lint passes with no errors",
+        "Verify in browser: form works, modes selectable, room creates, navigation happens"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [
+        "US-004",
+        "US-005"
+      ]
+    },
+    {
+      "id": "US-015",
+      "title": "Create Multiplayer - Join Room Page",
+      "description": "As a user, I want to join an existing room by code so that I can play with friends.",
+      "acceptanceCriteria": [
+        "Create src/pages/JoinRoomPage.tsx following Crossy design language",
+        "Add large input field for 6-character room code",
+        "Format input as uppercase, auto-advance cursor",
+        "Add 'Join Room' button that calls getRoomByCode() then joinRoom()",
+        "On success, navigate to /room/{roomCode} (lobby page)",
+        "Show error if room not found or is full",
+        "Show loading state during join",
+        "Add 'Create Room Instead' link to CreateRoomPage",
+        "Require authentication",
+        "Add Crossy mascot illustration (crossy-cheer.png)",
+        "cd frontend/app && npm run build completes successfully",
+        "npm run lint passes with no errors",
+        "Verify in browser: code input works, validation works, join works, errors show"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [
+        "US-004",
+        "US-005"
+      ]
+    },
+    {
+      "id": "US-016",
+      "title": "Create Multiplayer - Room Lobby Page",
+      "description": "As a user, I want to see who's in my room and start the game when ready.",
+      "acceptanceCriteria": [
+        "Create src/pages/RoomLobbyPage.tsx following Crossy design language",
+        "Display room code prominently with 'Copy' button",
+        "Connect to WebSocket for room updates",
+        "Show player list with avatars, names, and colored indicators",
+        "Update player list in real-time when players join/leave",
+        "Show host indicator (crown icon) next to host player",
+        "Display game mode and puzzle info",
+        "Host sees 'Start Game' button (calls startRoom())",
+        "Non-host sees 'Waiting for host to start...'",
+        "Add 'Leave Room' button (closes room if host, else just leaves)",
+        "Navigate to /room/{roomCode}/play when game starts",
+        "Show Crossy mascot (crossy-popcorn.png for waiting)",
+        "cd frontend/app && npm run build completes successfully",
+        "npm run lint passes with no errors",
+        "Verify in browser: lobby shows, players update real-time, start works, navigation happens"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [
+        "US-008",
+        "US-014",
+        "US-015"
+      ]
+    },
+    {
+      "id": "US-017",
+      "title": "Create Multiplayer - Active Game Page",
+      "description": "As a user, I want to play crossword puzzles in real-time with other players.",
+      "acceptanceCriteria": [
+        "Create src/pages/MultiplayerGamePage.tsx following Crossy design language",
+        "Reuse crossword grid component from GameplayPage",
+        "Connect to WebSocket and subscribe to game events",
+        "Send cell_update message when user types in cell",
+        "Listen for cell_updated and update grid from other players",
+        "Send cursor_move when user selects different cell",
+        "Listen for cursor_moved and show other players' cursors with colored indicators",
+        "Show player list sidebar with colored avatars",
+        "Highlight current turn player in Relay mode",
+        "Show progress bars for each player in Race mode",
+        "Listen for puzzle_completed and show winner modal",
+        "Add timer synchronized across all players",
+        "Show 'Leave Game' button (returns to lobby or home)",
+        "cd frontend/app && npm run build completes successfully",
+        "npm run lint passes with no errors",
+        "Verify in browser: game loads, real-time updates work, cursors show, winner modal appears"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [
+        "US-016",
+        "US-009"
+      ]
+    },
+    {
+      "id": "US-018",
+      "title": "Add Chat System to Multiplayer",
+      "description": "As a user, I want to chat with other players during multiplayer games.",
+      "acceptanceCriteria": [
+        "Create src/components/ChatPanel.tsx following Crossy design",
+        "Add chat panel to MultiplayerGamePage (collapsible sidebar)",
+        "Display chat messages with sender name and timestamp",
+        "Add input field and send button at bottom",
+        "Send chat via WebSocket send_message event",
+        "Listen for new_message event and append to chat",
+        "Auto-scroll to newest message",
+        "Show typing indicators when players are typing",
+        "Add unread message count badge when panel is collapsed",
+        "Use purple theme with speech bubble design",
+        "Add Crossy mascot (crossy-chat.png) to panel header",
+        "cd frontend/app && npm run build completes successfully",
+        "npm run lint passes with no errors",
+        "Verify in browser: chat sends/receives, auto-scroll works, typing indicators show"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [
+        "US-017"
+      ]
+    },
+    {
+      "id": "US-019",
+      "title": "Add Reactions System to Multiplayer",
+      "description": "As a user, I want to send emoji reactions during games to celebrate or encourage others.",
+      "acceptanceCriteria": [
+        "Create src/components/ReactionPicker.tsx with emoji grid",
+        "Add reaction button to multiplayer game UI (smiley icon)",
+        "Show picker with emojis: 👍 🎉 🔥 ❤️ 😂 🤔 💪 ⭐",
+        "Send reaction via WebSocket reaction event",
+        "Listen for reaction_added and display animated emoji over grid",
+        "Animate emoji floating up and fading out (1.5s animation)",
+        "Show reaction sender name briefly below emoji",
+        "Allow rapid reactions with cooldown (prevent spam)",
+        "Use Crossy color scheme for reaction picker",
+        "Add sound effect on reaction (optional, can be muted)",
+        "cd frontend/app && npm run build completes successfully",
+        "npm run lint passes with no errors",
+        "Verify in browser: reactions send, animations work, cooldown prevents spam"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [
+        "US-017"
+      ]
+    },
+    {
+      "id": "US-020",
+      "title": "Update App Routing",
+      "description": "As a developer, I want all pages properly routed so that users can navigate the application.",
+      "acceptanceCriteria": [
+        "Update src/App.tsx with React Router routes for all pages: / (Landing), /play (Gameplay), /play?date=YYYY-MM-DD (specific puzzle), /profile (protected), /history (protected), /archive, /room/create (protected), /room/join (protected), /room/:code (lobby, protected), /room/:code/play (game, protected)",
+        "Add route guards for protected routes (redirect to home with auth modal)",
+        "Add 404 page with Crossy mascot (crossy-sleep.png) and 'Go Home' button",
+        "Verify all routes work with browser back/forward buttons",
+        "cd frontend/app && npm run build completes successfully",
+        "npm run lint passes with no errors",
+        "Verify in browser: all routes navigate correctly, guards work, 404 shows"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [
+        "US-011",
+        "US-012",
+        "US-013",
+        "US-014",
+        "US-015",
+        "US-016",
+        "US-017"
+      ]
+    },
+    {
+      "id": "US-021",
+      "title": "Update Navigation Header",
+      "description": "As a user, I want consistent navigation across all pages so that I can easily move around the app.",
+      "acceptanceCriteria": [
+        "Create or update src/components/Header.tsx with navigation",
+        "Include on all pages except Landing (Landing has its own navbar)",
+        "Add navigation links: 'Play', 'Archive', 'Multiplayer', 'Profile', 'History'",
+        "Highlight active page in navigation",
+        "Show auth status (login button or user menu) from US-007",
+        "Use Crossy design: purple gradient, pixel font for logo",
+        "Add Crossy small mascot logo that links to home",
+        "Make responsive for mobile (hamburger menu)",
+        "Follow Landing page navbar style for consistency",
+        "cd frontend/app && npm run build completes successfully",
+        "npm run lint passes with no errors",
+        "Verify in browser: header appears on all pages, links work, active highlight works, responsive works"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [
+        "US-007",
+        "US-020"
+      ]
+    },
+    {
+      "id": "US-022",
+      "title": "Add TanStack Query Provider Setup",
+      "description": "As a developer, I want TanStack Query configured for data fetching and caching.",
+      "acceptanceCriteria": [
+        "Create src/lib/queryClient.ts with QueryClient configuration",
+        "Set default staleTime, cacheTime, and retry logic",
+        "Wrap App with QueryClientProvider in src/main.tsx",
+        "Add React Query DevTools in development mode",
+        "Configure error handling for failed queries",
+        "Add global loading indicator for queries (optional, use Crossy spinner)",
+        "cd frontend/app && npm run build completes successfully",
+        "npm run lint passes with no errors"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [
+        "US-003"
+      ]
+    },
+    {
+      "id": "US-023",
+      "title": "Update Landing Page CTAs",
+      "description": "As a user, I want the landing page to guide me to authenticated actions.",
+      "acceptanceCriteria": [
+        "Update 'Play Now' buttons to check auth status",
+        "If not authenticated, open AuthModal instead of navigating",
+        "After auth, navigate to /play",
+        "Update archive section to link to /archive",
+        "Add 'Play Multiplayer' CTA that links to /room/create",
+        "Ensure all links work and auth flow is smooth",
+        "cd frontend/app && npm run build completes successfully",
+        "npm run lint passes with no errors",
+        "Verify in browser: CTAs work, auth modal opens when needed, navigation correct"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [
+        "US-006",
+        "US-020"
+      ]
+    },
+    {
+      "id": "US-024",
+      "title": "Add TypeScript Type Definitions",
+      "description": "As a developer, I want comprehensive TypeScript types so that the codebase is type-safe.",
+      "acceptanceCriteria": [
+        "Create src/types/index.ts with all shared types",
+        "Define types: User, Puzzle, Room, Player, GameMode, RoomState",
+        "Define types: Clue, GridCell, ChatMessage, Reaction",
+        "Create src/types/api.ts with API request/response types",
+        "Create src/types/websocket.ts with WebSocket message types",
+        "Export all types from src/types/index.ts",
+        "Ensure no 'any' types in production code",
+        "Verify TypeScript compilation with npm run build",
+        "cd frontend/app && npm run build completes successfully",
+        "npm run lint passes with no errors"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [
+        "US-003"
+      ]
+    },
+    {
+      "id": "US-025",
+      "title": "End-to-End Testing - Core User Flows",
+      "description": "As a QA tester, I want to verify all core user flows work correctly via Chrome browser testing.",
+      "acceptanceCriteria": [
+        "Flow 1 - Guest Single Player: Open landing → Play Now → Guest auth → GameplayPage loads real puzzle → Fill cells → Complete puzzle → Completion modal → Save to backend",
+        "Flow 2 - Registration and Profile: Landing → Register → Verify redirect → Navigate to Profile → Stats load and display → Crossy mascot appears",
+        "Flow 3 - Archive and History: Login → Archive page → Puzzle list loads → Click past puzzle → Complete puzzle → History page → Completed puzzle in history",
+        "Flow 4 - Multiplayer Collaborative: Two browser windows → User 1 creates room → User 2 joins with code → Both see lobby → Start game → User 1 types in cell → User 2 sees update → User 2 moves cursor → User 1 sees colored cursor",
+        "Flow 5 - Multiplayer Chat and Reactions: Two users in game → User 1 sends chat → User 2 receives immediately → User 2 replies → User 1 receives → User 1 sends reaction → Animated emoji appears on both screens → Emoji floats and fades",
+        "Flow 6 - Race Mode: Create room with Race mode → Join with second user → Start game → Progress bars show for each player → Complete puzzle faster on one user → Winner modal appears for both → Correct winner announced",
+        "Flow 7 - Relay Mode: Create room with Relay mode → Join with second user → Start game → Turn indicator shows whose turn → Only current player can edit → Complete word → Pass Turn → Turn switches to other player",
+        "Flow 8 - Error Handling: Join invalid room code → Error message shows → Access protected page without auth → Redirect and auth modal → Disconnect network mid-game → WebSocket reconnection works → UI shows disconnected state",
+        "Flow 9 - Design Consistency: Navigate all pages → Crossy purple theme on all pages → Pixel font usage for headings → Mascot images appear appropriately → Button styles match Landing page → Card designs match patterns → Responsive design works on mobile viewport",
+        "cd frontend/app && npm run build completes successfully",
+        "npm run lint passes with no errors",
+        "Verify all flows in browser using Chrome MCP"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [
+        "US-023",
+        "US-021",
+        "US-018",
+        "US-019"
+      ]
+    }
+  ],
+  "metadata": {
+    "updatedAt": "2026-01-31T00:02:57.184Z"
+  }
+}

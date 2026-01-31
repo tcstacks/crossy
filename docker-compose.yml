@@ -61,17 +61,18 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-  # Frontend Next.js App
+  # Frontend Vite App
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: crossplay-frontend
     ports:
-      - "3000:3000"
+      - "5173:5173"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8080
-      - NEXT_PUBLIC_WS_URL=ws://localhost:8080/ws
+      - VITE_API_URL=http://localhost:8080
+      - VITE_WS_URL=ws://localhost:8080
+      - VITE_SITE_URL=http://localhost:5173
     depends_on:
       - backend
 

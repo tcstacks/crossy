@@ -15,7 +15,7 @@ backend:
 
 # Run frontend server
 frontend:
-	@echo "Starting Next.js frontend on http://localhost:3000..."
+	@echo "Starting Vite frontend on http://localhost:5173..."
 	@cd frontend && npm run dev
 
 # Install all dependencies
@@ -85,14 +85,14 @@ db-down:
 clean:
 	@echo "Cleaning build artifacts..."
 	@rm -rf backend/bin
-	@rm -rf frontend/.next
+	@rm -rf frontend/dist
 	@rm -rf frontend/node_modules/.cache
 	@echo "Cleaned!"
 
-# Stop all running servers (finds and kills processes on ports 3000 and 8080)
+# Stop all running servers (finds and kills processes on ports 5173 and 8080)
 stop:
 	@echo "Stopping development servers..."
-	@-lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+	@-lsof -ti:5173 | xargs kill -9 2>/dev/null || true
 	@-lsof -ti:8080 | xargs kill -9 2>/dev/null || true
 	@echo "Servers stopped!"
 
@@ -111,7 +111,7 @@ help:
 	@echo "Development:"
 	@echo "  dev              Run both backend and frontend (default)"
 	@echo "  backend          Run only the Go backend"
-	@echo "  frontend         Run only the Next.js frontend"
+	@echo "  frontend         Run only the Vite frontend"
 	@echo "  stop             Stop all running dev servers"
 	@echo ""
 	@echo "Setup:"
@@ -128,7 +128,7 @@ help:
 	@echo "  build            Build server, admin CLI, and frontend"
 	@echo "  build-backend    Build Go server binary"
 	@echo "  build-admin      Build admin CLI binary"
-	@echo "  build-frontend   Build Next.js for production"
+	@echo "  build-frontend   Build Vite app for production"
 	@echo ""
 	@echo "Admin CLI (Puzzle Management):"
 	@echo "  admin ARGS=\"...\" Run admin CLI with arguments"

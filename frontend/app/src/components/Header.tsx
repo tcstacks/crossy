@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Menu, X, User, History, LogOut } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { Menu, X, User, History as HistoryIcon, LogOut, Users } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AuthModal } from './AuthModal';
 import {
@@ -12,14 +12,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 
-interface HeaderProps {
-  scrolled?: boolean;
-}
-
-export function Header({ scrolled = false }: HeaderProps) {
+export function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const { user, isAuthenticated, logout } = useAuth();
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
@@ -30,15 +27,22 @@ export function Header({ scrolled = false }: HeaderProps) {
     setIsOpen(false);
   };
 
+  // Check if a navigation link is active
+  const isActive = (path: string) => {
+    return location.pathname === path;
+  };
+
+  // Get link class based on active state
+  const getLinkClass = (path: string) => {
+    const baseClass = "font-display font-medium text-sm transition-colors";
+    return isActive(path)
+      ? `${baseClass} text-[#7B61FF] font-bold`
+      : `${baseClass} text-[#6B5CA8] hover:text-[#7B61FF]`;
+  };
+
   return (
     <>
-      <nav
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          scrolled
-            ? 'bg-white/95 backdrop-blur-md shadow-sm'
-            : 'bg-transparent'
-        }`}
-      >
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-[#ECE9FF] shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-2 group">
@@ -54,24 +58,21 @@ export function Header({ scrolled = false }: HeaderProps) {
             </Link>
 
             <div className="hidden md:flex items-center gap-6">
-              <a
-                href="#play"
-                className="font-display font-medium text-sm text-[#6B5CA8] hover:text-[#7B61FF] transition-colors"
-              >
+              <Link to="/play" className={getLinkClass('/play')}>
                 Play
-              </a>
-              <a
-                href="#features"
-                className="font-display font-medium text-sm text-[#6B5CA8] hover:text-[#7B61FF] transition-colors"
-              >
-                Features
-              </a>
-              <a
-                href="#archive"
-                className="font-display font-medium text-sm text-[#6B5CA8] hover:text-[#7B61FF] transition-colors"
-              >
+              </Link>
+              <Link to="/archive" className={getLinkClass('/archive')}>
                 Archive
-              </a>
+              </Link>
+              <Link to="/room/create" className={getLinkClass('/room/create')}>
+                Multiplayer
+              </Link>
+              <Link to="/profile" className={getLinkClass('/profile')}>
+                Profile
+              </Link>
+              <Link to="/history" className={getLinkClass('/history')}>
+                History
+              </Link>
 
               {isAuthenticated && user ? (
                 <DropdownMenu>
@@ -93,13 +94,17 @@ export function Header({ scrolled = false }: HeaderProps) {
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem>
-                      <User className="w-4 h-4" />
-                      <span>Profile</span>
+                    <DropdownMenuItem asChild>
+                      <Link to="/profile" className="flex items-center gap-2">
+                        <User className="w-4 h-4" />
+                        <span>Profile</span>
+                      </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <History className="w-4 h-4" />
-                      <span>History</span>
+                    <DropdownMenuItem asChild>
+                      <Link to="/history" className="flex items-center gap-2">
+                        <HistoryIcon className="w-4 h-4" />
+                        <span>History</span>
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleLogout} variant="destructive">
@@ -129,27 +134,44 @@ export function Header({ scrolled = false }: HeaderProps) {
           {isOpen && (
             <div className="md:hidden absolute top-16 left-0 right-0 bg-white border-t border-[#ECE9FF] px-4 py-4 shadow-lg">
               <div className="flex flex-col gap-3">
-                <a
-                  href="#play"
+                <Link
+                  to="/play"
                   onClick={() => setIsOpen(false)}
-                  className="font-display font-medium text-[#2A1E5C] py-2"
+                  className={`font-display font-medium py-2 ${isActive('/play') ? 'text-[#7B61FF] font-bold' : 'text-[#2A1E5C]'}`}
                 >
                   Play
-                </a>
-                <a
-                  href="#features"
+                </Link>
+                <Link
+                  to="/archive"
                   onClick={() => setIsOpen(false)}
-                  className="font-display font-medium text-[#2A1E5C] py-2"
-                >
-                  Features
-                </a>
-                <a
-                  href="#archive"
-                  onClick={() => setIsOpen(false)}
-                  className="font-display font-medium text-[#2A1E5C] py-2"
+                  className={`font-display font-medium py-2 ${isActive('/archive') ? 'text-[#7B61FF] font-bold' : 'text-[#2A1E5C]'}`}
                 >
                   Archive
-                </a>
+                </Link>
+                <Link
+                  to="/room/create"
+                  onClick={() => setIsOpen(false)}
+                  className={`font-display font-medium py-2 ${isActive('/room/create') ? 'text-[#7B61FF] font-bold' : 'text-[#2A1E5C]'}`}
+                >
+                  <Users className="w-4 h-4 inline mr-2" />
+                  Multiplayer
+                </Link>
+                <Link
+                  to="/profile"
+                  onClick={() => setIsOpen(false)}
+                  className={`font-display font-medium py-2 ${isActive('/profile') ? 'text-[#7B61FF] font-bold' : 'text-[#2A1E5C]'}`}
+                >
+                  <User className="w-4 h-4 inline mr-2" />
+                  Profile
+                </Link>
+                <Link
+                  to="/history"
+                  onClick={() => setIsOpen(false)}
+                  className={`font-display font-medium py-2 ${isActive('/history') ? 'text-[#7B61FF] font-bold' : 'text-[#2A1E5C]'}`}
+                >
+                  <HistoryIcon className="w-4 h-4 inline mr-2" />
+                  History
+                </Link>
 
                 {isAuthenticated && user ? (
                   <>
@@ -167,20 +189,6 @@ export function Header({ scrolled = false }: HeaderProps) {
                         {user.username}
                       </span>
                     </div>
-                    <button
-                      onClick={() => setIsOpen(false)}
-                      className="font-display font-medium text-[#2A1E5C] py-2 text-left"
-                    >
-                      <User className="w-4 h-4 inline mr-2" />
-                      Profile
-                    </button>
-                    <button
-                      onClick={() => setIsOpen(false)}
-                      className="font-display font-medium text-[#2A1E5C] py-2 text-left"
-                    >
-                      <History className="w-4 h-4 inline mr-2" />
-                      History
-                    </button>
                     <button
                       onClick={() => {
                         handleLogout();

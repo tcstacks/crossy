@@ -1,11 +1,15 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Header } from '@/components/Header';
 
 export default function NotFoundPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/20">
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+      <Header />
+      <div className="h-16" />
+      <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
       <div className="text-center space-y-8 px-4">
         <div className="flex justify-center">
           <img
@@ -32,6 +36,7 @@ export default function NotFoundPage() {
         >
           Go Home
         </Button>
+      </div>
       </div>
     </div>
   );

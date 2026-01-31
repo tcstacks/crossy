@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  Home,
-  Volume2,
   Copy,
   Crown,
   LogOut,
@@ -11,6 +9,7 @@ import {
 } from 'lucide-react';
 import { roomApi, getToken } from '../lib/api';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { Header } from '@/components/Header';
 import type { Room, RoomPlayer, PlayerJoinedPayload, PlayerLeftPayload, GameStartedPayload, RoomClosedPayload } from '../types';
 
 // Player colors for visual distinction
@@ -220,25 +219,8 @@ function RoomLobbyPage() {
 
   return (
     <div className="min-h-screen bg-[#F6F5FF]">
-      {/* Header */}
-      <header className="bg-white border-b border-[#ECE9FF]">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="flex items-center justify-between h-14">
-            <Link to="/" className="flex items-center gap-2">
-              <img src="/crossy-small.png" alt="Crossy" className="w-8 h-8" />
-              <span className="font-display font-semibold text-[#2A1E5C]">Crossy</span>
-            </Link>
-            <div className="flex items-center gap-3">
-              <Link to="/" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF] transition-colors">
-                <Home className="w-5 h-5" />
-              </Link>
-              <button className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF] transition-colors">
-                <Volume2 className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header />
+      <div className="h-16" />
 
       <main className="max-w-4xl mx-auto px-4 py-8">
         {/* Page Title */}

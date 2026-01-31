@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Home,
-  Volume2,
   Clock,
   Flame,
   Check,
@@ -17,6 +15,7 @@ import {
 import { puzzleApi } from '../lib/api';
 import { userApi } from '../lib/api';
 import { Skeleton } from '../components/ui/skeleton';
+import { Header } from '@/components/Header';
 import type { Puzzle } from '../types/api';
 
 // Types
@@ -352,25 +351,9 @@ function GameplayPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F6F5FF]">
-        {/* Header */}
-        <header className="bg-white border-b border-[#ECE9FF]">
-          <div className="max-w-6xl mx-auto px-4">
-            <div className="flex items-center justify-between h-14">
-              <Link to="/" className="flex items-center gap-2">
-                <img src="/crossy-small.png" alt="Crossy" className="w-8 h-8" />
-                <span className="font-display font-semibold text-[#2A1E5C]">Crossy</span>
-              </Link>
-              <div className="flex items-center gap-3">
-                <Link to="/" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF] transition-colors">
-                  <Home className="w-5 h-5" />
-                </Link>
-                <button className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF] transition-colors">
-                  <Volume2 className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </header>
+        <Header />
+        {/* Add spacing for fixed header */}
+        <div className="h-16" />
 
         {/* Loading skeleton */}
         <main className="max-w-3xl mx-auto px-4 py-6">
@@ -388,25 +371,9 @@ function GameplayPage() {
   if (error) {
     return (
       <div className="min-h-screen bg-[#F6F5FF]">
-        {/* Header */}
-        <header className="bg-white border-b border-[#ECE9FF]">
-          <div className="max-w-6xl mx-auto px-4">
-            <div className="flex items-center justify-between h-14">
-              <Link to="/" className="flex items-center gap-2">
-                <img src="/crossy-small.png" alt="Crossy" className="w-8 h-8" />
-                <span className="font-display font-semibold text-[#2A1E5C]">Crossy</span>
-              </Link>
-              <div className="flex items-center gap-3">
-                <Link to="/" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF] transition-colors">
-                  <Home className="w-5 h-5" />
-                </Link>
-                <button className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF] transition-colors">
-                  <Volume2 className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </header>
+        <Header />
+        {/* Add spacing for fixed header */}
+        <div className="h-16" />
 
         {/* Error message */}
         <main className="max-w-3xl mx-auto px-4 py-12">
@@ -433,25 +400,9 @@ function GameplayPage() {
 
   return (
     <div className="min-h-screen bg-[#F6F5FF]">
-      {/* Header */}
-      <header className="bg-white border-b border-[#ECE9FF]">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="flex items-center justify-between h-14">
-            <Link to="/" className="flex items-center gap-2">
-              <img src="/crossy-small.png" alt="Crossy" className="w-8 h-8" />
-              <span className="font-display font-semibold text-[#2A1E5C]">Crossy</span>
-            </Link>
-            <div className="flex items-center gap-3">
-              <Link to="/" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF] transition-colors">
-                <Home className="w-5 h-5" />
-              </Link>
-              <button className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF] transition-colors">
-                <Volume2 className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header />
+      {/* Add spacing for fixed header */}
+      <div className="h-16" />
 
       {/* Title Bar */}
       <div className="bg-white border-b border-[#ECE9FF]">

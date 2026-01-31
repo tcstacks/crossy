@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  Home,
-  Volume2,
   Clock,
   LogOut,
   Users,
@@ -16,6 +14,7 @@ import { Skeleton } from '../components/ui/skeleton';
 import { ChatPanel } from '../components/ChatPanel';
 import { ReactionPicker } from '../components/ReactionPicker';
 import { ReactionAnimation } from '../components/ReactionAnimation';
+import { Header } from '@/components/Header';
 import type {
   Puzzle,
   Room,
@@ -509,16 +508,8 @@ function MultiplayerGamePage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F6F5FF]">
-        <header className="bg-white border-b border-[#ECE9FF]">
-          <div className="max-w-6xl mx-auto px-4">
-            <div className="flex items-center justify-between h-14">
-              <Link to="/" className="flex items-center gap-2">
-                <img src="/crossy-small.png" alt="Crossy" className="w-8 h-8" />
-                <span className="font-display font-semibold text-[#2A1E5C]">Crossy</span>
-              </Link>
-            </div>
-          </div>
-        </header>
+        <Header />
+        <div className="h-16" />
 
         <main className="max-w-6xl mx-auto px-4 py-6">
           <div className="space-y-6">
@@ -535,16 +526,8 @@ function MultiplayerGamePage() {
   if (error) {
     return (
       <div className="min-h-screen bg-[#F6F5FF]">
-        <header className="bg-white border-b border-[#ECE9FF]">
-          <div className="max-w-6xl mx-auto px-4">
-            <div className="flex items-center justify-between h-14">
-              <Link to="/" className="flex items-center gap-2">
-                <img src="/crossy-small.png" alt="Crossy" className="w-8 h-8" />
-                <span className="font-display font-semibold text-[#2A1E5C]">Crossy</span>
-              </Link>
-            </div>
-          </div>
-        </header>
+        <Header />
+        <div className="h-16" />
 
         <main className="max-w-3xl mx-auto px-4 py-12">
           <div className="crossy-card p-8 text-center">
@@ -572,44 +555,8 @@ function MultiplayerGamePage() {
       {/* Reaction Animations */}
       <ReactionAnimation reactions={reactions} />
 
-      {/* Header */}
-      <header className="bg-white border-b border-[#ECE9FF]">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="flex items-center justify-between h-14">
-            <Link to="/" className="flex items-center gap-2">
-              <img src="/crossy-small.png" alt="Crossy" className="w-8 h-8" />
-              <span className="font-display font-semibold text-[#2A1E5C]">Crossy</span>
-            </Link>
-            <div className="flex items-center gap-3">
-              <Link to="/" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF] transition-colors">
-                <Home className="w-5 h-5" />
-              </Link>
-              <button className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF] transition-colors">
-                <Volume2 className="w-5 h-5" />
-              </button>
-              <div className="relative">
-                <button
-                  onClick={toggleReactionPicker}
-                  disabled={reactionCooldown}
-                  className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors ${
-                    reactionCooldown
-                      ? 'bg-[#ECE9FF] text-[#6B5CA8]/50 cursor-not-allowed'
-                      : 'bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF]'
-                  }`}
-                  title={reactionCooldown ? 'Cooldown active' : 'Send reaction'}
-                >
-                  <Smile className="w-5 h-5" />
-                </button>
-                <ReactionPicker
-                  isOpen={isReactionPickerOpen}
-                  onClose={() => setIsReactionPickerOpen(false)}
-                  onReactionSelect={handleReactionSelect}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header />
+      <div className="h-16" />
 
       {/* Title Bar */}
       <div className="bg-white border-b border-[#ECE9FF]">
@@ -637,6 +584,25 @@ function MultiplayerGamePage() {
                 <span className="font-display text-xs text-[#6B5CA8]">
                   {connectionState === 'connected' ? 'Live' : 'Offline'}
                 </span>
+              </div>
+              <div className="relative">
+                <button
+                  onClick={toggleReactionPicker}
+                  disabled={reactionCooldown}
+                  className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors ${
+                    reactionCooldown
+                      ? 'bg-[#ECE9FF] text-[#6B5CA8]/50 cursor-not-allowed'
+                      : 'bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF]'
+                  }`}
+                  title={reactionCooldown ? 'Cooldown active' : 'Send reaction'}
+                >
+                  <Smile className="w-5 h-5" />
+                </button>
+                <ReactionPicker
+                  isOpen={isReactionPickerOpen}
+                  onClose={() => setIsReactionPickerOpen(false)}
+                  onReactionSelect={handleReactionSelect}
+                />
               </div>
             </div>
           </div>

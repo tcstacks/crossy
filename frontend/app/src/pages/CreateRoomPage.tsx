@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
-  Home,
-  Volume2,
   Users,
   Trophy,
   Zap,
@@ -14,6 +12,7 @@ import {
 } from 'lucide-react';
 import { roomApi, getToken } from '../lib/api';
 import { puzzleApi } from '../lib/api';
+import { Header } from '@/components/Header';
 import type { Puzzle } from '../types/api';
 
 type GameMode = 'collaborative' | 'race' | 'relay';
@@ -120,25 +119,8 @@ function CreateRoomPage() {
 
   return (
     <div className="min-h-screen bg-[#F6F5FF]">
-      {/* Header */}
-      <header className="bg-white border-b border-[#ECE9FF]">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="flex items-center justify-between h-14">
-            <Link to="/" className="flex items-center gap-2">
-              <img src="/crossy-small.png" alt="Crossy" className="w-8 h-8" />
-              <span className="font-display font-semibold text-[#2A1E5C]">Crossy</span>
-            </Link>
-            <div className="flex items-center gap-3">
-              <Link to="/" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF] transition-colors">
-                <Home className="w-5 h-5" />
-              </Link>
-              <button className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF] transition-colors">
-                <Volume2 className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header />
+      <div className="h-16" />
 
       <main className="max-w-2xl mx-auto px-4 py-8">
         {/* Page Title */}

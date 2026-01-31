@@ -63,15 +63,7 @@ interface ArchivePuzzle {
 
 // Navbar Component with scroll detection
 function Navbar() {
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 50);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  return <Header scrolled={scrolled} />;
+  return <Header />;
 }
 
 // Hero Section

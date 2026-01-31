@@ -1,8 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Home,
-  Volume2,
   Clock,
   Trophy,
   Target,
@@ -13,6 +11,7 @@ import {
 } from 'lucide-react';
 import { userApi, getToken } from '../lib/api';
 import { Skeleton } from '../components/ui/skeleton';
+import { Header } from '@/components/Header';
 import type { PuzzleHistory, Puzzle } from '../types/api';
 
 // Extended history type with puzzle details
@@ -146,25 +145,8 @@ function HistoryPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F6F5FF]">
-        {/* Header */}
-        <header className="bg-white border-b border-[#ECE9FF]">
-          <div className="max-w-6xl mx-auto px-4">
-            <div className="flex items-center justify-between h-14">
-              <Link to="/" className="flex items-center gap-2">
-                <img src="/crossy-small.png" alt="Crossy" className="w-8 h-8" />
-                <span className="font-display font-semibold text-[#2A1E5C]">Crossy</span>
-              </Link>
-              <div className="flex items-center gap-3">
-                <Link to="/" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF] transition-colors">
-                  <Home className="w-5 h-5" />
-                </Link>
-                <button className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF] transition-colors">
-                  <Volume2 className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </header>
+        <Header />
+        <div className="h-16" />
 
         {/* Loading skeleton */}
         <main className="max-w-4xl mx-auto px-4 py-8">
@@ -183,25 +165,8 @@ function HistoryPage() {
   if (sortedHistory.length === 0) {
     return (
       <div className="min-h-screen bg-[#F6F5FF]">
-        {/* Header */}
-        <header className="bg-white border-b border-[#ECE9FF]">
-          <div className="max-w-6xl mx-auto px-4">
-            <div className="flex items-center justify-between h-14">
-              <Link to="/" className="flex items-center gap-2">
-                <img src="/crossy-small.png" alt="Crossy" className="w-8 h-8" />
-                <span className="font-display font-semibold text-[#2A1E5C]">Crossy</span>
-              </Link>
-              <div className="flex items-center gap-3">
-                <Link to="/" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF] transition-colors">
-                  <Home className="w-5 h-5" />
-                </Link>
-                <button className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF] transition-colors">
-                  <Volume2 className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </header>
+        <Header />
+        <div className="h-16" />
 
         <main className="max-w-4xl mx-auto px-4 py-8">
           <h1 className="font-display font-bold text-3xl text-[#2A1E5C] mb-8">Puzzle History</h1>
@@ -251,25 +216,8 @@ function HistoryPage() {
 
   return (
     <div className="min-h-screen bg-[#F6F5FF]">
-      {/* Header */}
-      <header className="bg-white border-b border-[#ECE9FF]">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="flex items-center justify-between h-14">
-            <Link to="/" className="flex items-center gap-2">
-              <img src="/crossy-small.png" alt="Crossy" className="w-8 h-8" />
-              <span className="font-display font-semibold text-[#2A1E5C]">Crossy</span>
-            </Link>
-            <div className="flex items-center gap-3">
-              <Link to="/" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF] transition-colors">
-                <Home className="w-5 h-5" />
-              </Link>
-              <button className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF] transition-colors">
-                <Volume2 className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header />
+      <div className="h-16" />
 
       <main className="max-w-4xl mx-auto px-4 py-8">
         {/* Page Title */}

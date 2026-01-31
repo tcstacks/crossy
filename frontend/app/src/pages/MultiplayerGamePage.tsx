@@ -12,6 +12,7 @@ import {
 import { roomApi, puzzleApi, getToken } from '../lib/api';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { Skeleton } from '../components/ui/skeleton';
+import { ChatPanel } from '../components/ChatPanel';
 import type {
   Puzzle,
   Room,
@@ -21,6 +22,8 @@ import type {
   PlayerProgressPayload,
   GameFinishedPayload,
   PlayerCursor,
+  ChatMessagePayload,
+  TypingIndicatorPayload,
 } from '../types';
 
 // Player colors for visual distinction
@@ -422,6 +425,31 @@ function MultiplayerGamePage() {
     return progress?.progressPercent || 0;
   };
 
+  // Chat handlers
+  const handleSendChatMessage = useCallback((message: string) => {
+    if (!currentUserId || !roomCode) return;
+
+    sendMessage<ChatMessagePayload>('chat:message', {
+      message: {
+        id: `${currentUserId}-${Date.now()}`,
+        userId: currentUserId,
+        username: players.find(p => p.userId === currentUserId)?.username || 'Unknown',
+        message,
+        timestamp: Date.now(),
+      }
+    });
+  }, [currentUserId, roomCode, players, sendMessage]);
+
+  const handleTyping = useCallback((isTyping: boolean) => {
+    if (!currentUserId) return;
+
+    sendMessage<TypingIndicatorPayload>('chat:typing', {
+      userId: currentUserId,
+      username: players.find(p => p.userId === currentUserId)?.username || 'Unknown',
+      isTyping,
+    });
+  }, [currentUserId, players, sendMessage]);
+
   // Loading state
   if (loading) {
     return (
@@ -567,7 +595,7 @@ function MultiplayerGamePage() {
 
       {/* Main Game Area */}
       <main className="max-w-6xl mx-auto px-4 py-6">
-        <div className="grid lg:grid-cols-[1fr_300px] gap-6">
+        <div className="grid lg:grid-cols-[1fr_300px_350px] gap-6">
           {/* Grid Container */}
           <div>
             <div className="flex justify-center mb-6 relative">
@@ -728,6 +756,17 @@ function MultiplayerGamePage() {
                 <img src="/crossy-main.png" alt="Crossy" className="w-12 h-12" />
               </div>
             </div>
+          </div>
+
+          {/* Chat Panel */}
+          <div className="hidden lg:block h-[600px]">
+            <ChatPanel
+              roomCode={roomCode || ''}
+              currentUserId={currentUserId}
+              onSendMessage={handleSendChatMessage}
+              onTyping={handleTyping}
+              on={on}
+            />
           </div>
         </div>
       </main>

@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Users,
   Calendar,
@@ -18,6 +18,8 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { Header } from '@/components/Header';
+import { AuthModal } from '@/components/AuthModal';
+import { useAuth } from '@/contexts/AuthContext';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -68,12 +70,24 @@ function Navbar() {
 
 // Hero Section
 function Hero() {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+
   useEffect(() => {
-    gsap.fromTo('.hero-content', 
+    gsap.fromTo('.hero-content',
       { y: 30, opacity: 0 },
       { y: 0, opacity: 1, duration: 0.8, ease: 'power2.out', stagger: 0.1 }
     );
   }, []);
+
+  const handlePlayClick = () => {
+    if (isAuthenticated) {
+      navigate('/play');
+    } else {
+      setAuthModalOpen(true);
+    }
+  };
 
   return (
     <section className="relative min-h-screen flex items-center justify-center pt-16 pb-12 px-4 overflow-hidden">
@@ -126,12 +140,12 @@ function Hero() {
         </p>
         
         <div className="hero-content flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link to="/play" className="crossy-button text-lg px-8 py-4">
+          <button onClick={handlePlayClick} className="crossy-button text-lg px-8 py-4">
             <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
               <path d="M8 5v14l11-7z"/>
             </svg>
             Play Today's Puzzle
-          </Link>
+          </button>
           <a href="#features" className="crossy-button-secondary text-lg px-8 py-4">
             Learn More
             <svg className="w-5 h-5 ml-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -139,6 +153,8 @@ function Hero() {
             </svg>
           </a>
         </div>
+
+        <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
         
         <div className="hero-content mt-12 flex items-center justify-center gap-4">
           <img src="/crossy-small.png" alt="" className="w-8 h-8" />
@@ -153,6 +169,9 @@ function Hero() {
 // Daily Puzzle Section
 function DailyPuzzle() {
   const sectionRef = useRef<HTMLDivElement>(null);
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -172,6 +191,14 @@ function DailyPuzzle() {
     }, sectionRef);
     return () => ctx.revert();
   }, []);
+
+  const handlePlayClick = () => {
+    if (isAuthenticated) {
+      navigate('/play');
+    } else {
+      setAuthModalOpen(true);
+    }
+  };
 
   return (
     <section id="play" ref={sectionRef} className="relative py-16 px-4">
@@ -211,13 +238,15 @@ function DailyPuzzle() {
             </div>
             
             <div className="flex items-center gap-3 w-full sm:w-auto">
-              <Link to="/play" className="crossy-button flex-1 sm:flex-initial flex items-center justify-center gap-2">
+              <button onClick={handlePlayClick} className="crossy-button flex-1 sm:flex-initial flex items-center justify-center gap-2">
                 Play Now
                 <ArrowRight className="w-4 h-4" />
-              </Link>
+              </button>
             </div>
           </div>
         </div>
+
+        <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
       </div>
     </section>
   );
@@ -487,6 +516,9 @@ function Game() {
 // Features Section
 function Features() {
   const sectionRef = useRef<HTMLDivElement>(null);
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -507,6 +539,14 @@ function Features() {
     }, sectionRef);
     return () => ctx.revert();
   }, []);
+
+  const handleMultiplayerClick = () => {
+    if (isAuthenticated) {
+      navigate('/room/create');
+    } else {
+      setAuthModalOpen(true);
+    }
+  };
 
   const features: Feature[] = [
     { 
@@ -581,9 +621,15 @@ function Features() {
           ))}
         </div>
         
-        <div className="flex justify-center mt-8">
+        <div className="flex flex-col items-center gap-6 mt-8">
+          <button onClick={handleMultiplayerClick} className="crossy-button text-lg px-8 py-4 flex items-center gap-2">
+            <Users className="w-5 h-5" />
+            Play Multiplayer
+          </button>
           <img src="/crossy-small.png" alt="Crossy" className="w-24 h-auto bob-animation" />
         </div>
+
+        <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
       </div>
     </section>
   );
@@ -756,9 +802,10 @@ function Archive() {
         
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredPuzzles.map((puzzle, index) => (
-            <div 
-              key={index} 
-              className="archive-card crossy-card p-5 hover:-translate-y-1 transition-transform cursor-pointer"
+            <Link
+              key={index}
+              to="/archive"
+              className="archive-card crossy-card p-5 hover:-translate-y-1 transition-transform cursor-pointer block"
             >
               <div className="flex items-start justify-between mb-3">
                 <h3 className="font-display font-bold text-[#2A1E5C]">{puzzle.title}</h3>
@@ -778,14 +825,14 @@ function Archive() {
                 </span>
                 <span className="font-display text-[#6B5CA8]">{puzzle.date}</span>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
-        
+
         <div className="flex justify-center mt-8">
-          <button className="crossy-button-secondary">
-            Load More
-          </button>
+          <Link to="/archive" className="crossy-button-secondary">
+            View Full Archive
+          </Link>
         </div>
       </div>
     </section>

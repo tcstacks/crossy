@@ -4,6 +4,7 @@ import GameplayPage from './pages/GameplayPage';
 import ProfilePage from './pages/ProfilePage';
 import HistoryPage from './pages/HistoryPage';
 import ArchivePage from './pages/ArchivePage';
+import CreateRoomPage from './pages/CreateRoomPage';
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="/history" element={<HistoryPage />} />
       <Route path="/archive" element={<ArchivePage />} />
+      <Route path="/create-room" element={<CreateRoomPage />} />
     </Routes>
   );
 }

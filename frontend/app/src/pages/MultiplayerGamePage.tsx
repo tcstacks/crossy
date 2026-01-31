@@ -8,11 +8,14 @@ import {
   Users,
   Trophy,
   AlertCircle,
+  Smile,
 } from 'lucide-react';
 import { roomApi, puzzleApi, getToken } from '../lib/api';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { Skeleton } from '../components/ui/skeleton';
 import { ChatPanel } from '../components/ChatPanel';
+import { ReactionPicker } from '../components/ReactionPicker';
+import { ReactionAnimation } from '../components/ReactionAnimation';
 import type {
   Puzzle,
   Room,
@@ -24,6 +27,8 @@ import type {
   PlayerCursor,
   ChatMessagePayload,
   TypingIndicatorPayload,
+  Reaction,
+  ReactionPayload,
 } from '../types';
 
 // Player colors for visual distinction
@@ -83,8 +88,15 @@ function MultiplayerGamePage() {
   const [showWinnerModal, setShowWinnerModal] = useState(false);
   const [winner, setWinner] = useState<{ userId?: string; username?: string } | null>(null);
 
+  // Reaction state
+  const [reactions, setReactions] = useState<Reaction[]>([]);
+  const [isReactionPickerOpen, setIsReactionPickerOpen] = useState(false);
+  const [lastReactionTime, setLastReactionTime] = useState(0);
+  const [reactionCooldown, setReactionCooldown] = useState(false);
+
   const gridRef = useRef<HTMLDivElement>(null);
   const startTimeRef = useRef<number>(Date.now());
+  const REACTION_COOLDOWN_MS = 2000; // 2 second cooldown
 
   // Initialize WebSocket connection
   const { connectionState, sendMessage, on } = useWebSocket({
@@ -230,11 +242,22 @@ function MultiplayerGamePage() {
       setShowWinnerModal(true);
     });
 
+    // Reaction added
+    const unsubscribeReactionAdded = on<ReactionPayload>('reaction:added', (payload) => {
+      setReactions((prev) => [...prev, payload.reaction]);
+
+      // Remove reaction after it's done animating
+      setTimeout(() => {
+        setReactions((prev) => prev.filter((r) => r.id !== payload.reaction.id));
+      }, 1500);
+    });
+
     return () => {
       unsubscribeCellUpdated();
       unsubscribeCursorMoved();
       unsubscribePlayerProgress();
       unsubscribePuzzleCompleted();
+      unsubscribeReactionAdded();
     };
   }, [roomCode, connectionState, on, currentUserId]);
 
@@ -450,6 +473,38 @@ function MultiplayerGamePage() {
     });
   }, [currentUserId, players, sendMessage]);
 
+  // Reaction handlers
+  const handleReactionSelect = useCallback((emoji: string) => {
+    if (!currentUserId || reactionCooldown) return;
+
+    const now = Date.now();
+    if (now - lastReactionTime < REACTION_COOLDOWN_MS) {
+      return; // Still in cooldown
+    }
+
+    const reaction: Reaction = {
+      id: `${currentUserId}-${now}`,
+      userId: currentUserId,
+      username: players.find(p => p.userId === currentUserId)?.username || 'Unknown',
+      emoji,
+      timestamp: now,
+    };
+
+    sendMessage<ReactionPayload>('reaction:add', { reaction });
+
+    // Set cooldown
+    setLastReactionTime(now);
+    setReactionCooldown(true);
+
+    setTimeout(() => {
+      setReactionCooldown(false);
+    }, REACTION_COOLDOWN_MS);
+  }, [currentUserId, players, sendMessage, reactionCooldown, lastReactionTime, REACTION_COOLDOWN_MS]);
+
+  const toggleReactionPicker = () => {
+    setIsReactionPickerOpen(!isReactionPickerOpen);
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -514,6 +569,9 @@ function MultiplayerGamePage() {
 
   return (
     <div className="min-h-screen bg-[#F6F5FF]">
+      {/* Reaction Animations */}
+      <ReactionAnimation reactions={reactions} />
+
       {/* Header */}
       <header className="bg-white border-b border-[#ECE9FF]">
         <div className="max-w-6xl mx-auto px-4">
@@ -529,6 +587,25 @@ function MultiplayerGamePage() {
               <button className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF] transition-colors">
                 <Volume2 className="w-5 h-5" />
               </button>
+              <div className="relative">
+                <button
+                  onClick={toggleReactionPicker}
+                  disabled={reactionCooldown}
+                  className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors ${
+                    reactionCooldown
+                      ? 'bg-[#ECE9FF] text-[#6B5CA8]/50 cursor-not-allowed'
+                      : 'bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF]'
+                  }`}
+                  title={reactionCooldown ? 'Cooldown active' : 'Send reaction'}
+                >
+                  <Smile className="w-5 h-5" />
+                </button>
+                <ReactionPicker
+                  isOpen={isReactionPickerOpen}
+                  onClose={() => setIsReactionPickerOpen(false)}
+                  onReactionSelect={handleReactionSelect}
+                />
+              </div>
             </div>
           </div>
         </div>

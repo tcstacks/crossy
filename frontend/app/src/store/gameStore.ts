@@ -47,7 +47,7 @@ const calculateProgress = (grid: GridCell[][], puzzle: Puzzle | null): ProgressS
         totalCells++;
         if (grid[i][j].value !== null) {
           filledCells++;
-          if (grid[i][j].value === puzzle.solution[i][j]) {
+          if (puzzle.solution && grid[i][j].value === puzzle.solution[i][j]) {
             correctCells++;
           }
         }
@@ -75,7 +75,7 @@ const checkIsComplete = (grid: GridCell[][], puzzle: Puzzle | null): boolean => 
         continue;
       }
       // Check if cell is filled and correct
-      if (grid[i][j].value !== puzzle.solution[i][j]) {
+      if (!puzzle.solution || grid[i][j].value !== puzzle.solution[i][j]) {
         return false;
       }
     }
@@ -150,7 +150,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           return {
             ...cell,
             value,
-            isError: value !== null && value !== currentPuzzle.solution[i][j],
+            isError: value !== null && currentPuzzle.solution && value !== currentPuzzle.solution[i][j],
           };
         }
         return cell;

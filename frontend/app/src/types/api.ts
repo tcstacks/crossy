@@ -58,21 +58,40 @@ export interface SavePuzzleHistoryRequest {
 }
 
 // Puzzle Types
-export interface Puzzle {
-  id: string;
-  date: string;
-  difficulty: 'easy' | 'medium' | 'hard';
-  grid: number[][];
-  solution: number[][];
-  startPosition: Position;
-  endPosition: Position;
-  obstacles: Position[];
-  createdAt: string;
+export interface GridCell {
+  letter: string | null; // null = black square
+  number?: number; // clue number if start of word
+  isCircled?: boolean;
+  rebus?: string; // for rebus puzzles
 }
 
-export interface Position {
-  x: number;
-  y: number;
+export interface Clue {
+  number: number;
+  text: string;
+  answer: string;
+  positionX: number; // starting cell column
+  positionY: number; // starting cell row
+  length: number;
+  direction: 'across' | 'down';
+}
+
+export interface Puzzle {
+  id: string;
+  date?: string; // YYYY-MM-DD, optional for archive-only
+  title: string;
+  author: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  gridWidth: number;
+  gridHeight: number;
+  grid: GridCell[][] | number[][]; // Support both crossword and number-grid puzzles
+  cluesAcross: Clue[];
+  cluesDown: Clue[];
+  theme?: string;
+  avgSolveTime?: number; // seconds, populated after release
+  createdAt: string;
+  publishedAt?: string;
+  status: string; // draft, approved, published
+  solution?: number[][]; // For number-grid puzzles compatibility
 }
 
 export interface PuzzleArchiveItem {

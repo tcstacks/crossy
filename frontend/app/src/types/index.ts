@@ -12,7 +12,8 @@ export type {
   SavePuzzleHistoryRequest,
   // Puzzle Types
   Puzzle,
-  Position,
+  GridCell as ApiGridCell,
+  Clue as ApiClue,
   PuzzleArchiveItem,
   GetPuzzleByDateRequest,
   GetPuzzleArchiveRequest,

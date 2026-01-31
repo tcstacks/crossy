@@ -1,17 +1,23 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  Home, 
-  Volume2, 
-  Clock, 
-  Flame, 
-  Check, 
-  Lightbulb, 
-  Eye, 
+import {
+  Home,
+  Volume2,
+  Clock,
+  Flame,
+  Check,
+  Lightbulb,
+  Eye,
   RotateCcw,
   ArrowRight,
-  ArrowDown
+  ArrowDown,
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
+import { puzzleApi } from '../lib/api';
+import { userApi } from '../lib/api';
+import { Skeleton } from '../components/ui/skeleton';
+import type { Puzzle } from '../types/api';
 
 // Types
 interface GridCell {
@@ -32,91 +38,179 @@ interface Clue {
   col: number;
 }
 
-// 7x7 Crossword puzzle data
-const PUZZLE_DATA = {
-  grid: [
-    ['C', 'A', 'T', '', 'D', 'A', 'Y'],
-    ['O', '', 'O', '', 'A', '', 'E'],
-    ['L', 'I', 'M', 'E', 'R', '', 'A'],
-    ['O', '', 'E', '', 'K', '', 'R'],
-    ['R', '', '', '', '', '', ''],
-    ['', 'A', 'R', 'E', '', '', ''],
-    ['I', 'C', 'E', '', '', '', '']
-  ],
-  clues: {
-    across: [
-      { num: 1, clue: 'Feline pet that meows', answer: 'CAT', row: 0, col: 0 },
-      { num: 4, clue: 'Opposite of night', answer: 'DAY', row: 0, col: 4 },
-      { num: 6, clue: 'Color of grass', answer: 'LIME', row: 2, col: 0 },
-      { num: 8, clue: 'You ___ here (map phrase)', answer: 'ARE', row: 5, col: 1 },
-      { num: 9, clue: 'Frozen water', answer: 'ICE', row: 6, col: 0 }
-    ],
-    down: [
-      { num: 1, clue: 'Red, blue, green, etc.', answer: 'COLOR', row: 0, col: 0 },
-      { num: 2, clue: 'Toe or finger', answer: 'ARM', row: 0, col: 2 },
-      { num: 3, clue: 'Opposite of light', answer: 'DARK', row: 0, col: 4 },
-      { num: 5, clue: 'The year has 365 of them', answer: 'YEAR', row: 0, col: 6 },
-      { num: 7, clue: 'Opposite of early', answer: 'LATE', row: 2, col: 1 }
-    ]
-  }
-};
-
 function GameplayPage() {
-  const [grid, setGrid] = useState<GridCell[][]>(() => {
+  // Puzzle data state
+  const [puzzle, setPuzzle] = useState<Puzzle | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Game state
+  const [grid, setGrid] = useState<GridCell[][]>([]);
+  const [cluesAcross, setCluesAcross] = useState<Clue[]>([]);
+  const [cluesDown, setCluesDown] = useState<Clue[]>([]);
+  const [selectedCell, setSelectedCell] = useState<{row: number, col: number} | null>(null);
+  const [direction, setDirection] = useState<'across' | 'down'>('across');
+  const [activeClue, setActiveClue] = useState<Clue | null>(null);
+  const [clueTab, setClueTab] = useState<'across' | 'down'>('across');
+  const [timer, setTimer] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const [showCheck, setShowCheck] = useState(false);
+  const [checkedCells, setCheckedCells] = useState<Set<string>>(new Set());
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const gridRef = useRef<HTMLDivElement>(null);
+  const startTimeRef = useRef<number>(Date.now());
+
+  // Fetch puzzle on mount
+  useEffect(() => {
+    const fetchPuzzle = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const fetchedPuzzle = await puzzleApi.getTodayPuzzle();
+        setPuzzle(fetchedPuzzle);
+        initializeGridFromPuzzle(fetchedPuzzle);
+        startTimeRef.current = Date.now();
+      } catch (err: unknown) {
+        console.error('Failed to fetch puzzle:', err);
+        const errorMessage = err && typeof err === 'object' && 'message' in err
+          ? (err as { message: string }).message
+          : 'Failed to load puzzle. Please try again.';
+        setError(errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPuzzle();
+  }, []);
+
+  // Initialize grid from puzzle data
+  const initializeGridFromPuzzle = (puzzleData: Puzzle) => {
     const newGrid: GridCell[][] = [];
-    for (let row = 0; row < 7; row++) {
+
+    // Create grid from puzzle - cast to GridCell[][] to avoid type issues
+    const puzzleGrid = puzzleData.grid as import('../types/api').GridCell[][];
+
+    // Create grid from puzzle
+    for (let row = 0; row < puzzleData.gridHeight; row++) {
       const rowCells: GridCell[] = [];
-      for (let col = 0; col < 7; col++) {
+      for (let col = 0; col < puzzleData.gridWidth; col++) {
+        const cell = puzzleGrid[row][col];
         rowCells.push({
           row,
           col,
           letter: '',
-          correctLetter: PUZZLE_DATA.grid[row][col],
-          isBlocked: PUZZLE_DATA.grid[row][col] === '',
-          number: undefined
+          correctLetter: cell.letter || '',
+          isBlocked: cell.letter === null,
+          number: cell.number
         });
       }
       newGrid.push(rowCells);
     }
-    
-    // Add clue numbers
-    PUZZLE_DATA.clues.across.forEach(c => {
-      newGrid[c.row][c.col].number = c.num;
-    });
-    PUZZLE_DATA.clues.down.forEach(c => {
-      if (!newGrid[c.row][c.col].number) {
-        newGrid[c.row][c.col].number = c.num;
-      }
-    });
-    
-    return newGrid;
-  });
 
-  const [selectedCell, setSelectedCell] = useState<{row: number, col: number} | null>(null);
-  const [direction, setDirection] = useState<'across' | 'down'>('across');
-  const [activeClue, setActiveClue] = useState<Clue | null>(PUZZLE_DATA.clues.across[0]);
-  const [clueTab, setClueTab] = useState<'across' | 'down'>('across');
-  const [timer, setTimer] = useState(21);
-  const [progress, setProgress] = useState(0);
-  const [showCheck, setShowCheck] = useState(false);
-  const [checkedCells, setCheckedCells] = useState<Set<string>>(new Set());
-  
-  const gridRef = useRef<HTMLDivElement>(null);
+    setGrid(newGrid);
+
+    // Map clues from API format to UI format
+    const mappedAcross = puzzleData.cluesAcross.map(c => ({
+      num: c.number,
+      direction: 'across' as const,
+      clue: c.text,
+      answer: c.answer,
+      row: c.positionY,
+      col: c.positionX
+    }));
+
+    const mappedDown = puzzleData.cluesDown.map(c => ({
+      num: c.number,
+      direction: 'down' as const,
+      clue: c.text,
+      answer: c.answer,
+      row: c.positionY,
+      col: c.positionX
+    }));
+
+    setCluesAcross(mappedAcross);
+    setCluesDown(mappedDown);
+    setActiveClue(mappedAcross[0] || null);
+  };
+
+  // Retry loading puzzle
+  const retryLoadPuzzle = () => {
+    setLoading(true);
+    setError(null);
+    puzzleApi.getTodayPuzzle()
+      .then(fetchedPuzzle => {
+        setPuzzle(fetchedPuzzle);
+        initializeGridFromPuzzle(fetchedPuzzle);
+        startTimeRef.current = Date.now();
+      })
+      .catch(err => {
+        console.error('Failed to fetch puzzle:', err);
+        setError(err?.message || 'Failed to load puzzle. Please try again.');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
 
   // Timer effect
   useEffect(() => {
+    if (loading || error) return;
+
     const interval = setInterval(() => {
       setTimer(t => t + 1);
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [loading, error]);
 
-  // Calculate progress
+  // Handle puzzle completion
+  const handlePuzzleComplete = useCallback(async () => {
+    if (!puzzle || isSaving) return;
+
+    setShowSuccessModal(true);
+    setIsSaving(true);
+
+    const timeTaken = Math.floor((Date.now() - startTimeRef.current) / 1000);
+
+    try {
+      await userApi.savePuzzleHistory({
+        puzzleId: puzzle.id,
+        completedAt: new Date().toISOString(),
+        timeTaken,
+        moveCount: 0, // Not tracking moves for now
+        solved: true
+      });
+    } catch (err) {
+      console.error('Failed to save puzzle history:', err);
+      // Continue even if save fails - user still completed the puzzle
+    } finally {
+      setIsSaving(false);
+    }
+  }, [puzzle, isSaving]);
+
+  // Calculate progress and check for completion
   useEffect(() => {
+    if (grid.length === 0) return;
+
     const totalCells = grid.flat().filter(c => !c.isBlocked).length;
     const filledCells = grid.flat().filter(c => !c.isBlocked && c.letter !== '').length;
-    setProgress(Math.round((filledCells / totalCells) * 100));
-  }, [grid]);
+    const newProgress = Math.round((filledCells / totalCells) * 100);
+    setProgress(newProgress);
+
+    // Check if puzzle is complete and correct
+    if (newProgress === 100) {
+      const allCorrect = grid.flat().every(cell => {
+        if (cell.isBlocked) return true;
+        return cell.letter === cell.correctLetter;
+      });
+
+      if (allCorrect && puzzle && !showSuccessModal) {
+        handlePuzzleComplete();
+      }
+    }
+  }, [grid, puzzle, showSuccessModal, handlePuzzleComplete]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -138,9 +232,9 @@ function GameplayPage() {
     // Find the active clue
     const cellNum = grid[row][col].number;
     if (cellNum) {
-      const clue = direction === 'across' 
-        ? PUZZLE_DATA.clues.across.find(c => c.num === cellNum && c.row === row)
-        : PUZZLE_DATA.clues.down.find(c => c.num === cellNum && c.col === col);
+      const clue = direction === 'across'
+        ? cluesAcross.find(c => c.num === cellNum && c.row === row)
+        : cluesDown.find(c => c.num === cellNum && c.col === col);
       if (clue) setActiveClue(clue);
     }
   };
@@ -162,23 +256,27 @@ function GameplayPage() {
       setShowCheck(false);
       
       // Auto-advance
-      if (direction === 'across' && col < 6 && !grid[row][col + 1]?.isBlocked) {
+      const maxCol = grid[0]?.length || 0;
+      const maxRow = grid.length || 0;
+      if (direction === 'across' && col < maxCol - 1 && !grid[row][col + 1]?.isBlocked) {
         setSelectedCell({ row, col: col + 1 });
-      } else if (direction === 'down' && row < 6 && !grid[row + 1]?.[col]?.isBlocked) {
+      } else if (direction === 'down' && row < maxRow - 1 && !grid[row + 1]?.[col]?.isBlocked) {
         setSelectedCell({ row: row + 1, col });
       }
     } else if (e.key === 'ArrowRight') {
+      const maxCol = grid[0]?.length || 0;
       let newCol = col + 1;
-      while (newCol < 7 && grid[row][newCol]?.isBlocked) newCol++;
-      if (newCol < 7) setSelectedCell({ row, col: newCol });
+      while (newCol < maxCol && grid[row][newCol]?.isBlocked) newCol++;
+      if (newCol < maxCol) setSelectedCell({ row, col: newCol });
     } else if (e.key === 'ArrowLeft') {
       let newCol = col - 1;
       while (newCol >= 0 && grid[row][newCol]?.isBlocked) newCol--;
       if (newCol >= 0) setSelectedCell({ row, col: newCol });
     } else if (e.key === 'ArrowDown') {
+      const maxRow = grid.length || 0;
       let newRow = row + 1;
-      while (newRow < 7 && grid[newRow]?.[col]?.isBlocked) newRow++;
-      if (newRow < 7) setSelectedCell({ row: newRow, col });
+      while (newRow < maxRow && grid[newRow]?.[col]?.isBlocked) newRow++;
+      if (newRow < maxRow) setSelectedCell({ row: newRow, col });
     } else if (e.key === 'ArrowUp') {
       let newRow = row - 1;
       while (newRow >= 0 && grid[newRow]?.[col]?.isBlocked) newRow--;
@@ -211,11 +309,11 @@ function GameplayPage() {
   const revealWord = () => {
     if (!activeClue) return;
     const newGrid = [...grid];
-    
+
     if (activeClue.direction === 'across' || direction === 'across') {
       // Find the across clue for selected cell
-      const acrossClue = PUZZLE_DATA.clues.across.find(c => 
-        c.row === activeClue.row && c.col <= (selectedCell?.col || c.col) && 
+      const acrossClue = cluesAcross.find(c =>
+        c.row === activeClue.row && c.col <= (selectedCell?.col || c.col) &&
         (selectedCell?.col || c.col) < c.col + c.answer.length
       );
       if (acrossClue) {
@@ -224,8 +322,8 @@ function GameplayPage() {
         }
       }
     } else {
-      const downClue = PUZZLE_DATA.clues.down.find(c => 
-        c.col === activeClue.col && c.row <= (selectedCell?.row || c.row) && 
+      const downClue = cluesDown.find(c =>
+        c.col === activeClue.col && c.row <= (selectedCell?.row || c.row) &&
         (selectedCell?.row || c.row) < c.row + c.answer.length
       );
       if (downClue) {
@@ -249,6 +347,89 @@ function GameplayPage() {
   const isCellCorrect = (row: number, col: number) => {
     return grid[row][col].letter === grid[row][col].correctLetter;
   };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#F6F5FF]">
+        {/* Header */}
+        <header className="bg-white border-b border-[#ECE9FF]">
+          <div className="max-w-6xl mx-auto px-4">
+            <div className="flex items-center justify-between h-14">
+              <Link to="/" className="flex items-center gap-2">
+                <img src="/crossy-small.png" alt="Crossy" className="w-8 h-8" />
+                <span className="font-display font-semibold text-[#2A1E5C]">Crossy</span>
+              </Link>
+              <div className="flex items-center gap-3">
+                <Link to="/" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF] transition-colors">
+                  <Home className="w-5 h-5" />
+                </Link>
+                <button className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF] transition-colors">
+                  <Volume2 className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Loading skeleton */}
+        <main className="max-w-3xl mx-auto px-4 py-6">
+          <div className="space-y-6">
+            <Skeleton className="h-12 w-64 mx-auto" />
+            <Skeleton className="h-96 w-96 mx-auto rounded-2xl" />
+            <Skeleton className="h-48 w-full rounded-xl" />
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#F6F5FF]">
+        {/* Header */}
+        <header className="bg-white border-b border-[#ECE9FF]">
+          <div className="max-w-6xl mx-auto px-4">
+            <div className="flex items-center justify-between h-14">
+              <Link to="/" className="flex items-center gap-2">
+                <img src="/crossy-small.png" alt="Crossy" className="w-8 h-8" />
+                <span className="font-display font-semibold text-[#2A1E5C]">Crossy</span>
+              </Link>
+              <div className="flex items-center gap-3">
+                <Link to="/" className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF] transition-colors">
+                  <Home className="w-5 h-5" />
+                </Link>
+                <button className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF] transition-colors">
+                  <Volume2 className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Error message */}
+        <main className="max-w-3xl mx-auto px-4 py-12">
+          <div className="crossy-card p-8 text-center">
+            <AlertCircle className="w-16 h-16 text-[#FF4D6A] mx-auto mb-4" />
+            <h2 className="font-display font-bold text-xl text-[#2A1E5C] mb-2">
+              Oops! Something went wrong
+            </h2>
+            <p className="font-display text-[#6B5CA8] mb-6">
+              {error}
+            </p>
+            <button
+              onClick={retryLoadPuzzle}
+              className="flex items-center gap-2 px-6 py-3 bg-[#7B61FF] text-white font-display font-semibold rounded-xl border-2 border-[#2A1E5C] shadow-[0_4px_0_#2A1E5C] hover:shadow-[0_2px_0_#2A1E5C] hover:translate-y-[2px] transition-all mx-auto"
+            >
+              <RefreshCw className="w-5 h-5" />
+              Try Again
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F6F5FF]">
@@ -277,8 +458,10 @@ function GameplayPage() {
         <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="font-display font-bold text-xl text-[#2A1E5C]">Tuesday Crossword</h1>
-              <p className="font-display text-sm text-[#6B5CA8]">Easy • 7×7</p>
+              <h1 className="font-display font-bold text-xl text-[#2A1E5C]">{puzzle?.title || 'Crossword Puzzle'}</h1>
+              <p className="font-display text-sm text-[#6B5CA8]">
+                {puzzle?.difficulty ? puzzle.difficulty.charAt(0).toUpperCase() + puzzle.difficulty.slice(1) : ''} • {puzzle?.gridWidth}×{puzzle?.gridHeight}
+              </p>
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-1.5 bg-[#F3F1FF] px-3 py-1.5 rounded-full">
@@ -333,15 +516,15 @@ function GameplayPage() {
           />
           
           {/* Grid Container - white background with rounded corners */}
-          <div 
+          <div
             ref={gridRef}
             tabIndex={0}
             onKeyDown={handleKeyDown}
             className="relative bg-white rounded-2xl p-3 outline-none shadow-lg"
           >
-            <div 
+            <div
               className="grid gap-1"
-              style={{ gridTemplateColumns: 'repeat(7, 1fr)' }}
+              style={{ gridTemplateColumns: `repeat(${puzzle?.gridWidth || 7}, 1fr)` }}
             >
               {grid.map((row, rowIndex) => (
                 row.map((cell, colIndex) => (
@@ -385,30 +568,30 @@ function GameplayPage() {
             <button
               onClick={() => setClueTab('across')}
               className={`flex-1 py-2 px-4 rounded-full font-display text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${
-                clueTab === 'across' 
-                  ? 'bg-[#7B61FF] text-white' 
+                clueTab === 'across'
+                  ? 'bg-[#7B61FF] text-white'
                   : 'bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF]'
               }`}
             >
               <ArrowRight className="w-4 h-4" />
-              Across ({PUZZLE_DATA.clues.across.length})
+              Across ({cluesAcross.length})
             </button>
             <button
               onClick={() => setClueTab('down')}
               className={`flex-1 py-2 px-4 rounded-full font-display text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${
-                clueTab === 'down' 
-                  ? 'bg-[#7B61FF] text-white' 
+                clueTab === 'down'
+                  ? 'bg-[#7B61FF] text-white'
                   : 'bg-[#F3F1FF] text-[#6B5CA8] hover:bg-[#ECE9FF]'
               }`}
             >
               <ArrowDown className="w-4 h-4" />
-              Down ({PUZZLE_DATA.clues.down.length})
+              Down ({cluesDown.length})
             </button>
           </div>
 
           {/* Clue List */}
           <div className="space-y-2 max-h-48 overflow-y-auto">
-            {PUZZLE_DATA.clues[clueTab].map((clue) => (
+            {(clueTab === 'across' ? cluesAcross : cluesDown).map((clue) => (
               <button
                 key={`${clueTab}-${clue.num}`}
                 onClick={() => {
@@ -486,6 +669,60 @@ function GameplayPage() {
           </div>
         </div>
       </main>
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full border-2 border-[#2A1E5C] shadow-[0_8px_0_#2A1E5C]">
+            <div className="text-center">
+              <div className="w-20 h-20 bg-[#7B61FF] rounded-full flex items-center justify-center mx-auto mb-4">
+                <Check className="w-12 h-12 text-white" />
+              </div>
+              <h2 className="font-display font-bold text-2xl text-[#2A1E5C] mb-2">
+                Puzzle Complete!
+              </h2>
+              <p className="font-display text-[#6B5CA8] mb-6">
+                Great job! You solved the puzzle.
+              </p>
+
+              {/* Stats */}
+              <div className="bg-[#F3F1FF] rounded-xl p-4 mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="font-display text-sm text-[#6B5CA8]">Time</span>
+                  <span className="font-display font-semibold text-[#2A1E5C]">{formatTime(timer)}</span>
+                </div>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="font-display text-sm text-[#6B5CA8]">Difficulty</span>
+                  <span className="font-display font-semibold text-[#2A1E5C]">
+                    {puzzle?.difficulty ? puzzle.difficulty.charAt(0).toUpperCase() + puzzle.difficulty.slice(1) : ''}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-display text-sm text-[#6B5CA8]">Grid Size</span>
+                  <span className="font-display font-semibold text-[#2A1E5C]">
+                    {puzzle?.gridWidth}×{puzzle?.gridHeight}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <Link
+                  to="/"
+                  className="flex-1 py-3 bg-white text-[#2A1E5C] font-display font-semibold rounded-xl border-2 border-[#2A1E5C] shadow-[0_4px_0_#2A1E5C] hover:shadow-[0_2px_0_#2A1E5C] hover:translate-y-[2px] transition-all text-center"
+                >
+                  Home
+                </Link>
+                <button
+                  onClick={() => setShowSuccessModal(false)}
+                  className="flex-1 py-3 bg-[#7B61FF] text-white font-display font-semibold rounded-xl border-2 border-[#2A1E5C] shadow-[0_4px_0_#2A1E5C] hover:shadow-[0_2px_0_#2A1E5C] hover:translate-y-[2px] transition-all"
+                >
+                  View Grid
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -197,7 +197,6 @@ export function useWebSocket({ roomCode, token, autoConnect = true }: UseWebSock
 
     if (autoConnect) {
       // WebSocket connection is a legitimate use case for effects to synchronize with external systems
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       connect();
     }
 
@@ -213,6 +212,7 @@ export function useWebSocket({ roomCode, token, autoConnect = true }: UseWebSock
       }
 
       // Intentionally accessing ref in cleanup - this is the correct pattern for cleanup
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       messageHandlersRef.current.clear();
     };
   }, [autoConnect, connect, clearReconnectTimeout]);

@@ -2,14 +2,12 @@ import { useEffect, useState, useRef } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Link } from 'react-router-dom';
-import { 
-  Users, 
-  Calendar, 
-  Zap, 
-  Check, 
-  Lightbulb, 
-  Menu, 
-  X,
+import {
+  Users,
+  Calendar,
+  Zap,
+  Check,
+  Lightbulb,
   Trophy,
   Flame,
   Target,
@@ -19,6 +17,7 @@ import {
   Heart,
   ArrowRight
 } from 'lucide-react';
+import { Header } from '@/components/Header';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -62,10 +61,9 @@ interface ArchivePuzzle {
   date: string;
 }
 
-// Navbar Component
+// Navbar Component with scroll detection
 function Navbar() {
   const [scrolled, setScrolled] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -73,66 +71,7 @@ function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'bg-white/95 backdrop-blur-md shadow-sm' : 'bg-transparent'}`}>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="flex items-center justify-between h-16">
-          <a href="#" className="flex items-center gap-2 group">
-            <div className="relative">
-              <img 
-                src="/crossy-small.png" 
-                alt="Crossy" 
-                className="w-10 h-10 group-hover:scale-110 transition-transform"
-              />
-              <span className="absolute -top-1 -right-1 w-3 h-3 bg-[#7B61FF] rounded-full animate-pulse" />
-            </div>
-            <span className="font-pixel text-sm text-[#2A1E5C]">Crossy</span>
-          </a>
-
-          <div className="hidden md:flex items-center gap-6">
-            <a href="#play" className="font-display font-medium text-sm text-[#6B5CA8] hover:text-[#7B61FF] transition-colors">
-              Play
-            </a>
-            <a href="#features" className="font-display font-medium text-sm text-[#6B5CA8] hover:text-[#7B61FF] transition-colors">
-              Features
-            </a>
-            <a href="#archive" className="font-display font-medium text-sm text-[#6B5CA8] hover:text-[#7B61FF] transition-colors">
-              Archive
-            </a>
-            <Link to="/play" className="crossy-button text-sm py-2 px-4">
-              Play Now
-            </Link>
-          </div>
-
-          <button 
-            onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden w-10 h-10 flex items-center justify-center rounded-xl bg-[#F3F1FF] text-[#2A1E5C]"
-          >
-            {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
-        </div>
-
-        {isOpen && (
-          <div className="md:hidden absolute top-16 left-0 right-0 bg-white border-t border-[#ECE9FF] px-4 py-4 shadow-lg">
-            <div className="flex flex-col gap-3">
-              <a href="#play" onClick={() => setIsOpen(false)} className="font-display font-medium text-[#2A1E5C] py-2">
-                Play
-              </a>
-              <a href="#features" onClick={() => setIsOpen(false)} className="font-display font-medium text-[#2A1E5C] py-2">
-                Features
-              </a>
-              <a href="#archive" onClick={() => setIsOpen(false)} className="font-display font-medium text-[#2A1E5C] py-2">
-                Archive
-              </a>
-              <Link to="/play" className="crossy-button w-full mt-2">
-                Play Now
-              </Link>
-            </div>
-          </div>
-        )}
-      </div>
-    </nav>
-  );
+  return <Header scrolled={scrolled} />;
 }
 
 // Hero Section

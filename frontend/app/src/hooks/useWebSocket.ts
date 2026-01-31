@@ -1,32 +1,11 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
-
-// WebSocket Message Types
-export interface WebSocketMessage<T = unknown> {
-  type: string;
-  payload: T;
-}
-
-// Connection States
-export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error';
-
-// Message Handler Type
-export type MessageHandler<T = unknown> = (payload: T) => void;
-
-// WebSocket Hook Options
-export interface UseWebSocketOptions {
-  roomCode: string;
-  token: string;
-  autoConnect?: boolean;
-}
-
-// WebSocket Hook Return Type
-export interface UseWebSocketReturn {
-  connectionState: ConnectionState;
-  sendMessage: <T = unknown>(type: string, payload: T) => void;
-  on: <T = unknown>(messageType: string, handler: MessageHandler<T>) => () => void;
-  connect: () => void;
-  disconnect: () => void;
-}
+import type {
+  WebSocketMessage,
+  ConnectionState,
+  MessageHandler,
+  UseWebSocketOptions,
+  UseWebSocketReturn,
+} from '../types';
 
 // Reconnection configuration
 const RECONNECT_DELAYS = [1000, 2000, 4000, 8000]; // Exponential backoff: 1s, 2s, 4s, 8s max

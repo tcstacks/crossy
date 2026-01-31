@@ -178,6 +178,14 @@ export const puzzleApi = {
     });
     return response.data;
   },
+
+  /**
+   * Get puzzle by ID
+   */
+  getPuzzleById: async (puzzleId: string): Promise<Puzzle> => {
+    const response = await apiClient.get<Puzzle>(`/api/puzzles/${puzzleId}`);
+    return response.data;
+  },
 };
 
 // User Endpoints

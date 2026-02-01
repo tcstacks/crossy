@@ -1,0 +1,108 @@
+#!/bin/bash
+
+# CrossPlay - Start/Stop script
+# Usage: ./crossplay [start|stop|restart|status]
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKEND_DIR="$SCRIPT_DIR/backend"
+FRONTEND_DIR="$SCRIPT_DIR/frontend/app"
+
+BACKEND_LOG="/tmp/crossplay-backend.log"
+FRONTEND_LOG="/tmp/crossplay-frontend.log"
+
+BACKEND_PORT=8080
+FRONTEND_PORT=3000
+
+is_backend_running() {
+    lsof -i :$BACKEND_PORT > /dev/null 2>&1
+}
+
+is_frontend_running() {
+    lsof -i :$FRONTEND_PORT > /dev/null 2>&1
+}
+
+start_backend() {
+    if is_backend_running; then
+        echo "Backend already running"
+        return 0
+    fi
+    echo "Starting backend..."
+    cd "$BACKEND_DIR"
+    go run cmd/server/main.go > "$BACKEND_LOG" 2>&1 &
+    sleep 2
+    if is_backend_running; then
+        echo "Backend started at http://localhost:$BACKEND_PORT"
+    else
+        echo "Backend failed to start. Check $BACKEND_LOG"
+        return 1
+    fi
+}
+
+start_frontend() {
+    if is_frontend_running; then
+        echo "Frontend already running"
+        return 0
+    fi
+    echo "Starting frontend..."
+    cd "$FRONTEND_DIR"
+    npm run dev > "$FRONTEND_LOG" 2>&1 &
+    sleep 3
+    if is_frontend_running; then
+        echo "Frontend started at http://localhost:$FRONTEND_PORT"
+    else
+        echo "Frontend failed to start. Check $FRONTEND_LOG"
+        return 1
+    fi
+}
+
+stop_backend() {
+    if is_backend_running; then
+        lsof -ti :$BACKEND_PORT | xargs kill 2>/dev/null || true
+        echo "Backend stopped"
+    else
+        echo "Backend not running"
+    fi
+}
+
+stop_frontend() {
+    if is_frontend_running; then
+        lsof -ti :$FRONTEND_PORT | xargs kill 2>/dev/null || true
+        echo "Frontend stopped"
+    else
+        echo "Frontend not running"
+    fi
+}
+
+status() {
+    echo "Backend:  $(is_backend_running && echo 'running' || echo 'stopped')"
+    echo "Frontend: $(is_frontend_running && echo 'running' || echo 'stopped')"
+}
+
+case "${1:-start}" in
+    start)
+        start_backend
+        start_frontend
+        echo ""
+        echo "CrossPlay ready at http://localhost:$FRONTEND_PORT"
+        ;;
+    stop)
+        stop_frontend
+        stop_backend
+        ;;
+    restart)
+        stop_frontend
+        stop_backend
+        sleep 1
+        start_backend
+        start_frontend
+        ;;
+    status)
+        status
+        ;;
+    *)
+        echo "Usage: $0 [start|stop|restart|status]"
+        exit 1
+        ;;
+esac

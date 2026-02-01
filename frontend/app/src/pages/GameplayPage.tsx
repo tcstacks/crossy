@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Clock,
   Flame,
@@ -38,6 +38,10 @@ interface Clue {
 }
 
 function GameplayPage() {
+  // Get date from URL query parameters
+  const [searchParams] = useSearchParams();
+  const dateParam = searchParams.get('date');
+
   // Puzzle data state
   const [puzzle, setPuzzle] = useState<Puzzle | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,13 +65,17 @@ function GameplayPage() {
   const gridRef = useRef<HTMLDivElement>(null);
   const startTimeRef = useRef<number>(Date.now());
 
-  // Fetch puzzle on mount
+  // Fetch puzzle on mount (or when date param changes)
   useEffect(() => {
     const fetchPuzzle = async () => {
       try {
         setLoading(true);
         setError(null);
-        const fetchedPuzzle = await puzzleApi.getTodayPuzzle();
+        // If a date parameter is provided, fetch that specific puzzle from the archive
+        // Otherwise, fetch today's puzzle
+        const fetchedPuzzle = dateParam
+          ? await puzzleApi.getPuzzleByDate({ date: dateParam })
+          : await puzzleApi.getTodayPuzzle();
         setPuzzle(fetchedPuzzle);
         initializeGridFromPuzzle(fetchedPuzzle);
         startTimeRef.current = Date.now();
@@ -83,7 +91,7 @@ function GameplayPage() {
     };
 
     fetchPuzzle();
-  }, []);
+  }, [dateParam]);
 
   // Initialize grid from puzzle data
   const initializeGridFromPuzzle = (puzzleData: Puzzle) => {
@@ -139,7 +147,10 @@ function GameplayPage() {
   const retryLoadPuzzle = () => {
     setLoading(true);
     setError(null);
-    puzzleApi.getTodayPuzzle()
+    const puzzlePromise = dateParam
+      ? puzzleApi.getPuzzleByDate({ date: dateParam })
+      : puzzleApi.getTodayPuzzle();
+    puzzlePromise
       .then(fetchedPuzzle => {
         setPuzzle(fetchedPuzzle);
         initializeGridFromPuzzle(fetchedPuzzle);

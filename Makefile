@@ -15,8 +15,8 @@ backend:
 
 # Run frontend server
 frontend:
-	@echo "Starting Vite frontend on http://localhost:5173..."
-	@cd frontend && npm run dev
+	@echo "Starting Vite frontend on http://localhost:3000..."
+	@cd frontend/app && npm run dev
 
 # Install all dependencies
 install: install-backend install-frontend
@@ -30,12 +30,12 @@ install-backend:
 # Install frontend dependencies
 install-frontend:
 	@echo "Installing Node.js dependencies..."
-	@cd frontend && npm install
+	@cd frontend/app && npm install
 
 # Build frontend for production
 build-frontend:
 	@echo "Building frontend for production..."
-	@cd frontend && npm run build
+	@cd frontend/app && npm run build
 
 # Build backend binary
 build-backend:
@@ -62,7 +62,7 @@ admin:
 setup:
 	@echo "Setting up environment files..."
 	@test -f backend/.env || cp backend/.env.example backend/.env
-	@test -f frontend/.env.local || cp frontend/.env.example frontend/.env.local
+	@test -f frontend/app/.env.local || cp frontend/app/.env.example frontend/app/.env.local
 	@echo "Environment files created. Please update them with your configuration."
 
 # Start Docker services (PostgreSQL + Redis)
@@ -85,21 +85,21 @@ db-down:
 clean:
 	@echo "Cleaning build artifacts..."
 	@rm -rf backend/bin
-	@rm -rf frontend/dist
-	@rm -rf frontend/node_modules/.cache
+	@rm -rf frontend/app/dist
+	@rm -rf frontend/app/node_modules/.cache
 	@echo "Cleaned!"
 
-# Stop all running servers (finds and kills processes on ports 5173 and 8080)
+# Stop all running servers (finds and kills processes on ports 3000 and 8080)
 stop:
 	@echo "Stopping development servers..."
-	@-lsof -ti:5173 | xargs kill -9 2>/dev/null || true
+	@-lsof -ti:3000 | xargs kill -9 2>/dev/null || true
 	@-lsof -ti:8080 | xargs kill -9 2>/dev/null || true
 	@echo "Servers stopped!"
 
 # Lint and format
 lint:
 	@echo "Linting..."
-	@cd frontend && npm run lint
+	@cd frontend/app && npm run lint
 	@cd backend && go fmt ./...
 
 # Help

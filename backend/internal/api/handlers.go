@@ -366,10 +366,38 @@ func (h *Handlers) GetPuzzleByDate(c *gin.Context) {
 	c.JSON(http.StatusOK, sanitizedPuzzle)
 }
 
+// PuzzleArchiveResponse is the paginated response for the archive endpoint
+type PuzzleArchiveResponse struct {
+	Puzzles []models.PuzzleMetadata `json:"puzzles"`
+	Total   int                     `json:"total"`
+	Page    int                     `json:"page"`
+	Limit   int                     `json:"limit"`
+}
+
 func (h *Handlers) GetPuzzleArchive(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	difficulty := c.Query("difficulty") // Optional difficulty filter
+
+	// Support both 'page' (1-indexed) and 'offset' parameters
+	// Frontend sends 'page', calculate offset from it
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if page < 1 {
+		page = 1
+	}
+	offset := (page - 1) * limit
+
+	// Also support direct offset for backwards compatibility
+	if offsetParam := c.Query("offset"); offsetParam != "" {
+		offset, _ = strconv.Atoi(offsetParam)
+		page = (offset / limit) + 1
+	}
+
+	// Get total count for pagination
+	total, err := h.db.GetPuzzleArchiveCount(difficulty)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+		return
+	}
 
 	// Get puzzles with difficulty filter and sorted by date
 	puzzles, err := h.db.GetPuzzleArchiveEnhanced(difficulty, limit, offset)
@@ -386,7 +414,7 @@ func (h *Handlers) GetPuzzleArchive(c *gin.Context) {
 	}
 
 	// Convert to metadata-only response
-	var metadata []models.PuzzleMetadata
+	metadata := make([]models.PuzzleMetadata, 0, len(puzzles))
 	for _, p := range puzzles {
 		meta := models.PuzzleMetadata{
 			ID:           p.ID,
@@ -413,7 +441,12 @@ func (h *Handlers) GetPuzzleArchive(c *gin.Context) {
 		metadata = append(metadata, meta)
 	}
 
-	c.JSON(http.StatusOK, metadata)
+	c.JSON(http.StatusOK, PuzzleArchiveResponse{
+		Puzzles: metadata,
+		Total:   total,
+		Page:    page,
+		Limit:   limit,
+	})
 }
 
 func (h *Handlers) GetRandomPuzzle(c *gin.Context) {

@@ -440,6 +440,21 @@ func (d *Database) GetPuzzleArchiveEnhanced(difficulty string, limit, offset int
 	return puzzles, nil
 }
 
+// GetPuzzleArchiveCount returns the total count of published puzzles with optional difficulty filter
+func (d *Database) GetPuzzleArchiveCount(difficulty string) (int, error) {
+	query := `SELECT COUNT(*) FROM puzzles WHERE status = 'published'`
+	args := []interface{}{}
+
+	if difficulty != "" {
+		query += " AND difficulty = $1"
+		args = append(args, difficulty)
+	}
+
+	var count int
+	err := d.DB.QueryRow(query, args...).Scan(&count)
+	return count, err
+}
+
 // GetUserPuzzleCompletion checks if a user has completed a specific puzzle
 func (d *Database) GetUserPuzzleCompletion(userID, puzzleID string) (bool, error) {
 	var completed bool

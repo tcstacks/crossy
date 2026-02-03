@@ -232,19 +232,21 @@ function GameplayPage() {
 
   const handleCellClick = (row: number, col: number) => {
     if (grid[row][col].isBlocked) return;
-    
+
     // If clicking same cell, toggle direction
+    let newDirection = direction;
     if (selectedCell?.row === row && selectedCell?.col === col) {
-      setDirection(d => d === 'across' ? 'down' : 'across');
+      newDirection = direction === 'across' ? 'down' : 'across';
+      setDirection(newDirection);
     }
-    
+
     setSelectedCell({ row, col });
     setShowCheck(false);
-    
-    // Find the active clue
+
+    // Find the active clue based on the new direction
     const cellNum = grid[row][col].number;
     if (cellNum) {
-      const clue = direction === 'across'
+      const clue = newDirection === 'across'
         ? cluesAcross.find(c => c.num === cellNum && c.row === row)
         : cluesDown.find(c => c.num === cellNum && c.col === col);
       if (clue) setActiveClue(clue);

@@ -61,6 +61,7 @@ function GameplayPage() {
   const [progress, setProgress] = useState(0);
   const [showCheck, setShowCheck] = useState(false);
   const [checkedCells, setCheckedCells] = useState<Set<string>>(new Set());
+  const [revealedCells, setRevealedCells] = useState<Set<string>>(new Set());
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -328,12 +329,17 @@ function GameplayPage() {
       const newGrid = [...grid];
       newGrid[row][col].letter = newGrid[row][col].correctLetter;
       setGrid(newGrid);
+
+      // Track this cell as revealed
+      const cellKey = `${row}-${col}`;
+      setRevealedCells(prev => new Set(prev).add(cellKey));
     }
   };
 
   const revealWord = () => {
     if (!activeClue) return;
     const newGrid = [...grid];
+    const newRevealed = new Set(revealedCells);
 
     if (activeClue.direction === 'across' || direction === 'across') {
       // Find the across clue for selected cell
@@ -344,6 +350,7 @@ function GameplayPage() {
       if (acrossClue) {
         for (let i = 0; i < acrossClue.answer.length; i++) {
           newGrid[acrossClue.row][acrossClue.col + i].letter = acrossClue.answer[i];
+          newRevealed.add(`${acrossClue.row}-${acrossClue.col + i}`);
         }
       }
     } else {
@@ -354,19 +361,22 @@ function GameplayPage() {
       if (downClue) {
         for (let i = 0; i < downClue.answer.length; i++) {
           newGrid[downClue.row + i][downClue.col].letter = downClue.answer[i];
+          newRevealed.add(`${downClue.row + i}-${downClue.col}`);
         }
       }
     }
     setGrid(newGrid);
+    setRevealedCells(newRevealed);
   };
 
   const resetGrid = () => {
-    const newGrid = grid.map(row => 
+    const newGrid = grid.map(row =>
       row.map(cell => ({ ...cell, letter: '' }))
     );
     setGrid(newGrid);
     setShowCheck(false);
     setCheckedCells(new Set());
+    setRevealedCells(new Set());
   };
 
   const isCellCorrect = (row: number, col: number) => {
@@ -554,9 +564,11 @@ function GameplayPage() {
                             ? isCellCorrect(rowIndex, colIndex)
                               ? 'bg-[#2ECC71] border-[#2ECC71] text-white'
                               : 'bg-[#FF4D6A] border-[#FF4D6A] text-white'
-                            : currentWordCells.has(`${rowIndex}-${colIndex}`)
-                              ? 'bg-[#E8E3FF] border-[#7B61FF] text-[#2A1E5C]'
-                              : 'bg-white border-[#7B61FF] text-[#2A1E5C] hover:bg-[#F3F1FF]'
+                            : revealedCells.has(`${rowIndex}-${colIndex}`)
+                              ? 'bg-[#FFE5B4] border-[#FFA500] text-[#2A1E5C]'
+                              : currentWordCells.has(`${rowIndex}-${colIndex}`)
+                                ? 'bg-[#E8E3FF] border-[#7B61FF] text-[#2A1E5C]'
+                                : 'bg-white border-[#7B61FF] text-[#2A1E5C] hover:bg-[#F3F1FF]'
                       }
                     `}
                   >

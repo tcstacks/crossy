@@ -337,34 +337,54 @@ function GameplayPage() {
   };
 
   const revealWord = () => {
-    if (!activeClue) return;
+    if (!selectedCell) return;
     const newGrid = [...grid];
     const newRevealed = new Set(revealedCells);
 
-    if (activeClue.direction === 'across' || direction === 'across') {
-      // Find the across clue for selected cell
-      const acrossClue = cluesAcross.find(c =>
-        c.row === activeClue.row && c.col <= (selectedCell?.col || c.col) &&
-        (selectedCell?.col || c.col) < c.col + c.answer.length
-      );
-      if (acrossClue) {
-        for (let i = 0; i < acrossClue.answer.length; i++) {
-          newGrid[acrossClue.row][acrossClue.col + i].letter = acrossClue.answer[i];
-          newRevealed.add(`${acrossClue.row}-${acrossClue.col + i}`);
-        }
+    if (direction === 'across') {
+      // Find the start and end of the word in the across direction
+      const row = selectedCell.row;
+      let startCol = selectedCell.col;
+      let endCol = selectedCell.col;
+
+      // Find start of word
+      while (startCol > 0 && !newGrid[row][startCol - 1].isBlocked) {
+        startCol--;
+      }
+
+      // Find end of word
+      while (endCol < newGrid[row].length - 1 && !newGrid[row][endCol + 1].isBlocked) {
+        endCol++;
+      }
+
+      // Reveal all letters in the word
+      for (let col = startCol; col <= endCol; col++) {
+        newGrid[row][col].letter = newGrid[row][col].correctLetter;
+        newRevealed.add(`${row}-${col}`);
       }
     } else {
-      const downClue = cluesDown.find(c =>
-        c.col === activeClue.col && c.row <= (selectedCell?.row || c.row) &&
-        (selectedCell?.row || c.row) < c.row + c.answer.length
-      );
-      if (downClue) {
-        for (let i = 0; i < downClue.answer.length; i++) {
-          newGrid[downClue.row + i][downClue.col].letter = downClue.answer[i];
-          newRevealed.add(`${downClue.row + i}-${downClue.col}`);
-        }
+      // Find the start and end of the word in the down direction
+      const col = selectedCell.col;
+      let startRow = selectedCell.row;
+      let endRow = selectedCell.row;
+
+      // Find start of word
+      while (startRow > 0 && !newGrid[startRow - 1][col].isBlocked) {
+        startRow--;
+      }
+
+      // Find end of word
+      while (endRow < newGrid.length - 1 && !newGrid[endRow + 1][col].isBlocked) {
+        endRow++;
+      }
+
+      // Reveal all letters in the word
+      for (let row = startRow; row <= endRow; row++) {
+        newGrid[row][col].letter = newGrid[row][col].correctLetter;
+        newRevealed.add(`${row}-${col}`);
       }
     }
+
     setGrid(newGrid);
     setRevealedCells(newRevealed);
   };
@@ -652,12 +672,12 @@ function GameplayPage() {
             <Lightbulb className="w-4 h-4" />
             Letter
           </button>
-          <button 
+          <button
             onClick={revealWord}
             className="flex items-center gap-2 px-5 py-2.5 bg-white text-[#2A1E5C] font-display font-semibold rounded-xl border-2 border-[#2A1E5C] shadow-[0_4px_0_#2A1E5C] hover:shadow-[0_2px_0_#2A1E5C] hover:translate-y-[2px] transition-all"
           >
             <Eye className="w-4 h-4" />
-            Word
+            Reveal Word
           </button>
           <button 
             onClick={resetGrid}

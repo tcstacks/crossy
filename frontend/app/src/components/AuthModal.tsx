@@ -59,7 +59,7 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
     setIsLoading(true);
 
     try {
-      await guestLogin(guestUsername ? { username: guestUsername } : undefined);
+      await guestLogin(guestUsername ? { displayName: guestUsername } : undefined);
       handleClose(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Guest login failed');

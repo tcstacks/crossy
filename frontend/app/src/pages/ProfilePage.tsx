@@ -133,7 +133,7 @@ function ProfilePage() {
               {/* User Info */}
               <div>
                 <h1 className="font-display font-bold text-2xl sm:text-3xl text-[#2A1E5C] mb-1">
-                  {user?.username || 'Guest User'}
+                  {user?.displayName || 'Guest User'}
                 </h1>
                 {!user?.isGuest && user?.email && (
                   <p className="font-display text-[#6B5CA8] mb-1">{user.email}</p>

@@ -47,22 +47,23 @@ function ArchivePage() {
         });
 
         // Enhance archive items with additional info
-        const enhancedPuzzles = archiveResponse.puzzles.map((puzzle) => ({
+        const puzzles = archiveResponse?.puzzles ?? [];
+        const enhancedPuzzles = puzzles.map((puzzle) => ({
           ...puzzle,
           title: `Daily Puzzle - ${new Date(puzzle.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`,
           gridSize: '15x15', // Default crossword size
         }));
 
         setArchivePuzzles(enhancedPuzzles);
-        setTotalPuzzles(archiveResponse.total);
-        setTotalPages(Math.ceil(archiveResponse.total / ITEMS_PER_PAGE));
+        setTotalPuzzles(archiveResponse?.total ?? 0);
+        setTotalPages(Math.ceil((archiveResponse?.total ?? 0) / ITEMS_PER_PAGE));
 
         // Fetch user history if authenticated
         const token = getToken();
         if (token) {
           try {
             const history = await userApi.getMyHistory();
-            setUserHistory(history);
+            setUserHistory(history ?? []);
           } catch (err) {
             console.error('Failed to fetch user history:', err);
             // Continue without history if not authenticated
@@ -80,7 +81,7 @@ function ArchivePage() {
 
   // Check if puzzle is completed by user
   const isPuzzleCompleted = (puzzleId: string) => {
-    return userHistory.some((h) => h.puzzleId === puzzleId && h.solved);
+    return userHistory?.some((h) => h.puzzleId === puzzleId && h.solved) ?? false;
   };
 
   // Format date
@@ -377,7 +378,7 @@ function ArchivePage() {
                             puzzle.difficulty
                           )}`}
                         >
-                          {puzzle.difficulty.charAt(0).toUpperCase() + puzzle.difficulty.slice(1)}
+                          {puzzle.difficulty ? puzzle.difficulty.charAt(0).toUpperCase() + puzzle.difficulty.slice(1) : 'Unknown'}
                         </span>
 
                         {/* Grid Size */}

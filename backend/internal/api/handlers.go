@@ -43,7 +43,7 @@ type LoginRequest struct {
 }
 
 type GuestRequest struct {
-	DisplayName string `json:"displayName" binding:"required,min=2,max=50"`
+	DisplayName string `json:"displayName" binding:"omitempty,max=50"`
 }
 
 type AuthResponse struct {
@@ -145,10 +145,17 @@ func (h *Handlers) Guest(c *gin.Context) {
 
 	// Create guest user
 	guestID := uuid.New().String()
+
+	// Generate default display name if not provided
+	displayName := req.DisplayName
+	if displayName == "" {
+		displayName = "Guest_" + guestID[:8]
+	}
+
 	user := &models.User{
 		ID:          guestID,
 		Email:       "guest_" + guestID[:8] + "@crossplay.local",
-		DisplayName: req.DisplayName,
+		DisplayName: displayName,
 		IsGuest:     true,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),

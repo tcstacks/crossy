@@ -173,6 +173,7 @@ export interface CloseRoomRequest {
 export interface ApiError {
   message: string;
   statusCode: number;
+  error?: string; // Backend sometimes returns error instead of message
   errors?: Record<string, string[]>;
 }
 

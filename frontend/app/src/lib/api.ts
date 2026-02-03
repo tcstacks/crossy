@@ -85,8 +85,10 @@ apiClient.interceptors.response.use(
     }
 
     // Handle API errors
+    // Backend returns either { message: string } or { error: string }
+    const errorMessage = error.response.data?.message || error.response.data?.error || 'An unexpected error occurred';
     const apiError: ApiError = {
-      message: error.response.data?.message || 'An unexpected error occurred',
+      message: errorMessage,
       statusCode: error.response.status,
       errors: error.response.data?.errors,
     };

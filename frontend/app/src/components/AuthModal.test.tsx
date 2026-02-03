@@ -348,7 +348,7 @@ describe('AuthModal - User Login with Credentials (AUTH-03)', () => {
 
     // Mock the login API to return an invalid credentials error
     const invalidCredentialsError: ApiError = {
-      message: 'invalid email or password',
+      message: 'invalid credentials',
       statusCode: 401,
     };
     (authApi.login as Mock).mockRejectedValue(invalidCredentialsError);
@@ -377,11 +377,11 @@ describe('AuthModal - User Login with Credentials (AUTH-03)', () => {
 
     // Wait for error message to appear
     await waitFor(() => {
-      expect(screen.getByText('invalid email or password')).toBeInTheDocument();
+      expect(screen.getByText('invalid credentials')).toBeInTheDocument();
     });
 
     // Verify the error message is in a styled alert box with proper classes
-    const errorAlert = screen.getByText('invalid email or password');
+    const errorAlert = screen.getByText('invalid credentials');
     expect(errorAlert).toBeInTheDocument();
     expect(errorAlert.className).toContain('text-sm');
     expect(errorAlert.className).toContain('text-destructive');
@@ -483,7 +483,7 @@ describe('AuthModal - User Login with Credentials (AUTH-03)', () => {
 
     // First call fails, second succeeds
     const error: ApiError = {
-      message: 'invalid email or password',
+      message: 'invalid credentials',
       statusCode: 401,
     };
     (authApi.login as Mock)
@@ -518,7 +518,7 @@ describe('AuthModal - User Login with Credentials (AUTH-03)', () => {
 
     // Wait for error
     await waitFor(() => {
-      expect(screen.getByText('invalid email or password')).toBeInTheDocument();
+      expect(screen.getByText('invalid credentials')).toBeInTheDocument();
     });
 
     // Correct the password and retry
@@ -545,7 +545,7 @@ describe('AuthModal - User Login with Credentials (AUTH-03)', () => {
 
     // Mock the login API to return an error
     const error: ApiError = {
-      message: 'invalid email or password',
+      message: 'invalid credentials',
       statusCode: 401,
     };
     (authApi.login as Mock).mockRejectedValue(error);
@@ -566,7 +566,7 @@ describe('AuthModal - User Login with Credentials (AUTH-03)', () => {
 
     // Wait for error to appear
     await waitFor(() => {
-      expect(screen.getByText('invalid email or password')).toBeInTheDocument();
+      expect(screen.getByText('invalid credentials')).toBeInTheDocument();
     });
 
     // Switch to Register tab
@@ -574,6 +574,6 @@ describe('AuthModal - User Login with Credentials (AUTH-03)', () => {
     await user.click(registerTab);
 
     // Verify error message is cleared
-    expect(screen.queryByText('invalid email or password')).not.toBeInTheDocument();
+    expect(screen.queryByText('invalid credentials')).not.toBeInTheDocument();
   });
 });

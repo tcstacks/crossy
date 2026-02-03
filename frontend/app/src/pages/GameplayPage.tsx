@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   Clock,
@@ -373,6 +373,39 @@ function GameplayPage() {
     return grid[row][col].letter === grid[row][col].correctLetter;
   };
 
+  // Get all cells in the current word
+  const currentWordCells = useMemo(() => {
+    const wordCells = new Set<string>();
+    if (!selectedCell) return wordCells;
+
+    if (direction === 'across') {
+      // Find the across word containing the selected cell
+      const acrossClue = cluesAcross.find(c =>
+        c.row === selectedCell.row &&
+        c.col <= selectedCell.col &&
+        selectedCell.col < c.col + c.answer.length
+      );
+      if (acrossClue) {
+        for (let i = 0; i < acrossClue.answer.length; i++) {
+          wordCells.add(`${acrossClue.row}-${acrossClue.col + i}`);
+        }
+      }
+    } else {
+      // Find the down word containing the selected cell
+      const downClue = cluesDown.find(c =>
+        c.col === selectedCell.col &&
+        c.row <= selectedCell.row &&
+        selectedCell.row < c.row + c.answer.length
+      );
+      if (downClue) {
+        for (let i = 0; i < downClue.answer.length; i++) {
+          wordCells.add(`${downClue.row + i}-${downClue.col}`);
+        }
+      }
+    }
+    return wordCells;
+  }, [selectedCell, direction, cluesAcross, cluesDown]);
+
   // Loading state
   if (loading) {
     return (
@@ -513,15 +546,17 @@ function GameplayPage() {
                       text-base sm:text-lg font-display font-bold
                       rounded-lg border-2 cursor-pointer select-none
                       transition-all duration-150
-                      ${cell.isBlocked 
-                        ? 'bg-[#2A1E5C] border-[#2A1E5C]' 
+                      ${cell.isBlocked
+                        ? 'bg-[#2A1E5C] border-[#2A1E5C]'
                         : selectedCell?.row === rowIndex && selectedCell?.col === colIndex
                           ? 'bg-[#7B61FF] border-[#7B61FF] text-white shadow-inner'
                           : showCheck && checkedCells.has(`${rowIndex}-${colIndex}`)
                             ? isCellCorrect(rowIndex, colIndex)
                               ? 'bg-[#2ECC71] border-[#2ECC71] text-white'
                               : 'bg-[#FF4D6A] border-[#FF4D6A] text-white'
-                            : 'bg-white border-[#7B61FF] text-[#2A1E5C] hover:bg-[#F3F1FF]'
+                            : currentWordCells.has(`${rowIndex}-${colIndex}`)
+                              ? 'bg-[#E8E3FF] border-[#7B61FF] text-[#2A1E5C]'
+                              : 'bg-white border-[#7B61FF] text-[#2A1E5C] hover:bg-[#F3F1FF]'
                       }
                     `}
                   >

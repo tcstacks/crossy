@@ -154,10 +154,10 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
                 {isLoading ? (
                   <>
                     <Spinner className="mr-2" />
-                    Continuing...
+                    Playing as guest...
                   </>
                 ) : (
-                  'Continue as Guest'
+                  'Play as Guest'
                 )}
               </Button>
             </form>

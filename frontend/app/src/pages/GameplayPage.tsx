@@ -261,6 +261,17 @@ function GameplayPage() {
       newGrid[row][col].letter = '';
       setGrid(newGrid);
       setShowCheck(false);
+
+      // Move cursor back after deleting
+      if (direction === 'across') {
+        let newCol = col - 1;
+        while (newCol >= 0 && grid[row][newCol]?.isBlocked) newCol--;
+        if (newCol >= 0) setSelectedCell({ row, col: newCol });
+      } else if (direction === 'down') {
+        let newRow = row - 1;
+        while (newRow >= 0 && grid[newRow]?.[col]?.isBlocked) newRow--;
+        if (newRow >= 0) setSelectedCell({ row: newRow, col });
+      }
     } else if (e.key.length === 1 && e.key.match(/[a-zA-Z]/)) {
       const newGrid = [...grid];
       newGrid[row][col].letter = e.key.toUpperCase();

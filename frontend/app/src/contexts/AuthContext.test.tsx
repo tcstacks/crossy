@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { AuthProvider, useAuth } from './AuthContext';
 import { authApi, userApi, getToken, removeToken } from '../lib/api';
 import type { User, AuthResponse, ApiError } from '../types/api';
@@ -239,7 +239,7 @@ describe('AuthContext', () => {
 
       await act(async () => {
         await result.current.register({
-          username: 'testuser',
+          displayName: 'testuser',
           email: 'test@example.com',
           password: 'password123',
         });
@@ -249,7 +249,7 @@ describe('AuthContext', () => {
       expect(result.current.token).toBe('mock-jwt-token');
       expect(result.current.isAuthenticated).toBe(true);
       expect(authApi.register).toHaveBeenCalledWith({
-        username: 'testuser',
+        displayName: 'testuser',
         email: 'test@example.com',
         password: 'password123',
       });
@@ -275,7 +275,7 @@ describe('AuthContext', () => {
       await expect(
         act(async () => {
           await result.current.register({
-            username: 'testuser',
+            displayName: 'testuser',
             email: 'existing@example.com',
             password: 'password123',
           });
@@ -302,7 +302,7 @@ describe('AuthContext', () => {
       await expect(
         act(async () => {
           await result.current.register({
-            username: 'a',
+            displayName: 'a',
             email: 'invalid',
             password: '123',
           });
@@ -562,7 +562,7 @@ describe('AuthContext', () => {
 
       await act(async () => {
         await result.current.register({
-          username: 'testuser',
+          displayName: 'testuser',
           email: 'test@example.com',
           password: 'password123',
         });

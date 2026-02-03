@@ -92,7 +92,7 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
       await register({
         email: registerEmail,
         password: registerPassword,
-        username: registerUsername,
+        displayName: registerUsername,
       });
       handleClose(false);
     } catch (err) {

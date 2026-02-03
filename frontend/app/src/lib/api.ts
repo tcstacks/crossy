@@ -157,7 +157,7 @@ export const puzzleApi = {
    * Get puzzle by specific date
    */
   getPuzzleByDate: async (data: GetPuzzleByDateRequest): Promise<Puzzle> => {
-    const response = await apiClient.get<Puzzle>(`/api/puzzles/date/${data.date}`);
+    const response = await apiClient.get<Puzzle>(`/api/puzzles/${data.date}`);
     return response.data;
   },
 

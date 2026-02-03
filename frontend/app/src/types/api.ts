@@ -11,7 +11,7 @@ export interface LoginRequest {
 }
 
 export interface GuestLoginRequest {
-  username?: string;
+  displayName?: string;
 }
 
 export interface AuthResponse {
@@ -22,7 +22,7 @@ export interface AuthResponse {
 // User Types
 export interface User {
   id: string;
-  username: string;
+  displayName: string;
   email?: string;
   isGuest: boolean;
   createdAt: string;

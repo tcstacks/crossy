@@ -45,7 +45,7 @@ function HistoryPage() {
 
         // Fetch puzzle details for each history entry
         const historyWithPuzzles = await Promise.all(
-          historyData.map(async (entry) => {
+          (historyData ?? []).map(async (entry) => {
             try {
               // For now, we'll try to fetch the puzzle by ID
               // Note: We may need to add a getPuzzleById endpoint or include puzzle data in history

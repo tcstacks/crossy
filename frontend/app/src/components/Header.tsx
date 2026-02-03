@@ -85,11 +85,11 @@ export function Header() {
                           className="w-5 h-5"
                         />
                         <div className="w-7 h-7 rounded-full bg-[#7B61FF] flex items-center justify-center text-white font-display font-bold text-sm">
-                          {user.username[0].toUpperCase()}
+                          {(user.displayName || 'G')[0].toUpperCase()}
                         </div>
                       </div>
                       <span className="font-display font-medium text-sm text-[#2A1E5C]">
-                        {user.username}
+                        {user.displayName || 'Guest'}
                       </span>
                     </button>
                   </DropdownMenuTrigger>
@@ -183,10 +183,10 @@ export function Header() {
                         className="w-5 h-5"
                       />
                       <div className="w-7 h-7 rounded-full bg-[#7B61FF] flex items-center justify-center text-white font-display font-bold text-sm">
-                        {user.username[0].toUpperCase()}
+                        {(user.displayName || 'G')[0].toUpperCase()}
                       </div>
                       <span className="font-display font-medium text-sm text-[#2A1E5C]">
-                        {user.username}
+                        {user.displayName || 'Guest'}
                       </span>
                     </div>
                     <button

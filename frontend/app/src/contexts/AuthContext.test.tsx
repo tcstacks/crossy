@@ -43,7 +43,7 @@ const createWrapper = () => {
 // Mock user data
 const mockUser: User = {
   id: 'user-123',
-  username: 'testuser',
+  displayName: 'testuser',
   email: 'test@example.com',
   isGuest: false,
   createdAt: '2024-01-01T00:00:00Z',
@@ -52,7 +52,7 @@ const mockUser: User = {
 
 const mockGuestUser: User = {
   id: 'guest-456',
-  username: 'Guest_12345',
+  displayName: 'Guest_12345',
   isGuest: true,
   createdAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-01-01T00:00:00Z',
@@ -347,18 +347,18 @@ describe('AuthContext', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      const customGuestUser = { ...mockGuestUser, username: 'CustomGuest' };
+      const customGuestUser = { ...mockGuestUser, displayName: 'CustomGuest' };
       (authApi.guestLogin as Mock).mockResolvedValue({
         token: 'custom-guest-token',
         user: customGuestUser,
       });
 
       await act(async () => {
-        await result.current.guestLogin({ username: 'CustomGuest' });
+        await result.current.guestLogin({ displayName: 'CustomGuest' });
       });
 
-      expect(result.current.user?.username).toBe('CustomGuest');
-      expect(authApi.guestLogin).toHaveBeenCalledWith({ username: 'CustomGuest' });
+      expect(result.current.user?.displayName).toBe('CustomGuest');
+      expect(authApi.guestLogin).toHaveBeenCalledWith({ displayName: 'CustomGuest' });
     });
 
     it('failed guest login shows error', async () => {
@@ -471,14 +471,14 @@ describe('AuthContext', () => {
       });
 
       // Update user data
-      const updatedUser = { ...mockUser, username: 'updateduser' };
+      const updatedUser = { ...mockUser, displayName: 'updateduser' };
       (userApi.getMe as Mock).mockResolvedValue(updatedUser);
 
       await act(async () => {
         await result.current.refreshUser();
       });
 
-      expect(result.current.user?.username).toBe('updateduser');
+      expect(result.current.user?.displayName).toBe('updateduser');
       expect(userApi.getMe).toHaveBeenCalledTimes(2); // Once on init, once on refresh
     });
 

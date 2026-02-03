@@ -10,12 +10,14 @@ import {
   ArrowRight,
   ArrowDown,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  Trophy
 } from 'lucide-react';
 import { puzzleApi } from '../lib/api';
 import { userApi } from '../lib/api';
 import { Skeleton } from '../components/ui/skeleton';
 import { Header } from '@/components/Header';
+import { Confetti } from '@/components/Confetti';
 import type { Puzzle } from '../types/api';
 
 // Types
@@ -632,13 +634,17 @@ function GameplayPage() {
         </div>
       </main>
 
+      {/* Confetti celebration */}
+      <Confetti isActive={showSuccessModal} />
+
       {/* Success Modal */}
       {showSuccessModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full border-2 border-[#2A1E5C] shadow-[0_8px_0_#2A1E5C]">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full border-2 border-[#2A1E5C] shadow-[0_8px_0_#2A1E5C] success-modal-enter">
             <div className="text-center">
-              <div className="w-20 h-20 bg-[#7B61FF] rounded-full flex items-center justify-center mx-auto mb-4">
-                <Check className="w-12 h-12 text-white" />
+              {/* Animated trophy/checkmark */}
+              <div className="w-24 h-24 bg-gradient-to-br from-[#7B61FF] to-[#A78BFF] rounded-full flex items-center justify-center mx-auto mb-4 checkmark-bounce shadow-lg">
+                <Trophy className="w-12 h-12 text-white" />
               </div>
               <h2 className="font-display font-bold text-2xl text-[#2A1E5C] mb-2">
                 Puzzle Complete!
@@ -647,20 +653,29 @@ function GameplayPage() {
                 Great job! You solved the puzzle.
               </p>
 
-              {/* Stats */}
-              <div className="bg-[#F3F1FF] rounded-xl p-4 mb-6">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="font-display text-sm text-[#6B5CA8]">Time</span>
+              {/* Stats with staggered animation */}
+              <div className="bg-[#F3F1FF] rounded-xl p-4 mb-6 space-y-3">
+                <div className="flex items-center justify-between stats-slide stats-slide-1">
+                  <span className="font-display text-sm text-[#6B5CA8] flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    Time
+                  </span>
                   <span className="font-display font-semibold text-[#2A1E5C]">{formatTime(timer)}</span>
                 </div>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="font-display text-sm text-[#6B5CA8]">Difficulty</span>
+                <div className="flex items-center justify-between stats-slide stats-slide-2">
+                  <span className="font-display text-sm text-[#6B5CA8] flex items-center gap-2">
+                    <Flame className="w-4 h-4" />
+                    Difficulty
+                  </span>
                   <span className="font-display font-semibold text-[#2A1E5C]">
                     {puzzle?.difficulty ? puzzle.difficulty.charAt(0).toUpperCase() + puzzle.difficulty.slice(1) : ''}
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="font-display text-sm text-[#6B5CA8]">Grid Size</span>
+                <div className="flex items-center justify-between stats-slide stats-slide-3">
+                  <span className="font-display text-sm text-[#6B5CA8] flex items-center gap-2">
+                    <Check className="w-4 h-4" />
+                    Grid Size
+                  </span>
                   <span className="font-display font-semibold text-[#2A1E5C]">
                     {puzzle?.gridWidth}×{puzzle?.gridHeight}
                   </span>

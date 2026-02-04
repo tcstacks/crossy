@@ -142,8 +142,11 @@ export interface RoomPlayer {
 }
 
 export interface CreateRoomRequest {
-  maxPlayers?: number;
   puzzleId?: string;
+  mode?: 'collaborative' | 'race' | 'relay';
+  config?: {
+    maxPlayers?: number;
+  };
 }
 
 export interface CreateRoomResponse {

@@ -142,6 +142,7 @@ func main() {
 				roomsGroup.GET("/:code", handlers.GetRoomByCode)
 				roomsGroup.POST("/join", handlers.JoinRoomByCode)
 				roomsGroup.POST("/:id/join", handlers.JoinRoom)
+				roomsGroup.POST("/:id/ready", handlers.SetPlayerReady)
 				roomsGroup.POST("/:id/start", handlers.StartRoom)
 				roomsGroup.DELETE("/:id", handlers.CloseRoom)
 			} else {

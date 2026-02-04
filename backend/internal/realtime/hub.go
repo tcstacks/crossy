@@ -23,6 +23,7 @@ const (
 	MsgSendMessage  MessageType = "send_message"
 	MsgRequestHint  MessageType = "request_hint"
 	MsgStartGame    MessageType = "start_game"
+	MsgSetReady     MessageType = "set_ready"
 	MsgReaction     MessageType = "reaction"
 	MsgPassTurn     MessageType = "pass_turn" // Relay mode: pass turn to next player
 
@@ -30,6 +31,7 @@ const (
 	MsgRoomState        MessageType = "room_state"
 	MsgPlayerJoined     MessageType = "player_joined"
 	MsgPlayerLeft       MessageType = "player_left"
+	MsgPlayerReady      MessageType = "player_ready"
 	MsgCellUpdated      MessageType = "cell_updated"
 	MsgCursorMoved      MessageType = "cursor_moved"
 	MsgNewMessage       MessageType = "new_message"
@@ -277,6 +279,8 @@ func (h *Hub) HandleMessage(client *Client, msg *Message) {
 		h.handleRequestHint(client, msg.Payload)
 	case MsgStartGame:
 		h.handleStartGame(client)
+	case MsgSetReady:
+		h.handleSetReady(client, msg.Payload)
 	case MsgReaction:
 		h.handleReaction(client, msg.Payload)
 	case MsgPassTurn:
@@ -791,6 +795,37 @@ func (h *Hub) handleRequestHint(client *Client, payload json.RawMessage) {
 		gridState.LastUpdated = time.Now()
 		h.db.UpdateGridState(gridState)
 	}
+}
+
+func (h *Hub) handleSetReady(client *Client, payload json.RawMessage) {
+	var p struct {
+		Ready bool `json:"ready"`
+	}
+	if err := json.Unmarshal(payload, &p); err != nil {
+		log.Printf("handleSetReady: Failed to unmarshal payload: %v", err)
+		h.sendError(client, "invalid payload")
+		return
+	}
+
+	if client.RoomID == "" {
+		log.Printf("handleSetReady: client has no roomID")
+		return
+	}
+
+	log.Printf("handleSetReady: User %s setting ready to %v in room %s", client.UserID, p.Ready, client.RoomID)
+
+	// Update ready status in database
+	if err := h.db.UpdatePlayerReady(client.UserID, client.RoomID, p.Ready); err != nil {
+		log.Printf("handleSetReady: error updating ready status: %v", err)
+		h.sendError(client, "failed to update ready status")
+		return
+	}
+
+	// Broadcast ready status to all clients in the room
+	h.broadcastToRoom(client.RoomID, "", MsgPlayerReady, map[string]interface{}{
+		"userId": client.UserID,
+		"ready":  p.Ready,
+	})
 }
 
 func (h *Hub) handleStartGame(client *Client) {

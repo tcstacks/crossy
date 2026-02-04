@@ -123,6 +123,7 @@ func (d *Database) InitSchema() error {
 		cursor_y INTEGER,
 		is_spectator BOOLEAN DEFAULT FALSE,
 		is_connected BOOLEAN DEFAULT TRUE,
+		is_ready BOOLEAN DEFAULT FALSE,
 		contribution FLOAT DEFAULT 0,
 		color VARCHAR(7) NOT NULL,
 		joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -658,7 +659,7 @@ func (d *Database) AddPlayer(player *models.Player) error {
 
 func (d *Database) GetRoomPlayers(roomID string) ([]models.Player, error) {
 	rows, err := d.DB.Query(`
-		SELECT user_id, room_id, display_name, cursor_x, cursor_y, is_spectator, is_connected, contribution, color, joined_at
+		SELECT user_id, room_id, display_name, cursor_x, cursor_y, is_spectator, is_connected, is_ready, contribution, color, joined_at
 		FROM players WHERE room_id = $1
 	`, roomID)
 	if err != nil {
@@ -670,7 +671,7 @@ func (d *Database) GetRoomPlayers(roomID string) ([]models.Player, error) {
 	for rows.Next() {
 		var player models.Player
 		err := rows.Scan(&player.UserID, &player.RoomID, &player.DisplayName, &player.CursorX, &player.CursorY,
-			&player.IsSpectator, &player.IsConnected, &player.Contribution, &player.Color, &player.JoinedAt)
+			&player.IsSpectator, &player.IsConnected, &player.IsReady, &player.Contribution, &player.Color, &player.JoinedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -698,6 +699,13 @@ func (d *Database) UpdatePlayerContribution(userID, roomID string, contribution 
 	_, err := d.DB.Exec(`
 		UPDATE players SET contribution = $3 WHERE user_id = $1 AND room_id = $2
 	`, userID, roomID, contribution)
+	return err
+}
+
+func (d *Database) UpdatePlayerReady(userID, roomID string, ready bool) error {
+	_, err := d.DB.Exec(`
+		UPDATE players SET is_ready = $3 WHERE user_id = $1 AND room_id = $2
+	`, userID, roomID, ready)
 	return err
 }
 

@@ -6,7 +6,6 @@ import {
   Clock,
   Flame,
   Target,
-  TrendingUp,
   Edit,
 } from 'lucide-react';
 import { userApi, getToken } from '../lib/api';

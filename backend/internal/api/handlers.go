@@ -895,6 +895,51 @@ func (h *Handlers) CloseRoom(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "room closed"})
 }
 
+func (h *Handlers) SetPlayerReady(c *gin.Context) {
+	claims := middleware.GetAuthUser(c)
+	if claims == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	roomID := c.Param("id")
+
+	var req struct {
+		Ready bool `json:"ready"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	// Verify player is in the room
+	players, err := h.db.GetRoomPlayers(roomID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+		return
+	}
+
+	playerInRoom := false
+	for _, p := range players {
+		if p.UserID == claims.UserID {
+			playerInRoom = true
+			break
+		}
+	}
+
+	if !playerInRoom {
+		c.JSON(http.StatusForbidden, gin.H{"error": "not in room"})
+		return
+	}
+
+	if err := h.db.UpdatePlayerReady(claims.UserID, roomID, req.Ready); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update ready status"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"ready": req.Ready})
+}
+
 // Helper functions
 
 // updateUserStatsAfterSoloPuzzle updates user stats after completing a solo puzzle

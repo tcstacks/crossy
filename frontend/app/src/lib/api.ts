@@ -260,6 +260,16 @@ export const roomApi = {
   },
 
   /**
+   * Set player ready status
+   */
+  setPlayerReady: async (data: { roomId: string; ready: boolean }): Promise<{ ready: boolean }> => {
+    const response = await apiClient.post<{ ready: boolean }>(`/api/rooms/${data.roomId}/ready`, {
+      ready: data.ready,
+    });
+    return response.data;
+  },
+
+  /**
    * Close a room (host only)
    */
   closeRoom: async (data: CloseRoomRequest): Promise<Room> => {

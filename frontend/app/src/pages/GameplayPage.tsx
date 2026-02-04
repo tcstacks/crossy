@@ -245,12 +245,22 @@ function GameplayPage() {
     setShowCheck(false);
 
     // Find the active clue based on the new direction
-    const cellNum = grid[row][col].number;
-    if (cellNum) {
-      const clue = newDirection === 'across'
-        ? cluesAcross.find(c => c.num === cellNum && c.row === row)
-        : cluesDown.find(c => c.num === cellNum && c.col === col);
-      if (clue) setActiveClue(clue);
+    // Look for the clue that contains this cell, regardless of whether it has a number
+    const clue = newDirection === 'across'
+      ? cluesAcross.find(c =>
+          c.row === row &&
+          c.col <= col &&
+          col < c.col + c.answer.length
+        )
+      : cluesDown.find(c =>
+          c.col === col &&
+          c.row <= row &&
+          row < c.row + c.answer.length
+        );
+    if (clue) {
+      setActiveClue({ ...clue, direction: newDirection });
+      // Auto-switch the clue tab to match the direction
+      setClueTab(newDirection);
     }
   };
 
@@ -521,16 +531,22 @@ function GameplayPage() {
       <div className="bg-[#7B61FF]">
         <div className="max-w-6xl mx-auto px-4 py-3">
           <div className="flex items-center gap-3">
-            <button 
-              onClick={() => setDirection('across')}
+            <button
+              onClick={() => {
+                setDirection('across');
+                setClueTab('across');
+              }}
               className={`px-3 py-1 rounded-full text-xs font-display font-semibold transition-colors ${
                 direction === 'across' ? 'bg-white text-[#7B61FF]' : 'bg-[#6B51EF] text-white/70'
               }`}
             >
               {activeClue?.num || 1} ACROSS
             </button>
-            <button 
-              onClick={() => setDirection('down')}
+            <button
+              onClick={() => {
+                setDirection('down');
+                setClueTab('down');
+              }}
               className={`px-3 py-1 rounded-full text-xs font-display font-semibold transition-colors ${
                 direction === 'down' ? 'bg-white text-[#7B61FF]' : 'bg-[#6B51EF] text-white/70'
               }`}
@@ -563,6 +579,7 @@ function GameplayPage() {
             className="relative bg-white rounded-2xl p-3 outline-none shadow-lg"
           >
             <div
+              data-testid="crossword-grid"
               className="grid gap-1"
               style={{ gridTemplateColumns: `repeat(${puzzle?.gridWidth || 7}, 1fr)` }}
             >

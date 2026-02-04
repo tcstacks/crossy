@@ -19,7 +19,7 @@ interface AuthModalProps {
 
 export function AuthModal({ open, onOpenChange }: AuthModalProps) {
   const { login, register, guestLogin } = useAuth();
-  const [activeTab, setActiveTab] = useState<'guest' | 'login' | 'register'>('guest');
+  const [activeTab, setActiveTab] = useState<'guest' | 'login' | 'register'>('login');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -92,7 +92,7 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
       await register({
         email: registerEmail,
         password: registerPassword,
-        username: registerUsername,
+        displayName: registerUsername,
       });
       handleClose(false);
     } catch (err) {
@@ -154,10 +154,10 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
                 {isLoading ? (
                   <>
                     <Spinner className="mr-2" />
-                    Continuing...
+                    Playing as guest...
                   </>
                 ) : (
-                  'Continue as Guest'
+                  'Play as Guest'
                 )}
               </Button>
             </form>

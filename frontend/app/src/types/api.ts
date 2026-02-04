@@ -1,6 +1,6 @@
 // Auth Types
 export interface RegisterRequest {
-  username: string;
+  displayName: string;
   email: string;
   password: string;
 }
@@ -31,12 +31,13 @@ export interface User {
 
 export interface UserStats {
   userId: string;
-  totalPuzzlesSolved: number;
-  averageTime: number;
-  bestTime: number;
-  currentStreak: number;
-  longestStreak: number;
-  lastPlayedAt: string;
+  puzzlesSolved: number;
+  avgSolveTime: number;
+  streakCurrent: number;
+  streakBest: number;
+  multiplayerWins: number;
+  totalPlayTime: number;
+  lastPlayedAt: string | null;
 }
 
 export interface PuzzleHistory {
@@ -141,8 +142,11 @@ export interface RoomPlayer {
 }
 
 export interface CreateRoomRequest {
-  maxPlayers?: number;
   puzzleId?: string;
+  mode?: 'collaborative' | 'race' | 'relay';
+  config?: {
+    maxPlayers?: number;
+  };
 }
 
 export interface CreateRoomResponse {
@@ -173,6 +177,7 @@ export interface CloseRoomRequest {
 export interface ApiError {
   message: string;
   statusCode: number;
+  error?: string; // Backend sometimes returns error instead of message
   errors?: Record<string, string[]>;
 }
 

@@ -21,8 +21,11 @@ const (
 	MsgCellUpdate   MessageType = "cell_update"
 	MsgCursorMove   MessageType = "cursor_move"
 	MsgSendMessage  MessageType = "send_message"
+	MsgChatMessage  MessageType = "chat:message"  // Chat message from client
+	MsgChatTyping   MessageType = "chat:typing"   // Typing indicator from client
 	MsgRequestHint  MessageType = "request_hint"
 	MsgStartGame    MessageType = "start_game"
+	MsgSetReady     MessageType = "set_ready"
 	MsgReaction     MessageType = "reaction"
 	MsgPassTurn     MessageType = "pass_turn" // Relay mode: pass turn to next player
 
@@ -30,6 +33,7 @@ const (
 	MsgRoomState        MessageType = "room_state"
 	MsgPlayerJoined     MessageType = "player_joined"
 	MsgPlayerLeft       MessageType = "player_left"
+	MsgPlayerReady      MessageType = "player_ready"
 	MsgCellUpdated      MessageType = "cell_updated"
 	MsgCursorMoved      MessageType = "cursor_moved"
 	MsgNewMessage       MessageType = "new_message"
@@ -69,6 +73,22 @@ type CursorMovePayload struct {
 
 type SendMessagePayload struct {
 	Text string `json:"text"`
+}
+
+type ChatMessagePayload struct {
+	Message struct {
+		ID        string `json:"id"`
+		UserID    string `json:"userId"`
+		Username  string `json:"username"`
+		Message   string `json:"message"`
+		Timestamp int64  `json:"timestamp"`
+	} `json:"message"`
+}
+
+type ChatTypingPayload struct {
+	UserID   string `json:"userId"`
+	Username string `json:"username"`
+	IsTyping bool   `json:"isTyping"`
 }
 
 type RequestHintPayload struct {
@@ -273,10 +293,16 @@ func (h *Hub) HandleMessage(client *Client, msg *Message) {
 		h.handleCursorMove(client, msg.Payload)
 	case MsgSendMessage:
 		h.handleSendMessage(client, msg.Payload)
+	case MsgChatMessage:
+		h.handleChatMessage(client, msg.Payload)
+	case MsgChatTyping:
+		h.handleChatTyping(client, msg.Payload)
 	case MsgRequestHint:
 		h.handleRequestHint(client, msg.Payload)
 	case MsgStartGame:
 		h.handleStartGame(client)
+	case MsgSetReady:
+		h.handleSetReady(client, msg.Payload)
 	case MsgReaction:
 		h.handleReaction(client, msg.Payload)
 	case MsgPassTurn:
@@ -659,6 +685,53 @@ func (h *Hub) handleSendMessage(client *Client, payload json.RawMessage) {
 	})
 }
 
+func (h *Hub) handleChatMessage(client *Client, payload json.RawMessage) {
+	if client.RoomID == "" {
+		return
+	}
+
+	var p ChatMessagePayload
+	if err := json.Unmarshal(payload, &p); err != nil {
+		log.Printf("handleChatMessage: failed to unmarshal payload: %v", err)
+		h.sendError(client, "invalid payload")
+		return
+	}
+
+	if p.Message.Message == "" {
+		return
+	}
+
+	// Save message to database
+	msg := &models.Message{
+		ID:          p.Message.ID,
+		RoomID:      client.RoomID,
+		UserID:      client.UserID,
+		DisplayName: p.Message.Username,
+		Text:        p.Message.Message,
+		CreatedAt:   time.Unix(0, p.Message.Timestamp*int64(time.Millisecond)),
+	}
+
+	h.db.CreateMessage(msg)
+
+	// Broadcast the chat message to all clients in the room
+	h.broadcastToRoom(client.RoomID, "", MsgChatMessage, p)
+}
+
+func (h *Hub) handleChatTyping(client *Client, payload json.RawMessage) {
+	if client.RoomID == "" {
+		return
+	}
+
+	var p ChatTypingPayload
+	if err := json.Unmarshal(payload, &p); err != nil {
+		log.Printf("handleChatTyping: failed to unmarshal payload: %v", err)
+		return
+	}
+
+	// Broadcast typing indicator to other clients (exclude sender)
+	h.broadcastToRoom(client.RoomID, client.ConnectionID, MsgChatTyping, p)
+}
+
 func (h *Hub) handleRequestHint(client *Client, payload json.RawMessage) {
 	if client.RoomID == "" {
 		return
@@ -791,6 +864,37 @@ func (h *Hub) handleRequestHint(client *Client, payload json.RawMessage) {
 		gridState.LastUpdated = time.Now()
 		h.db.UpdateGridState(gridState)
 	}
+}
+
+func (h *Hub) handleSetReady(client *Client, payload json.RawMessage) {
+	var p struct {
+		Ready bool `json:"ready"`
+	}
+	if err := json.Unmarshal(payload, &p); err != nil {
+		log.Printf("handleSetReady: Failed to unmarshal payload: %v", err)
+		h.sendError(client, "invalid payload")
+		return
+	}
+
+	if client.RoomID == "" {
+		log.Printf("handleSetReady: client has no roomID")
+		return
+	}
+
+	log.Printf("handleSetReady: User %s setting ready to %v in room %s", client.UserID, p.Ready, client.RoomID)
+
+	// Update ready status in database
+	if err := h.db.UpdatePlayerReady(client.UserID, client.RoomID, p.Ready); err != nil {
+		log.Printf("handleSetReady: error updating ready status: %v", err)
+		h.sendError(client, "failed to update ready status")
+		return
+	}
+
+	// Broadcast ready status to all clients in the room
+	h.broadcastToRoom(client.RoomID, "", MsgPlayerReady, map[string]interface{}{
+		"userId": client.UserID,
+		"ready":  p.Ready,
+	})
 }
 
 func (h *Hub) handleStartGame(client *Client) {
@@ -1558,6 +1662,22 @@ func (h *Hub) broadcastToRoom(roomID string, excludeConnectionID string, msgType
 	}
 	hubRoom.mutex.RUnlock()
 	log.Printf("broadcastToRoom: complete")
+}
+
+// BroadcastToRoom is a public method for broadcasting messages to a room from HTTP handlers
+func (h *Hub) BroadcastToRoom(roomID, senderID string, messageType interface{}, payload interface{}) {
+	// Convert string messageType to MessageType if needed
+	var msgType MessageType
+	switch v := messageType.(type) {
+	case MessageType:
+		msgType = v
+	case string:
+		msgType = MessageType(v)
+	default:
+		log.Printf("BroadcastToRoom: invalid messageType type: %T", messageType)
+		return
+	}
+	h.broadcastToRoom(roomID, senderID, msgType, payload)
 }
 
 func (h *Hub) sendError(client *Client, message string) {

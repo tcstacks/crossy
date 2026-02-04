@@ -85,8 +85,10 @@ apiClient.interceptors.response.use(
     }
 
     // Handle API errors
+    // Backend returns either { message: string } or { error: string }
+    const errorMessage = error.response.data?.message || error.response.data?.error || 'An unexpected error occurred';
     const apiError: ApiError = {
-      message: error.response.data?.message || 'An unexpected error occurred',
+      message: errorMessage,
       statusCode: error.response.status,
       errors: error.response.data?.errors,
     };
@@ -254,6 +256,16 @@ export const roomApi = {
    */
   startRoom: async (data: StartRoomRequest): Promise<Room> => {
     const response = await apiClient.post<Room>(`/api/rooms/${data.roomId}/start`);
+    return response.data;
+  },
+
+  /**
+   * Set player ready status
+   */
+  setPlayerReady: async (data: { roomId: string; ready: boolean }): Promise<{ ready: boolean }> => {
+    const response = await apiClient.post<{ ready: boolean }>(`/api/rooms/${data.roomId}/ready`, {
+      ready: data.ready,
+    });
     return response.data;
   },
 

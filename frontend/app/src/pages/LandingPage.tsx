@@ -144,14 +144,12 @@ function Hero() {
             <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
               <path d="M8 5v14l11-7z"/>
             </svg>
-            Play Today's Puzzle
+            Play Now
           </button>
-          <a href="#features" className="crossy-button-secondary text-lg px-8 py-4">
-            Learn More
-            <svg className="w-5 h-5 ml-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M6 9l6 6 6-6"/>
-            </svg>
-          </a>
+          <button onClick={() => navigate(isAuthenticated ? '/room/create' : '#')} onClickCapture={(e) => { if (!isAuthenticated) { e.preventDefault(); setAuthModalOpen(true); }}} className="crossy-button-secondary text-lg px-8 py-4">
+            <Users className="w-5 h-5 mr-2" />
+            Play with Friends
+          </button>
         </div>
 
         <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />

@@ -21,6 +21,8 @@ const (
 	MsgCellUpdate   MessageType = "cell_update"
 	MsgCursorMove   MessageType = "cursor_move"
 	MsgSendMessage  MessageType = "send_message"
+	MsgChatMessage  MessageType = "chat:message"  // Chat message from client
+	MsgChatTyping   MessageType = "chat:typing"   // Typing indicator from client
 	MsgRequestHint  MessageType = "request_hint"
 	MsgStartGame    MessageType = "start_game"
 	MsgSetReady     MessageType = "set_ready"
@@ -71,6 +73,22 @@ type CursorMovePayload struct {
 
 type SendMessagePayload struct {
 	Text string `json:"text"`
+}
+
+type ChatMessagePayload struct {
+	Message struct {
+		ID        string `json:"id"`
+		UserID    string `json:"userId"`
+		Username  string `json:"username"`
+		Message   string `json:"message"`
+		Timestamp int64  `json:"timestamp"`
+	} `json:"message"`
+}
+
+type ChatTypingPayload struct {
+	UserID   string `json:"userId"`
+	Username string `json:"username"`
+	IsTyping bool   `json:"isTyping"`
 }
 
 type RequestHintPayload struct {
@@ -275,6 +293,10 @@ func (h *Hub) HandleMessage(client *Client, msg *Message) {
 		h.handleCursorMove(client, msg.Payload)
 	case MsgSendMessage:
 		h.handleSendMessage(client, msg.Payload)
+	case MsgChatMessage:
+		h.handleChatMessage(client, msg.Payload)
+	case MsgChatTyping:
+		h.handleChatTyping(client, msg.Payload)
 	case MsgRequestHint:
 		h.handleRequestHint(client, msg.Payload)
 	case MsgStartGame:
@@ -661,6 +683,53 @@ func (h *Hub) handleSendMessage(client *Client, payload json.RawMessage) {
 		Text:        msg.Text,
 		CreatedAt:   msg.CreatedAt,
 	})
+}
+
+func (h *Hub) handleChatMessage(client *Client, payload json.RawMessage) {
+	if client.RoomID == "" {
+		return
+	}
+
+	var p ChatMessagePayload
+	if err := json.Unmarshal(payload, &p); err != nil {
+		log.Printf("handleChatMessage: failed to unmarshal payload: %v", err)
+		h.sendError(client, "invalid payload")
+		return
+	}
+
+	if p.Message.Message == "" {
+		return
+	}
+
+	// Save message to database
+	msg := &models.Message{
+		ID:          p.Message.ID,
+		RoomID:      client.RoomID,
+		UserID:      client.UserID,
+		DisplayName: p.Message.Username,
+		Text:        p.Message.Message,
+		CreatedAt:   time.Unix(0, p.Message.Timestamp*int64(time.Millisecond)),
+	}
+
+	h.db.CreateMessage(msg)
+
+	// Broadcast the chat message to all clients in the room
+	h.broadcastToRoom(client.RoomID, "", MsgChatMessage, p)
+}
+
+func (h *Hub) handleChatTyping(client *Client, payload json.RawMessage) {
+	if client.RoomID == "" {
+		return
+	}
+
+	var p ChatTypingPayload
+	if err := json.Unmarshal(payload, &p); err != nil {
+		log.Printf("handleChatTyping: failed to unmarshal payload: %v", err)
+		return
+	}
+
+	// Broadcast typing indicator to other clients (exclude sender)
+	h.broadcastToRoom(client.RoomID, client.ConnectionID, MsgChatTyping, p)
 }
 
 func (h *Hub) handleRequestHint(client *Client, payload json.RawMessage) {

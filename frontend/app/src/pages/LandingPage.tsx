@@ -170,6 +170,8 @@ function DailyPuzzle() {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [puzzle, setPuzzle] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -190,11 +192,49 @@ function DailyPuzzle() {
     return () => ctx.revert();
   }, []);
 
+  useEffect(() => {
+    const fetchTodayPuzzle = async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/api/puzzles/today`);
+        if (response.ok) {
+          const data = await response.json();
+          setPuzzle(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch today\'s puzzle:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTodayPuzzle();
+  }, []);
+
   const handlePlayClick = () => {
     if (isAuthenticated) {
       navigate('/play');
     } else {
       setAuthModalOpen(true);
+    }
+  };
+
+  // Format date as "Day, Month DD"
+  const formatDate = (dateStr: string | null | undefined) => {
+    if (!dateStr) return 'Today';
+    const date = new Date(dateStr + 'T00:00:00');
+    return date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+  };
+
+  // Get difficulty tag class
+  const getDifficultyClass = (difficulty: string) => {
+    switch (difficulty?.toLowerCase()) {
+      case 'easy':
+        return 'tag-easy';
+      case 'medium':
+        return 'tag-medium';
+      case 'hard':
+        return 'tag-hard';
+      default:
+        return 'tag-easy';
     }
   };
 
@@ -210,38 +250,51 @@ function DailyPuzzle() {
         <div className="lg:hidden absolute -top-6 left-1/2 -translate-x-1/2 z-10">
           <img src="/crossy-gym.png" alt="Crossy" className="w-16 h-auto" />
         </div>
-        
+
         <div className="daily-card crossy-card p-6 sm:p-8 relative">
           <div className="lg:hidden absolute -left-3 top-1/2 -translate-y-1/2">
             <img src="/crossy-sleep.png" alt="Crossy" className="w-10 h-auto opacity-80" />
           </div>
-          
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <Calendar className="w-5 h-5 text-[#7B61FF]" />
-                <span className="font-display font-semibold text-[#6B5CA8]">Today's Puzzle</span>
-                <span className="text-sm text-[#6B5CA8]">• Tuesday, Jan 28</span>
+
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="inline-block animate-pulse">
+                <Calendar className="w-8 h-8 text-[#7B61FF]" />
               </div>
-              <h2 className="font-display font-bold text-2xl sm:text-3xl text-[#2A1E5C] mb-3">
-                Tuesday Crossword
-              </h2>
-              <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-sm text-[#6B5CA8]">By CrossPlay AI</span>
-                <span className="tag-easy">EASY</span>
-                <span className="bg-[#F3F1FF] text-[#7B61FF] text-xs font-display font-semibold px-3 py-1 rounded-full">
-                  5×5
-                </span>
+              <p className="font-display text-[#6B5CA8] mt-2">Loading today's puzzle...</p>
+            </div>
+          ) : puzzle ? (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Calendar className="w-5 h-5 text-[#7B61FF]" />
+                  <span className="font-display font-semibold text-[#6B5CA8]">Today's Puzzle</span>
+                  <span className="text-sm text-[#6B5CA8]">• {formatDate(puzzle.date)}</span>
+                </div>
+                <h2 className="font-display font-bold text-2xl sm:text-3xl text-[#2A1E5C] mb-3">
+                  {puzzle.title || 'Daily Crossword'}
+                </h2>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="text-sm text-[#6B5CA8]">By {puzzle.author || 'CrossPlay AI'}</span>
+                  <span className={getDifficultyClass(puzzle.difficulty)}>{puzzle.difficulty?.toUpperCase() || 'EASY'}</span>
+                  <span className="bg-[#F3F1FF] text-[#7B61FF] text-xs font-display font-semibold px-3 py-1 rounded-full">
+                    {puzzle.gridWidth}×{puzzle.gridHeight}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <button onClick={handlePlayClick} className="crossy-button flex-1 sm:flex-initial flex items-center justify-center gap-2">
+                  Play Now
+                  <ArrowRight className="w-4 h-4" />
+                </button>
               </div>
             </div>
-            
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-              <button onClick={handlePlayClick} className="crossy-button flex-1 sm:flex-initial flex items-center justify-center gap-2">
-                Play Now
-                <ArrowRight className="w-4 h-4" />
-              </button>
+          ) : (
+            <div className="text-center py-8">
+              <p className="font-display text-[#6B5CA8]">No puzzle available today</p>
             </div>
-          </div>
+          )}
         </div>
 
         <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />

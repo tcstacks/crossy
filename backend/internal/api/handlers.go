@@ -20,13 +20,25 @@ import (
 type Handlers struct {
 	db          *db.Database
 	authService *auth.AuthService
+	hub         HubInterface
+}
+
+// HubInterface defines the methods needed from the Hub
+type HubInterface interface {
+	BroadcastToRoom(roomID, senderID string, messageType interface{}, payload interface{})
 }
 
 func NewHandlers(database *db.Database, authService *auth.AuthService) *Handlers {
 	return &Handlers{
 		db:          database,
 		authService: authService,
+		hub:         nil, // Will be set via SetHub
 	}
+}
+
+// SetHub sets the WebSocket hub for the handlers
+func (h *Handlers) SetHub(hub HubInterface) {
+	h.hub = hub
 }
 
 // Auth Handlers
@@ -859,6 +871,11 @@ func (h *Handlers) StartRoom(c *gin.Context) {
 	if err := h.db.UpdateRoomState(room.ID, models.RoomStateActive); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to start room"})
 		return
+	}
+
+	// Broadcast game started event via WebSocket
+	if h.hub != nil {
+		h.hub.BroadcastToRoom(room.ID, "", "game_started", nil)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "room started"})

@@ -1595,6 +1595,22 @@ func (h *Hub) broadcastToRoom(roomID string, excludeConnectionID string, msgType
 	log.Printf("broadcastToRoom: complete")
 }
 
+// BroadcastToRoom is a public method for broadcasting messages to a room from HTTP handlers
+func (h *Hub) BroadcastToRoom(roomID, senderID string, messageType interface{}, payload interface{}) {
+	// Convert string messageType to MessageType if needed
+	var msgType MessageType
+	switch v := messageType.(type) {
+	case MessageType:
+		msgType = v
+	case string:
+		msgType = MessageType(v)
+	default:
+		log.Printf("BroadcastToRoom: invalid messageType type: %T", messageType)
+		return
+	}
+	h.broadcastToRoom(roomID, senderID, msgType, payload)
+}
+
 func (h *Hub) sendError(client *Client, message string) {
 	h.sendToClient(client, MsgError, ErrorPayload{Message: message})
 }

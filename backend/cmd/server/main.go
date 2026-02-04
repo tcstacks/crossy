@@ -63,6 +63,11 @@ func main() {
 	if database != nil {
 		hub = realtime.NewHub(database)
 		go hub.Run()
+
+		// Connect hub to handlers for WebSocket broadcasting
+		if handlers != nil {
+			handlers.SetHub(hub)
+		}
 	}
 
 	// Setup Gin router

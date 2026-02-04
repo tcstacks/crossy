@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import {
   Clock,
   Flame,
@@ -40,9 +40,11 @@ interface Clue {
 }
 
 function GameplayPage() {
-  // Get date from URL query parameters
+  // Get date from URL query parameters or puzzleId from location state
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const dateParam = searchParams.get('date');
+  const puzzleIdFromState = location.state?.puzzleId;
 
   // Puzzle data state
   const [puzzle, setPuzzle] = useState<Puzzle | null>(null);
@@ -68,17 +70,21 @@ function GameplayPage() {
   const gridRef = useRef<HTMLDivElement>(null);
   const startTimeRef = useRef<number>(Date.now());
 
-  // Fetch puzzle on mount (or when date param changes)
+  // Fetch puzzle on mount (or when date param or puzzleId changes)
   useEffect(() => {
     const fetchPuzzle = async () => {
       try {
         setLoading(true);
         setError(null);
-        // If a date parameter is provided, fetch that specific puzzle from the archive
-        // Otherwise, fetch today's puzzle
-        const fetchedPuzzle = dateParam
-          ? await puzzleApi.getPuzzleByDate({ date: dateParam })
-          : await puzzleApi.getTodayPuzzle();
+        // Priority: puzzleId from state (Play Again) > date param > today's puzzle
+        let fetchedPuzzle: Puzzle;
+        if (puzzleIdFromState) {
+          fetchedPuzzle = await puzzleApi.getPuzzleById(puzzleIdFromState);
+        } else if (dateParam) {
+          fetchedPuzzle = await puzzleApi.getPuzzleByDate({ date: dateParam });
+        } else {
+          fetchedPuzzle = await puzzleApi.getTodayPuzzle();
+        }
         setPuzzle(fetchedPuzzle);
         initializeGridFromPuzzle(fetchedPuzzle);
         startTimeRef.current = Date.now();
@@ -94,7 +100,7 @@ function GameplayPage() {
     };
 
     fetchPuzzle();
-  }, [dateParam]);
+  }, [dateParam, puzzleIdFromState]);
 
   // Initialize grid from puzzle data
   const initializeGridFromPuzzle = (puzzleData: Puzzle) => {
@@ -150,9 +156,14 @@ function GameplayPage() {
   const retryLoadPuzzle = () => {
     setLoading(true);
     setError(null);
-    const puzzlePromise = dateParam
-      ? puzzleApi.getPuzzleByDate({ date: dateParam })
-      : puzzleApi.getTodayPuzzle();
+    let puzzlePromise: Promise<Puzzle>;
+    if (puzzleIdFromState) {
+      puzzlePromise = puzzleApi.getPuzzleById(puzzleIdFromState);
+    } else if (dateParam) {
+      puzzlePromise = puzzleApi.getPuzzleByDate({ date: dateParam });
+    } else {
+      puzzlePromise = puzzleApi.getTodayPuzzle();
+    }
     puzzlePromise
       .then(fetchedPuzzle => {
         setPuzzle(fetchedPuzzle);

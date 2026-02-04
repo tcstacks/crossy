@@ -1,0 +1,1294 @@
+{
+  "name": "crossplay-fullstack-e2e",
+  "description": "Integrated fullstack user stories covering frontend UI, backend API contracts, and E2E verification via Playwright",
+  "branchName": "ralph/fullstack-e2e-verify",
+  "userStories": [
+    {
+      "id": "AUTH-01",
+      "title": "User registration with email and password",
+      "description": "As a new user, I can register with my display name, email, and password to create an account",
+      "acceptanceCriteria": [
+        "Launch Playwright browser in headless mode",
+        "Navigate to / (landing page)",
+        "Click 'Play Now' or auth trigger button",
+        "Verify AuthModal opens with tabs",
+        "Click 'Register' tab",
+        "Fill displayName field with 'TestUser'",
+        "Fill email field with unique test email",
+        "Fill password field with 'TestPass123!'",
+        "Intercept API call to POST /api/auth/register",
+        "Click 'Register' button",
+        "Verify API returns 200/201 with user object and token",
+        "Verify modal closes automatically",
+        "Verify username appears in header",
+        "Take screenshot confirming registered state"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [],
+      "metadata": {
+        "category": "Authentication",
+        "fullStack": true,
+        "backend": {
+          "endpoints": ["POST /api/auth/register"],
+          "models": ["User", "UserStats"],
+          "validations": ["email uniqueness", "password hashing", "displayName required"]
+        },
+        "frontend": {
+          "pages": ["/"],
+          "components": ["AuthModal", "Header"],
+          "state": ["authContext.user", "authContext.isAuthenticated", "localStorage.auth_token"]
+        },
+        "playwrightTest": "tests/e2e/auth.spec.ts#registration"
+      }
+    },
+    {
+      "id": "AUTH-02",
+      "title": "User login with credentials",
+      "description": "As a returning user, I can log in with my email and password",
+      "acceptanceCriteria": [
+        "Launch Playwright browser in headless mode",
+        "Navigate to /",
+        "Click auth trigger to open AuthModal",
+        "Ensure 'Login' tab is active",
+        "Fill email field with valid credentials",
+        "Fill password field with valid credentials",
+        "Intercept API call to POST /api/auth/login",
+        "Click 'Login' button",
+        "Verify API returns 200 with user object and JWT token",
+        "Verify modal closes",
+        "Verify username appears in header",
+        "Verify localStorage contains auth_token",
+        "Take screenshot confirming logged-in state"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [],
+      "metadata": {
+        "category": "Authentication",
+        "fullStack": true,
+        "backend": {
+          "endpoints": ["POST /api/auth/login"],
+          "models": ["User"],
+          "validations": ["credentials match", "bcrypt comparison"]
+        },
+        "frontend": {
+          "pages": ["/"],
+          "components": ["AuthModal", "Header"],
+          "state": ["authContext.user", "authContext.token"]
+        },
+        "playwrightTest": "tests/e2e/auth.spec.ts#login"
+      }
+    },
+    {
+      "id": "AUTH-03",
+      "title": "Login with invalid credentials shows error",
+      "description": "As a user, I see an error message when login fails with invalid credentials",
+      "acceptanceCriteria": [
+        "Launch Playwright browser in headless mode",
+        "Navigate to /",
+        "Open AuthModal",
+        "Fill email with 'nonexistent@test.com'",
+        "Fill password with 'wrongpassword'",
+        "Intercept API call to POST /api/auth/login",
+        "Click 'Login' button",
+        "Verify API returns 401 status",
+        "Verify error message is displayed in modal",
+        "Verify modal remains open",
+        "Verify user is NOT authenticated",
+        "Take screenshot showing error state"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [],
+      "metadata": {
+        "category": "Authentication",
+        "fullStack": true,
+        "backend": {
+          "endpoints": ["POST /api/auth/login"],
+          "validations": ["invalid credentials rejection"]
+        },
+        "frontend": {
+          "components": ["AuthModal"],
+          "state": ["error display"]
+        },
+        "playwrightTest": "tests/e2e/auth.spec.ts#loginError"
+      }
+    },
+    {
+      "id": "AUTH-04",
+      "title": "Guest login without account",
+      "description": "As a visitor, I can play as a guest without creating an account",
+      "acceptanceCriteria": [
+        "Launch Playwright browser in headless mode",
+        "Navigate to /",
+        "Open AuthModal",
+        "Click 'Guest' tab",
+        "Optionally fill displayName with 'GuestPlayer'",
+        "Intercept API call to POST /api/auth/guest",
+        "Click 'Play as Guest' button",
+        "Verify API returns 200 with guest user (isGuest: true) and token",
+        "Verify modal closes",
+        "Verify guest name appears in header",
+        "Verify can access protected routes",
+        "Take screenshot confirming guest state"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [],
+      "metadata": {
+        "category": "Authentication",
+        "fullStack": true,
+        "backend": {
+          "endpoints": ["POST /api/auth/guest"],
+          "models": ["User"],
+          "validations": ["auto-generated email for guests"]
+        },
+        "frontend": {
+          "components": ["AuthModal", "Header"],
+          "state": ["authContext.user.isGuest"]
+        },
+        "playwrightTest": "tests/e2e/auth.spec.ts#guestLogin"
+      }
+    },
+    {
+      "id": "AUTH-05",
+      "title": "User logout clears session",
+      "description": "As a logged-in user, I can logout and my session is cleared",
+      "acceptanceCriteria": [
+        "Complete AUTH-02 to be logged in",
+        "Click user menu/avatar in header",
+        "Click 'Logout' option",
+        "Verify localStorage auth_token is cleared",
+        "Verify 'Login' button reappears in header",
+        "Navigate to /profile",
+        "Verify redirect to / or AuthModal appears (protected route)",
+        "Take screenshot confirming logged-out state"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["AUTH-02"],
+      "metadata": {
+        "category": "Authentication",
+        "fullStack": true,
+        "backend": {
+          "endpoints": []
+        },
+        "frontend": {
+          "components": ["Header"],
+          "state": ["authContext cleared", "localStorage cleared"]
+        },
+        "playwrightTest": "tests/e2e/auth.spec.ts#logout"
+      }
+    },
+    {
+      "id": "AUTH-06",
+      "title": "Token persistence across page reload",
+      "description": "As a logged-in user, my session persists after page reload",
+      "acceptanceCriteria": [
+        "Complete AUTH-02 to be logged in",
+        "Verify username visible in header",
+        "Reload the page (page.reload())",
+        "Intercept API call to GET /api/users/me",
+        "Verify API returns 200 with user data",
+        "Verify username still appears in header after reload",
+        "Verify can access /profile without re-authenticating",
+        "Take screenshot confirming session persistence"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["AUTH-02"],
+      "metadata": {
+        "category": "Authentication",
+        "fullStack": true,
+        "backend": {
+          "endpoints": ["GET /api/users/me"],
+          "validations": ["JWT token validation"]
+        },
+        "frontend": {
+          "components": ["AuthContext initialization"],
+          "state": ["localStorage.auth_token read on mount"]
+        },
+        "playwrightTest": "tests/e2e/auth.spec.ts#tokenPersistence"
+      }
+    },
+    {
+      "id": "PLAY-01",
+      "title": "Load today's daily puzzle",
+      "description": "As a player, I can load today's daily crossword puzzle",
+      "acceptanceCriteria": [
+        "Launch Playwright browser in headless mode",
+        "Navigate to /play",
+        "Intercept API call to GET /api/puzzles/today",
+        "Verify API returns 200 with puzzle object",
+        "Verify puzzle has grid, cluesAcross, cluesDown",
+        "Verify crossword grid renders with correct dimensions",
+        "Verify puzzle title is displayed",
+        "Verify Across clues list is visible",
+        "Verify Down clues list is visible",
+        "Take screenshot of loaded puzzle"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [],
+      "metadata": {
+        "category": "Single-Player Gameplay",
+        "fullStack": true,
+        "backend": {
+          "endpoints": ["GET /api/puzzles/today"],
+          "models": ["Puzzle"],
+          "validations": ["puzzle status = published", "answers stripped from response"]
+        },
+        "frontend": {
+          "pages": ["/play"],
+          "components": ["GameplayPage", "CrosswordGrid", "CluesList"],
+          "state": ["gameStore.currentPuzzle", "gameStore.grid"]
+        },
+        "playwrightTest": "tests/e2e/gameplay.spec.ts#loadTodaysPuzzle"
+      }
+    },
+    {
+      "id": "PLAY-02",
+      "title": "Load archive puzzle by date",
+      "description": "As a player, I can load a specific puzzle via /play?date=YYYY-MM-DD",
+      "acceptanceCriteria": [
+        "Launch Playwright browser in headless mode",
+        "Navigate to /play?date=2024-01-15",
+        "Intercept API call to GET /api/puzzles/2024-01-15",
+        "Verify API returns 200 with puzzle for that date",
+        "Verify puzzle grid renders correctly",
+        "Verify puzzle metadata matches requested date",
+        "Take screenshot of loaded archive puzzle"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [],
+      "metadata": {
+        "category": "Single-Player Gameplay",
+        "fullStack": true,
+        "backend": {
+          "endpoints": ["GET /api/puzzles/:date"],
+          "models": ["Puzzle"],
+          "validations": ["date format YYYY-MM-DD"]
+        },
+        "frontend": {
+          "pages": ["/play"],
+          "state": ["query param parsing", "gameStore.currentPuzzle"]
+        },
+        "playwrightTest": "tests/e2e/gameplay.spec.ts#loadArchivePuzzle"
+      }
+    },
+    {
+      "id": "PLAY-03",
+      "title": "Cell selection and typing",
+      "description": "As a player, I can click cells and type letters to fill the puzzle",
+      "acceptanceCriteria": [
+        "Complete PLAY-01 to load a puzzle",
+        "Click on an empty cell in the grid",
+        "Verify cell shows selection highlight",
+        "Verify word highlight shows for current word",
+        "Press letter key 'A'",
+        "Verify letter 'A' appears in the selected cell",
+        "Verify cursor advances to next cell",
+        "Type additional letters",
+        "Verify letters fill consecutive cells",
+        "Take screenshot showing filled cells"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["PLAY-01"],
+      "metadata": {
+        "category": "Single-Player Gameplay",
+        "fullStack": true,
+        "backend": {
+          "endpoints": []
+        },
+        "frontend": {
+          "components": ["CrosswordGrid", "Cell"],
+          "state": ["gameStore.grid", "gameStore.selectedCell", "gameStore.direction"]
+        },
+        "playwrightTest": "tests/e2e/gameplay.spec.ts#cellInteraction"
+      }
+    },
+    {
+      "id": "PLAY-04",
+      "title": "Arrow key navigation",
+      "description": "As a player, I can use arrow keys to navigate between cells",
+      "acceptanceCriteria": [
+        "Complete PLAY-01 to load a puzzle",
+        "Click on a cell to select it",
+        "Press ArrowRight key",
+        "Verify selection moves to right cell",
+        "Press ArrowDown key",
+        "Verify selection moves down",
+        "Press ArrowLeft key",
+        "Verify selection moves left",
+        "Press ArrowUp key",
+        "Verify selection moves up",
+        "Take screenshot showing navigation"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["PLAY-01"],
+      "metadata": {
+        "category": "Single-Player Gameplay",
+        "fullStack": true,
+        "backend": {
+          "endpoints": []
+        },
+        "frontend": {
+          "components": ["CrosswordGrid"],
+          "state": ["gameStore.selectedCell"]
+        },
+        "playwrightTest": "tests/e2e/gameplay.spec.ts#arrowNavigation"
+      }
+    },
+    {
+      "id": "PLAY-05",
+      "title": "Backspace deletes and moves back",
+      "description": "As a player, I can use backspace to delete letters",
+      "acceptanceCriteria": [
+        "Complete PLAY-03 to have filled cells",
+        "Select a filled cell",
+        "Press Backspace key",
+        "Verify cell content is cleared",
+        "Verify selection moves to previous cell",
+        "Take screenshot showing deletion"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["PLAY-03"],
+      "metadata": {
+        "category": "Single-Player Gameplay",
+        "fullStack": true,
+        "backend": {
+          "endpoints": []
+        },
+        "frontend": {
+          "components": ["CrosswordGrid"],
+          "state": ["gameStore.grid"]
+        },
+        "playwrightTest": "tests/e2e/gameplay.spec.ts#backspace"
+      }
+    },
+    {
+      "id": "PLAY-06",
+      "title": "Direction toggle on cell re-click",
+      "description": "As a player, clicking the same cell toggles between across and down direction",
+      "acceptanceCriteria": [
+        "Complete PLAY-01 to load a puzzle",
+        "Click on a cell (intersection of across/down words)",
+        "Verify across word is highlighted",
+        "Click the same cell again",
+        "Verify down word is now highlighted",
+        "Click the same cell again",
+        "Verify across word is highlighted again",
+        "Take screenshots of both directions"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["PLAY-01"],
+      "metadata": {
+        "category": "Single-Player Gameplay",
+        "fullStack": true,
+        "backend": {
+          "endpoints": []
+        },
+        "frontend": {
+          "components": ["CrosswordGrid"],
+          "state": ["gameStore.direction"]
+        },
+        "playwrightTest": "tests/e2e/gameplay.spec.ts#directionToggle"
+      }
+    },
+    {
+      "id": "PLAY-07",
+      "title": "Clue display and highlighting",
+      "description": "As a player, the current clue is displayed and highlighted in the clue list",
+      "acceptanceCriteria": [
+        "Complete PLAY-01 to load a puzzle",
+        "Click on a cell to select a word",
+        "Verify current clue text is displayed prominently",
+        "Verify corresponding clue is highlighted in the clue list",
+        "Click on a different word",
+        "Verify clue display updates",
+        "Verify highlight moves to new clue in list",
+        "Take screenshot showing clue highlighting"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["PLAY-01"],
+      "metadata": {
+        "category": "Single-Player Gameplay",
+        "fullStack": true,
+        "backend": {
+          "endpoints": []
+        },
+        "frontend": {
+          "components": ["CluesList", "CurrentClue"],
+          "state": ["gameStore.selectedCell", "computed current clue"]
+        },
+        "playwrightTest": "tests/e2e/gameplay.spec.ts#clueDisplay"
+      }
+    },
+    {
+      "id": "PLAY-08",
+      "title": "Click clue to jump to word",
+      "description": "As a player, I can click a clue to jump to that word in the grid",
+      "acceptanceCriteria": [
+        "Complete PLAY-01 to load a puzzle",
+        "Find a clue in the Across list",
+        "Click on the clue",
+        "Verify selection jumps to first cell of that word",
+        "Verify direction is set to Across",
+        "Find a clue in the Down list",
+        "Click on the Down clue",
+        "Verify selection jumps to first cell of that word",
+        "Verify direction is set to Down",
+        "Take screenshots showing navigation"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["PLAY-01"],
+      "metadata": {
+        "category": "Single-Player Gameplay",
+        "fullStack": true,
+        "backend": {
+          "endpoints": []
+        },
+        "frontend": {
+          "components": ["CluesList"],
+          "state": ["gameStore.selectedCell", "gameStore.direction"]
+        },
+        "playwrightTest": "tests/e2e/gameplay.spec.ts#clueClick"
+      }
+    },
+    {
+      "id": "PLAY-09",
+      "title": "Timer tracks solve time",
+      "description": "As a player, I see a timer tracking my solve time",
+      "acceptanceCriteria": [
+        "Complete PLAY-01 to load a puzzle",
+        "Verify timer is visible on the page",
+        "Verify timer shows format MM:SS or similar",
+        "Wait 3 seconds",
+        "Verify timer has incremented",
+        "Take screenshot showing timer"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["PLAY-01"],
+      "metadata": {
+        "category": "Single-Player Gameplay",
+        "fullStack": true,
+        "backend": {
+          "endpoints": []
+        },
+        "frontend": {
+          "components": ["Timer"],
+          "state": ["gameStore.timer"]
+        },
+        "playwrightTest": "tests/e2e/gameplay.spec.ts#timer"
+      }
+    },
+    {
+      "id": "PLAY-10",
+      "title": "Progress tracking display",
+      "description": "As a player, I see my progress percentage as I fill cells",
+      "acceptanceCriteria": [
+        "Complete PLAY-01 to load a puzzle",
+        "Verify progress indicator is visible",
+        "Note initial progress (0% or low)",
+        "Fill in several cells with letters",
+        "Verify progress percentage increases",
+        "Take screenshot showing progress"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["PLAY-03"],
+      "metadata": {
+        "category": "Single-Player Gameplay",
+        "fullStack": true,
+        "backend": {
+          "endpoints": []
+        },
+        "frontend": {
+          "components": ["ProgressBar"],
+          "state": ["gameStore.progress", "computed progressPercent"]
+        },
+        "playwrightTest": "tests/e2e/gameplay.spec.ts#progress"
+      }
+    },
+    {
+      "id": "PLAY-11",
+      "title": "Reveal letter hint",
+      "description": "As a player, I can reveal a single letter as a hint",
+      "acceptanceCriteria": [
+        "Complete PLAY-01 to load a puzzle",
+        "Click on an empty cell",
+        "Find and click 'Reveal Letter' button",
+        "Verify the correct letter appears in the cell",
+        "Verify the cell is marked as revealed (visual indicator)",
+        "Take screenshot showing revealed letter"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["PLAY-01"],
+      "metadata": {
+        "category": "Single-Player Gameplay",
+        "fullStack": true,
+        "backend": {
+          "endpoints": []
+        },
+        "frontend": {
+          "components": ["HintButton", "Cell"],
+          "state": ["gameStore.grid cell.isRevealed"]
+        },
+        "playwrightTest": "tests/e2e/gameplay.spec.ts#revealLetter"
+      }
+    },
+    {
+      "id": "PLAY-12",
+      "title": "Reveal word hint",
+      "description": "As a player, I can reveal an entire word as a hint",
+      "acceptanceCriteria": [
+        "Complete PLAY-01 to load a puzzle",
+        "Click on a cell in an empty word",
+        "Find and click 'Reveal Word' button",
+        "Verify all letters in the word are filled",
+        "Verify revealed cells have visual indicator",
+        "Take screenshot showing revealed word"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["PLAY-01"],
+      "metadata": {
+        "category": "Single-Player Gameplay",
+        "fullStack": true,
+        "backend": {
+          "endpoints": []
+        },
+        "frontend": {
+          "components": ["HintButton", "CrosswordGrid"],
+          "state": ["gameStore.grid cells.isRevealed"]
+        },
+        "playwrightTest": "tests/e2e/gameplay.spec.ts#revealWord"
+      }
+    },
+    {
+      "id": "PLAY-13",
+      "title": "Check answers validation",
+      "description": "As a player, I can check my answers and see correct/incorrect feedback",
+      "acceptanceCriteria": [
+        "Complete PLAY-01 to load a puzzle",
+        "Fill some cells with correct letters",
+        "Fill some cells with incorrect letters",
+        "Find and click 'Check' button",
+        "Verify correct cells show green/positive indicator",
+        "Verify incorrect cells show red/negative indicator",
+        "Take screenshot showing validation feedback"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["PLAY-03"],
+      "metadata": {
+        "category": "Single-Player Gameplay",
+        "fullStack": true,
+        "backend": {
+          "endpoints": []
+        },
+        "frontend": {
+          "components": ["CheckButton", "Cell"],
+          "state": ["gameStore.grid cells.isCorrect"]
+        },
+        "playwrightTest": "tests/e2e/gameplay.spec.ts#checkAnswers"
+      }
+    },
+    {
+      "id": "PLAY-14",
+      "title": "Puzzle completion saves to history",
+      "description": "As an authenticated player, completing a puzzle saves to my history",
+      "acceptanceCriteria": [
+        "Complete AUTH-02 to be logged in",
+        "Navigate to /play",
+        "Complete the puzzle (use reveal hints if needed)",
+        "Intercept API call to POST /api/users/me/history",
+        "Verify API call includes puzzleId, solveTime, completed, accuracy",
+        "Verify API returns 200/201",
+        "Verify success/completion modal appears",
+        "Verify confetti animation plays",
+        "Take screenshot of completion celebration"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["AUTH-02", "PLAY-01"],
+      "metadata": {
+        "category": "Single-Player Gameplay",
+        "fullStack": true,
+        "backend": {
+          "endpoints": ["POST /api/users/me/history"],
+          "models": ["PuzzleHistory", "UserStats"],
+          "validations": ["updates stats", "updates streaks for daily puzzles"]
+        },
+        "frontend": {
+          "components": ["CompletionModal", "Confetti"],
+          "state": ["gameStore.isComplete"]
+        },
+        "playwrightTest": "tests/e2e/gameplay.spec.ts#puzzleCompletion"
+      }
+    },
+    {
+      "id": "ARCH-01",
+      "title": "View puzzle archive with pagination",
+      "description": "As a player, I can browse the puzzle archive with pagination",
+      "acceptanceCriteria": [
+        "Launch Playwright browser in headless mode",
+        "Navigate to /archive",
+        "Intercept API call to GET /api/puzzles/archive",
+        "Verify API returns 200 with puzzles array and pagination info",
+        "Verify puzzle cards are displayed",
+        "Verify each card shows date and difficulty",
+        "Verify pagination controls are visible",
+        "Click 'Next' page",
+        "Verify new API call with page parameter",
+        "Verify different puzzles are displayed",
+        "Take screenshot of archive page"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [],
+      "metadata": {
+        "category": "Puzzle Archive",
+        "fullStack": true,
+        "backend": {
+          "endpoints": ["GET /api/puzzles/archive"],
+          "models": ["Puzzle"],
+          "validations": ["pagination params", "returns metadata only (no grid)"]
+        },
+        "frontend": {
+          "pages": ["/archive"],
+          "components": ["ArchivePage", "PuzzleCard", "Pagination"],
+          "state": ["puzzles list", "page", "total"]
+        },
+        "playwrightTest": "tests/e2e/archive.spec.ts#browseArchive"
+      }
+    },
+    {
+      "id": "ARCH-02",
+      "title": "Filter archive by difficulty",
+      "description": "As a player, I can filter archive puzzles by difficulty level",
+      "acceptanceCriteria": [
+        "Complete ARCH-01 to view archive",
+        "Find difficulty filter controls",
+        "Click 'Easy' filter",
+        "Intercept API call with difficulty=easy parameter",
+        "Verify only Easy puzzles are displayed",
+        "Click 'Hard' filter",
+        "Verify API called with difficulty=hard",
+        "Verify only Hard puzzles are displayed",
+        "Take screenshots of filtered results"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["ARCH-01"],
+      "metadata": {
+        "category": "Puzzle Archive",
+        "fullStack": true,
+        "backend": {
+          "endpoints": ["GET /api/puzzles/archive?difficulty=X"],
+          "validations": ["difficulty filter"]
+        },
+        "frontend": {
+          "components": ["DifficultyFilter"],
+          "state": ["selected difficulty", "filtered puzzles"]
+        },
+        "playwrightTest": "tests/e2e/archive.spec.ts#filterByDifficulty"
+      }
+    },
+    {
+      "id": "ARCH-03",
+      "title": "Click archive puzzle navigates to play",
+      "description": "As a player, clicking an archive puzzle loads it for playing",
+      "acceptanceCriteria": [
+        "Complete ARCH-01 to view archive",
+        "Find a puzzle card with a specific date",
+        "Click on the puzzle card",
+        "Verify navigation to /play?date=YYYY-MM-DD",
+        "Intercept API call to GET /api/puzzles/:date",
+        "Verify the selected puzzle loads in gameplay view",
+        "Take screenshot of loaded puzzle"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["ARCH-01", "PLAY-02"],
+      "metadata": {
+        "category": "Puzzle Archive",
+        "fullStack": true,
+        "backend": {
+          "endpoints": ["GET /api/puzzles/:date"]
+        },
+        "frontend": {
+          "pages": ["/archive", "/play"],
+          "state": ["navigation with date param"]
+        },
+        "playwrightTest": "tests/e2e/archive.spec.ts#playFromArchive"
+      }
+    },
+    {
+      "id": "PROF-01",
+      "title": "View profile with user stats",
+      "description": "As an authenticated user, I can view my profile with statistics",
+      "acceptanceCriteria": [
+        "Complete AUTH-02 to be logged in",
+        "Navigate to /profile",
+        "Intercept API calls to GET /api/users/me and GET /api/users/me/stats",
+        "Verify both APIs return 200",
+        "Verify username is displayed",
+        "Verify puzzles solved count is displayed",
+        "Verify average solve time is displayed",
+        "Verify current streak is displayed",
+        "Verify best streak is displayed",
+        "Take screenshot of profile page"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["AUTH-02"],
+      "metadata": {
+        "category": "User Profile",
+        "fullStack": true,
+        "backend": {
+          "endpoints": ["GET /api/users/me", "GET /api/users/me/stats"],
+          "models": ["User", "UserStats"]
+        },
+        "frontend": {
+          "pages": ["/profile"],
+          "components": ["ProfilePage", "StatsCard"],
+          "state": ["user data", "stats data"]
+        },
+        "playwrightTest": "tests/e2e/profile.spec.ts#viewProfile"
+      }
+    },
+    {
+      "id": "HIST-01",
+      "title": "View puzzle completion history",
+      "description": "As an authenticated user, I can view my puzzle completion history",
+      "acceptanceCriteria": [
+        "Complete AUTH-02 to be logged in",
+        "Navigate to /history",
+        "Intercept API call to GET /api/users/me/history",
+        "Verify API returns 200 with history array",
+        "Verify history list is displayed",
+        "Verify each entry shows puzzle date",
+        "Verify each entry shows solve time",
+        "Verify each entry shows completion status",
+        "Take screenshot of history page"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["AUTH-02"],
+      "metadata": {
+        "category": "Puzzle History",
+        "fullStack": true,
+        "backend": {
+          "endpoints": ["GET /api/users/me/history"],
+          "models": ["PuzzleHistory"]
+        },
+        "frontend": {
+          "pages": ["/history"],
+          "components": ["HistoryPage", "HistoryEntry"],
+          "state": ["history list"]
+        },
+        "playwrightTest": "tests/e2e/history.spec.ts#viewHistory"
+      }
+    },
+    {
+      "id": "HIST-02",
+      "title": "Play Again from history",
+      "description": "As a user, I can replay a puzzle from my history",
+      "acceptanceCriteria": [
+        "Complete HIST-01 to view history",
+        "Find a puzzle entry with 'Play Again' button",
+        "Click 'Play Again'",
+        "Verify navigation to /play with that puzzle",
+        "Verify the puzzle loads correctly",
+        "Take screenshot of replayed puzzle"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["HIST-01"],
+      "metadata": {
+        "category": "Puzzle History",
+        "fullStack": true,
+        "backend": {
+          "endpoints": ["GET /api/puzzles/:date or :id"]
+        },
+        "frontend": {
+          "pages": ["/history", "/play"],
+          "state": ["navigation with puzzle reference"]
+        },
+        "playwrightTest": "tests/e2e/history.spec.ts#playAgain"
+      }
+    },
+    {
+      "id": "ROOM-01",
+      "title": "Create multiplayer room",
+      "description": "As an authenticated user, I can create a new multiplayer room",
+      "acceptanceCriteria": [
+        "Complete AUTH-02 to be logged in",
+        "Navigate to /room/create",
+        "Verify room creation form is displayed",
+        "Select game mode (collaborative/race/relay)",
+        "Select max players (2-8)",
+        "Select puzzle option",
+        "Intercept API call to POST /api/rooms",
+        "Click 'Create Room' button",
+        "Verify API returns 200/201 with room object including code",
+        "Verify redirect to /room/:code lobby",
+        "Verify room code is displayed",
+        "Take screenshot of created room"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["AUTH-02"],
+      "metadata": {
+        "category": "Multiplayer - Room Creation",
+        "fullStack": true,
+        "backend": {
+          "endpoints": ["POST /api/rooms"],
+          "models": ["Room", "Player"],
+          "validations": ["generates 6-char code", "host auto-joins"]
+        },
+        "frontend": {
+          "pages": ["/room/create"],
+          "components": ["CreateRoomPage", "ModeSelector", "PlayerSlider"],
+          "state": ["form state", "navigation to lobby"]
+        },
+        "playwrightTest": "tests/e2e/multiplayer.spec.ts#createRoom"
+      }
+    },
+    {
+      "id": "JOIN-01",
+      "title": "Join room by code",
+      "description": "As an authenticated user, I can join a room by entering the code",
+      "acceptanceCriteria": [
+        "Complete AUTH-02 to be logged in",
+        "Navigate to /room/join",
+        "Verify room code input is displayed (6 character fields)",
+        "Enter a valid room code (from another created room)",
+        "Intercept API calls to GET /api/rooms/:code and POST /api/rooms/:code/join",
+        "Click 'Join' button",
+        "Verify API returns room details with players",
+        "Verify redirect to /room/:code lobby",
+        "Verify you appear in the player list",
+        "Take screenshot of joined lobby"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["AUTH-02", "ROOM-01"],
+      "metadata": {
+        "category": "Multiplayer - Joining",
+        "fullStack": true,
+        "backend": {
+          "endpoints": ["GET /api/rooms/:code", "POST /api/rooms/:code/join"],
+          "models": ["Room", "Player"],
+          "validations": ["code case-insensitive", "checks room state", "max players"]
+        },
+        "frontend": {
+          "pages": ["/room/join"],
+          "components": ["JoinRoomPage", "RoomCodeInput"],
+          "state": ["code input", "navigation"]
+        },
+        "playwrightTest": "tests/e2e/multiplayer.spec.ts#joinRoom"
+      }
+    },
+    {
+      "id": "JOIN-02",
+      "title": "Invalid room code shows error",
+      "description": "As a user, I see an error when entering an invalid room code",
+      "acceptanceCriteria": [
+        "Complete AUTH-02 to be logged in",
+        "Navigate to /room/join",
+        "Enter invalid room code 'XXXXXX'",
+        "Intercept API call to GET /api/rooms/XXXXXX",
+        "Click 'Join' button",
+        "Verify API returns 404",
+        "Verify error message is displayed ('Room not found' or similar)",
+        "Verify user stays on join page",
+        "Take screenshot showing error"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["AUTH-02"],
+      "metadata": {
+        "category": "Multiplayer - Joining",
+        "fullStack": true,
+        "backend": {
+          "endpoints": ["GET /api/rooms/:code"],
+          "validations": ["returns 404 for invalid code"]
+        },
+        "frontend": {
+          "components": ["JoinRoomPage"],
+          "state": ["error display"]
+        },
+        "playwrightTest": "tests/e2e/multiplayer.spec.ts#invalidRoomCode"
+      }
+    },
+    {
+      "id": "LOBBY-01",
+      "title": "Room lobby player list and status",
+      "description": "As a player in a room, I can see all players and their ready status",
+      "acceptanceCriteria": [
+        "Complete ROOM-01 to create a room",
+        "Verify you are in /room/:code lobby",
+        "Verify player list shows your name",
+        "Verify your ready status indicator is visible",
+        "Verify room code is prominently displayed",
+        "Verify 'Copy Code' functionality works",
+        "Take screenshot of lobby"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["ROOM-01"],
+      "metadata": {
+        "category": "Multiplayer - Room Lobby",
+        "fullStack": true,
+        "backend": {
+          "endpoints": ["GET /api/rooms/:code"]
+        },
+        "frontend": {
+          "pages": ["/room/:code"],
+          "components": ["RoomLobbyPage", "PlayerList", "PlayerCard"],
+          "state": ["room.players"]
+        },
+        "playwrightTest": "tests/e2e/multiplayer.spec.ts#lobbyPlayerList"
+      }
+    },
+    {
+      "id": "LOBBY-02",
+      "title": "Toggle ready status",
+      "description": "As a player, I can toggle my ready status in the lobby",
+      "acceptanceCriteria": [
+        "Complete LOBBY-01 to be in a room lobby",
+        "Find the 'Ready' button",
+        "Intercept API call to POST /api/rooms/:id/ready",
+        "Click 'Ready' button",
+        "Verify API called with ready: true",
+        "Verify your status shows as ready (visual indicator)",
+        "Click button again to unready",
+        "Verify API called with ready: false",
+        "Verify status changes back to not ready",
+        "Take screenshots of both states"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["LOBBY-01"],
+      "metadata": {
+        "category": "Multiplayer - Room Lobby",
+        "fullStack": true,
+        "backend": {
+          "endpoints": ["POST /api/rooms/:id/ready"],
+          "models": ["Player"],
+          "validations": ["updates player.isReady"]
+        },
+        "frontend": {
+          "components": ["ReadyButton"],
+          "state": ["player.isReady"]
+        },
+        "playwrightTest": "tests/e2e/multiplayer.spec.ts#toggleReady"
+      }
+    },
+    {
+      "id": "LOBBY-03",
+      "title": "Host starts game",
+      "description": "As the room host, I can start the game when ready",
+      "acceptanceCriteria": [
+        "Complete ROOM-01 to create a room (you are host)",
+        "Verify 'Start Game' button is visible",
+        "Toggle your ready status to ready",
+        "Intercept API call to POST /api/rooms/:id/start",
+        "Click 'Start Game' button",
+        "Verify API returns 200",
+        "Verify navigation to /room/:code/play",
+        "Verify multiplayer gameplay view loads",
+        "Take screenshot of game start"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["LOBBY-02"],
+      "metadata": {
+        "category": "Multiplayer - Room Lobby",
+        "fullStack": true,
+        "backend": {
+          "endpoints": ["POST /api/rooms/:id/start"],
+          "models": ["Room", "GridState"],
+          "validations": ["host-only", "updates room.state to active"]
+        },
+        "frontend": {
+          "components": ["StartGameButton"],
+          "state": ["room.state", "navigation"]
+        },
+        "playwrightTest": "tests/e2e/multiplayer.spec.ts#hostStartGame"
+      }
+    },
+    {
+      "id": "WS-01",
+      "title": "WebSocket real-time updates",
+      "description": "As a player, I receive real-time updates via WebSocket",
+      "acceptanceCriteria": [
+        "Complete LOBBY-01 to be in a room lobby",
+        "Verify WebSocket connection is established to /api/rooms/:code/ws",
+        "Verify connection status indicator shows connected",
+        "Monitor WebSocket messages for room_state event",
+        "When another player joins (simulated), verify player_joined event",
+        "When player toggles ready, verify player_ready event",
+        "Take screenshot showing connected state"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": "",
+      "dependsOn": ["LOBBY-01"],
+      "metadata": {
+        "category": "Real-time",
+        "fullStack": true,
+        "backend": {
+          "endpoints": ["WS /api/rooms/:code/ws"],
+          "validations": ["JWT token required", "ping/pong keepalive"]
+        },
+        "frontend": {
+          "hooks": ["useWebSocket"],
+          "state": ["connection status", "event handlers"]
+        },
+        "playwrightTest": "tests/e2e/multiplayer.spec.ts#websocketConnection"
+      }
+    },
+    {
+      "id": "LAND-01",
+      "title": "Landing page hero and CTA buttons",
+      "description": "As a visitor, I see an engaging landing page with call-to-action buttons",
+      "acceptanceCriteria": [
+        "Launch Playwright browser in headless mode",
+        "Navigate to /",
+        "Verify hero section is displayed",
+        "Verify 'Play Now' button is visible",
+        "Verify 'Play with Friends' button is visible",
+        "Click 'Play Now' button",
+        "Verify navigation to /play or auth modal opens",
+        "Take screenshot of landing page"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [],
+      "metadata": {
+        "category": "Landing Page",
+        "fullStack": true,
+        "backend": {
+          "endpoints": []
+        },
+        "frontend": {
+          "pages": ["/"],
+          "components": ["LandingPage", "HeroSection"],
+          "state": ["navigation"]
+        },
+        "playwrightTest": "tests/e2e/landing.spec.ts#heroSection"
+      }
+    },
+    {
+      "id": "LAND-02",
+      "title": "Daily puzzle preview on landing",
+      "description": "As a visitor, I see today's puzzle preview on the landing page",
+      "acceptanceCriteria": [
+        "Navigate to /",
+        "Intercept API call to GET /api/puzzles/today",
+        "Verify daily puzzle preview section exists",
+        "Verify it shows today's puzzle information",
+        "Verify difficulty badge is shown",
+        "Take screenshot of puzzle preview"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [],
+      "metadata": {
+        "category": "Landing Page",
+        "fullStack": true,
+        "backend": {
+          "endpoints": ["GET /api/puzzles/today"]
+        },
+        "frontend": {
+          "components": ["DailyPuzzlePreview"],
+          "state": ["puzzle metadata"]
+        },
+        "playwrightTest": "tests/e2e/landing.spec.ts#dailyPuzzlePreview"
+      }
+    },
+    {
+      "id": "NAV-01",
+      "title": "Header navigation works",
+      "description": "As a visitor, I can navigate using header links",
+      "acceptanceCriteria": [
+        "Navigate to /",
+        "Verify header with logo and navigation links is visible",
+        "Click logo and verify navigation to home",
+        "Click 'Archive' link",
+        "Verify navigation to /archive",
+        "Click 'Play' link",
+        "Verify navigation to /play",
+        "Take screenshots of navigation"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [],
+      "metadata": {
+        "category": "Navigation",
+        "fullStack": true,
+        "backend": {
+          "endpoints": []
+        },
+        "frontend": {
+          "components": ["Header", "Navigation"],
+          "state": ["router navigation"]
+        },
+        "playwrightTest": "tests/e2e/navigation.spec.ts#headerNavigation"
+      }
+    },
+    {
+      "id": "NAV-02",
+      "title": "Protected routes require authentication",
+      "description": "As a visitor, protected routes redirect or show auth modal",
+      "acceptanceCriteria": [
+        "Ensure logged out state (clear localStorage)",
+        "Navigate directly to /profile",
+        "Verify redirect to / or AuthModal appears",
+        "Navigate directly to /history",
+        "Verify redirect to / or AuthModal appears",
+        "Navigate directly to /room/create",
+        "Verify redirect to / or AuthModal appears",
+        "Take screenshot of protected route behavior"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [],
+      "metadata": {
+        "category": "Navigation",
+        "fullStack": true,
+        "backend": {
+          "endpoints": []
+        },
+        "frontend": {
+          "components": ["ProtectedRoute", "AuthModal"],
+          "state": ["authContext.isAuthenticated"]
+        },
+        "playwrightTest": "tests/e2e/navigation.spec.ts#protectedRoutes"
+      }
+    },
+    {
+      "id": "NAV-03",
+      "title": "404 page for invalid routes",
+      "description": "As a visitor, I see a friendly 404 page for invalid routes",
+      "acceptanceCriteria": [
+        "Navigate to /some-invalid-page-xyz",
+        "Verify 404 page is displayed",
+        "Verify page has 'not found' message",
+        "Verify there's a link to go home",
+        "Click home link",
+        "Verify navigation to /",
+        "Take screenshot of 404 page"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [],
+      "metadata": {
+        "category": "Navigation",
+        "fullStack": true,
+        "backend": {
+          "endpoints": []
+        },
+        "frontend": {
+          "pages": ["*"],
+          "components": ["NotFoundPage"]
+        },
+        "playwrightTest": "tests/e2e/navigation.spec.ts#notFoundPage"
+      }
+    },
+    {
+      "id": "ERR-01",
+      "title": "API error handling displays user-friendly message",
+      "description": "As a user, I see friendly error messages when API calls fail",
+      "acceptanceCriteria": [
+        "Navigate to /play",
+        "Mock API to return 500 error for GET /api/puzzles/today",
+        "Verify error message is displayed (not raw error)",
+        "Verify page doesn't crash",
+        "Verify retry option is available or user can navigate away",
+        "Take screenshot of error state"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": "",
+      "dependsOn": [],
+      "metadata": {
+        "category": "Error Handling",
+        "fullStack": true,
+        "backend": {
+          "endpoints": ["any endpoint returning error"]
+        },
+        "frontend": {
+          "components": ["ErrorBoundary", "error display"],
+          "state": ["error state"]
+        },
+        "playwrightTest": "tests/e2e/errors.spec.ts#apiError"
+      }
+    }
+  ],
+  "metadata": {
+    "verificationType": "Playwright E2E Browser Automation",
+    "baseUrl": "http://localhost:5173",
+    "apiBaseUrl": "http://localhost:8080/api",
+    "headless": true,
+    "framework": "playwright",
+    "instructions": "Each story must be verified using Playwright in headless mode. Launch browser, perform actions, intercept API calls, and take screenshots to confirm the complete user flow works end-to-end.",
+    "analyzedAt": "2026-02-04T03:30:00.000Z",
+    "frontendFramework": "React 19 + React Router 7 + TypeScript",
+    "backendFramework": "Go + Gin + PostgreSQL + Redis",
+    "totalEndpoints": 18,
+    "totalPages": 9,
+    "totalStories": 40,
+    "createdAt": "2026-02-04"
+  }
+}

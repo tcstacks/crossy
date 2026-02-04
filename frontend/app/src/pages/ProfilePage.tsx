@@ -72,13 +72,13 @@ function ProfilePage() {
     if (!stats) return '/crossy-main.png';
 
     // High streak (10+)
-    if (stats.currentStreak >= 10) return '/crossy-cheer.png';
+    if (stats.streakCurrent >= 10) return '/crossy-cheer.png';
 
     // Good performance (5+ puzzles)
-    if (stats.totalPuzzlesSolved >= 5) return '/crossy-cool.png';
+    if (stats.puzzlesSolved >= 5) return '/crossy-cool.png';
 
     // Starting out
-    if (stats.totalPuzzlesSolved > 0) return '/crossy-thumbsup.png';
+    if (stats.puzzlesSolved > 0) return '/crossy-thumbsup.png';
 
     return '/crossy-main.png';
   };
@@ -168,7 +168,7 @@ function ProfilePage() {
                   <span className="font-display text-sm text-[#6B5CA8]">Puzzles Solved</span>
                 </div>
                 <p className="font-display font-bold text-3xl text-[#2A1E5C] animate-count-up">
-                  {stats?.totalPuzzlesSolved || 0}
+                  {stats?.puzzlesSolved || 0}
                 </p>
               </div>
             </div>
@@ -182,7 +182,7 @@ function ProfilePage() {
                   <span className="font-display text-sm text-[#6B5CA8]">Avg Solve Time</span>
                 </div>
                 <p className="font-display font-bold text-3xl text-[#2A1E5C]">
-                  {formatTime(stats?.averageTime || 0)}
+                  {formatTime(stats?.avgSolveTime || 0)}
                 </p>
               </div>
             </div>
@@ -196,7 +196,7 @@ function ProfilePage() {
                   <span className="font-display text-sm text-[#6B5CA8]">Current Streak</span>
                 </div>
                 <p className="font-display font-bold text-3xl text-[#2A1E5C] animate-pulse">
-                  {stats?.currentStreak || 0}
+                  {stats?.streakCurrent || 0}
                 </p>
               </div>
             </div>
@@ -210,26 +210,12 @@ function ProfilePage() {
                   <span className="font-display text-sm text-[#6B5CA8]">Best Streak</span>
                 </div>
                 <p className="font-display font-bold text-3xl text-[#2A1E5C]">
-                  {stats?.longestStreak || 0}
+                  {stats?.streakBest || 0}
                 </p>
               </div>
             </div>
 
-            {/* Best Time */}
-            <div className="crossy-card p-5 relative overflow-hidden group hover:scale-105 transition-transform">
-              <div className="absolute inset-0 bg-gradient-to-br from-[#3498DB] to-[#5DADE2] opacity-10 group-hover:opacity-20 transition-opacity" />
-              <div className="relative">
-                <div className="flex items-center gap-2 mb-2">
-                  <TrendingUp className="w-5 h-5 text-[#3498DB]" />
-                  <span className="font-display text-sm text-[#6B5CA8]">Best Time</span>
-                </div>
-                <p className="font-display font-bold text-3xl text-[#2A1E5C]">
-                  {formatTime(stats?.bestTime || 0)}
-                </p>
-              </div>
-            </div>
-
-            {/* Multiplayer Wins (placeholder for now) */}
+            {/* Multiplayer Wins */}
             <div className="crossy-card p-5 relative overflow-hidden group hover:scale-105 transition-transform">
               <div className="absolute inset-0 bg-gradient-to-br from-[#9B59B6] to-[#BB8FCE] opacity-10 group-hover:opacity-20 transition-opacity" />
               <div className="relative">
@@ -238,7 +224,7 @@ function ProfilePage() {
                   <span className="font-display text-sm text-[#6B5CA8]">Multiplayer Wins</span>
                 </div>
                 <p className="font-display font-bold text-3xl text-[#2A1E5C]">
-                  0
+                  {stats?.multiplayerWins || 0}
                 </p>
               </div>
             </div>
@@ -250,11 +236,11 @@ function ProfilePage() {
           <div className="flex items-end gap-3">
             <div className="relative bg-white px-5 py-3 rounded-2xl border-2 border-[#2A1E5C] shadow-[0_4px_0_#2A1E5C]">
               <p className="font-display text-sm text-[#2A1E5C]">
-                {stats?.totalPuzzlesSolved === 0
+                {stats?.puzzlesSolved === 0
                   ? "Let's solve your first puzzle!"
-                  : stats && stats.currentStreak >= 10
+                  : stats && stats.streakCurrent >= 10
                   ? "You're on fire! Keep it up!"
-                  : stats && stats.totalPuzzlesSolved >= 5
+                  : stats && stats.puzzlesSolved >= 5
                   ? "You're doing great! Keep solving!"
                   : "Keep up the good work!"}
               </p>

@@ -31,12 +31,13 @@ export interface User {
 
 export interface UserStats {
   userId: string;
-  totalPuzzlesSolved: number;
-  averageTime: number;
-  bestTime: number;
-  currentStreak: number;
-  longestStreak: number;
-  lastPlayedAt: string;
+  puzzlesSolved: number;
+  avgSolveTime: number;
+  streakCurrent: number;
+  streakBest: number;
+  multiplayerWins: number;
+  totalPlayTime: number;
+  lastPlayedAt: string | null;
 }
 
 export interface PuzzleHistory {

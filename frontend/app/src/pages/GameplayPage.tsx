@@ -464,6 +464,7 @@ function GameplayPage() {
 
     setGrid(newGrid);
     setRevealedCells(newRevealed);
+    setHintsUsed(prev => prev + 1);
   };
 
   const resetGrid = () => {

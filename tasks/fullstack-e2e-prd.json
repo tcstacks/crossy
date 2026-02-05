@@ -369,7 +369,7 @@
         "Take screenshot of history page"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "AUTH-02"
@@ -406,7 +406,8 @@
           ]
         },
         "playwrightTest": "tests/e2e/user.spec.ts#viewHistory"
-      }
+      },
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "PUZZLE-01",
@@ -619,7 +620,7 @@
         "Take screenshot showing revealed letter"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "PUZZLE-01"
@@ -647,7 +648,8 @@
           ]
         },
         "playwrightTest": "tests/e2e/puzzle.spec.ts#revealLetter"
-      }
+      },
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "PUZZLE-06",
@@ -663,7 +665,7 @@
         "Take screenshot showing revealed word"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "PUZZLE-01"
@@ -691,7 +693,8 @@
           ]
         },
         "playwrightTest": "tests/e2e/puzzle.spec.ts#revealWord"
-      }
+      },
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "PUZZLE-07",
@@ -962,7 +965,7 @@
         "Take screenshot of filtered results"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "ARCH-01"
@@ -998,7 +1001,8 @@
           ]
         },
         "playwrightTest": "tests/e2e/archive.spec.ts#filterByDifficulty"
-      }
+      },
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "ARCH-03",
@@ -1016,7 +1020,7 @@
         "Take screenshot of pagination"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "ARCH-01"
@@ -1052,7 +1056,8 @@
           ]
         },
         "playwrightTest": "tests/e2e/archive.spec.ts#pagination"
-      }
+      },
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "ARCH-04",
@@ -1195,7 +1200,7 @@
         "Take screenshot of mode selection"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "AUTH-02"
@@ -1230,7 +1235,8 @@
           ]
         },
         "playwrightTest": "tests/e2e/room.spec.ts#createRoomModes"
-      }
+      },
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "JOIN-01",
@@ -1316,7 +1322,7 @@
         "Take screenshot showing error"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "AUTH-02"
@@ -1351,7 +1357,8 @@
           ]
         },
         "playwrightTest": "tests/e2e/room.spec.ts#invalidRoomCode"
-      }
+      },
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "LOBBY-01",
@@ -1424,7 +1431,7 @@
         "Take screenshots of both states"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "ROOM-01"
@@ -1461,7 +1468,8 @@
           ]
         },
         "playwrightTest": "tests/e2e/lobby.spec.ts#toggleReady"
-      }
+      },
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "LOBBY-03",
@@ -1944,7 +1952,7 @@
         "Take screenshot"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [],
       "metadata": {
@@ -1976,7 +1984,8 @@
           ]
         },
         "playwrightTest": "tests/e2e/errors.spec.ts#unauthorized"
-      }
+      },
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "LAND-01",
@@ -1995,7 +2004,7 @@
         "Take screenshot of landing page"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [],
       "metadata": {
@@ -2020,7 +2029,8 @@
           "state": []
         },
         "playwrightTest": "tests/e2e/landing.spec.ts#heroCTA"
-      }
+      },
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "LAND-02",
@@ -2097,6 +2107,6 @@
       "Error Handling": 2,
       "Landing Page": 2
     },
-    "updatedAt": "2026-02-05T03:11:23.746Z"
+    "updatedAt": "2026-02-05T04:12:56.029Z"
   }
 }

@@ -281,7 +281,7 @@ function DailyPuzzle() {
                 </h2>
                 <div className="flex items-center gap-3 flex-wrap">
                   <span className="text-sm text-[#6B5CA8]">By {puzzle.author || 'CrossPlay AI'}</span>
-                  <span className={getDifficultyClass(puzzle.difficulty)}>{puzzle.difficulty?.toUpperCase() || 'EASY'}</span>
+                  <span className={getDifficultyClass(puzzle.difficulty || 'easy')}>{puzzle.difficulty?.toUpperCase() || 'EASY'}</span>
                   <span className="bg-[#F3F1FF] text-[#7B61FF] text-xs font-display font-semibold px-3 py-1 rounded-full">
                     {puzzle.gridWidth}×{puzzle.gridHeight}
                   </span>

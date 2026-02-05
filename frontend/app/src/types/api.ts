@@ -109,6 +109,7 @@ export interface GetPuzzleByDateRequest {
 export interface GetPuzzleArchiveRequest {
   page?: number;
   limit?: number;
+  difficulty?: 'easy' | 'medium' | 'hard';
 }
 
 export interface PuzzleArchiveResponse {

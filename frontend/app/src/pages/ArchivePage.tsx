@@ -40,10 +40,11 @@ function ArchivePage() {
       try {
         setLoading(true);
 
-        // Fetch archive puzzles
+        // Fetch archive puzzles with difficulty filter
         const archiveResponse = await puzzleApi.getPuzzleArchive({
           page: currentPage,
           limit: ITEMS_PER_PAGE,
+          difficulty: difficultyFilter !== 'all' ? difficultyFilter : undefined,
         });
 
         // Enhance archive items with additional info
@@ -77,7 +78,7 @@ function ArchivePage() {
     };
 
     fetchArchiveData();
-  }, [currentPage]);
+  }, [currentPage, difficultyFilter]);
 
   // Check if puzzle is completed by user
   const isPuzzleCompleted = (puzzleId: string) => {
@@ -108,14 +109,9 @@ function ArchivePage() {
     }
   };
 
-  // Filter puzzles
+  // Filter puzzles (client-side for search and date range only, difficulty is server-side)
   const filteredPuzzles = useMemo(() => {
     return archivePuzzles.filter((puzzle) => {
-      // Difficulty filter
-      if (difficultyFilter !== 'all' && puzzle.difficulty !== difficultyFilter) {
-        return false;
-      }
-
       // Search filter (searches in date)
       if (searchQuery) {
         const searchLower = searchQuery.toLowerCase();
@@ -144,7 +140,7 @@ function ArchivePage() {
 
       return true;
     });
-  }, [archivePuzzles, difficultyFilter, searchQuery, dateRangeStart, dateRangeEnd]);
+  }, [archivePuzzles, searchQuery, dateRangeStart, dateRangeEnd]);
 
   // Handle puzzle click
   const handlePuzzleClick = (date: string) => {

@@ -1,7 +1,5 @@
-import { useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { AuthModal } from '@/components/AuthModal';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -10,7 +8,6 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
-  const [authModalDismissed, setAuthModalDismissed] = useState(false);
 
   // Show loading state while checking authentication
   if (isLoading) {
@@ -24,25 +21,11 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  // If authenticated, render the protected content
-  if (isAuthenticated) {
-    return <>{children}</>;
-  }
-
-  // If not authenticated and modal was dismissed, redirect to home
-  if (authModalDismissed) {
+  // If not authenticated, redirect to home
+  if (!isAuthenticated) {
     return <Navigate to="/" state={{ from: location }} replace />;
   }
 
-  // If not authenticated, show auth modal
-  return (
-    <AuthModal
-      open={!isAuthenticated && !authModalDismissed}
-      onOpenChange={(open) => {
-        if (!open) {
-          setAuthModalDismissed(true);
-        }
-      }}
-    />
-  );
+  // If authenticated, render the protected content
+  return <>{children}</>;
 }

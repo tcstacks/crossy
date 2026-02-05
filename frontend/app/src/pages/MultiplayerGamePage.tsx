@@ -198,6 +198,12 @@ function MultiplayerGamePage() {
       return;
     }
 
+    // Room state received (initial sync)
+    const unsubscribeRoomState = on('room_state', (payload) => {
+      console.log('Received room_state message:', payload);
+      // Room state is already loaded via HTTP, but this confirms WebSocket sync
+    });
+
     // Cell updated by another player
     const unsubscribeCellUpdated = on<CellUpdatePayload>('cell:updated', (payload) => {
       if (payload.userId === currentUserId) return; // Ignore own updates
@@ -252,6 +258,7 @@ function MultiplayerGamePage() {
     });
 
     return () => {
+      unsubscribeRoomState();
       unsubscribeCellUpdated();
       unsubscribeCursorMoved();
       unsubscribePlayerProgress();

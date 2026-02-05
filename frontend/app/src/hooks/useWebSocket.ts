@@ -91,6 +91,20 @@ export function useWebSocket({ roomCode, token, autoConnect = true }: UseWebSock
         setConnectionState('connected');
         reconnectAttemptRef.current = 0;
         clearReconnectTimeout();
+
+        // Automatically send join_room message when connected
+        if (roomCode && token) {
+          const joinMessage = {
+            type: 'join_room',
+            payload: {
+              roomCode: roomCode,
+              displayName: '', // Will be populated by backend from token
+              isSpectator: false,
+            }
+          };
+          ws.send(JSON.stringify(joinMessage));
+          console.log('Sent join_room message');
+        }
       };
 
       ws.onmessage = (event) => {

@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('ARCH-03: Pagination navigation', () => {
   test('should navigate between pages of archive results', async ({ page }) => {
     // Navigate to /archive
-    await page.goto('http://localhost:3000/archive');
+    await page.goto('/archive');
 
     // Wait for page to load
     await page.waitForSelector('h1:has-text("Puzzle Archive")', { timeout: 10000 });
@@ -96,7 +96,7 @@ test.describe('ARCH-03: Pagination navigation', () => {
 
   test('should navigate by clicking page numbers', async ({ page }) => {
     // Navigate to /archive
-    await page.goto('http://localhost:3000/archive');
+    await page.goto('/archive');
 
     // Wait for page to load
     await page.waitForSelector('h1:has-text("Puzzle Archive")', { timeout: 10000 });
@@ -145,7 +145,7 @@ test.describe('ARCH-03: Pagination navigation', () => {
 
   test('should disable Previous button on first page and Next button on last page', async ({ page }) => {
     // Navigate to /archive
-    await page.goto('http://localhost:3000/archive');
+    await page.goto('/archive');
 
     // Wait for page to load
     await page.waitForSelector('h1:has-text("Puzzle Archive")', { timeout: 10000 });
@@ -187,7 +187,7 @@ test.describe('ARCH-03: Pagination navigation', () => {
 
   test('should scroll to top when changing pages', async ({ page }) => {
     // Navigate to /archive
-    await page.goto('http://localhost:3000/archive');
+    await page.goto('/archive');
 
     // Wait for page to load
     await page.waitForSelector('h1:has-text("Puzzle Archive")', { timeout: 10000 });

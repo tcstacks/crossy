@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('PLAY-19: Progress percentage display', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to home page and login as guest
-    await page.goto('http://localhost:3001/');
+    await page.goto('http://localhost:3000/');
 
     // Wait for page to load
     await page.waitForTimeout(1000);
@@ -16,7 +16,7 @@ test.describe('PLAY-19: Progress percentage display', () => {
     }
 
     // Navigate to /play and wait for puzzle to load
-    await page.goto('http://localhost:3001/play');
+    await page.goto('http://localhost:3000/play');
 
     // Wait for the puzzle to load
     await page.waitForSelector('[data-testid="crossword-grid"]', { timeout: 10000 });

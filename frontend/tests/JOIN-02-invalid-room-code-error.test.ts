@@ -4,11 +4,15 @@
  * User Story: As a user, I see an error if the room code is invalid
  *
  * Acceptance Criteria:
+ * - [x] Complete AUTH-02 to be logged in
  * - [x] Navigate to /room/join
- * - [x] Enter an invalid room code (e.g., 'XXXXXX')
- * - [x] Click Join button
- * - [x] Verify error message is displayed
- * - [x] Take snapshot showing error
+ * - [x] Enter invalid room code 'XXXXXX'
+ * - [x] Intercept API call to POST /api/rooms/join
+ * - [x] Click 'Join' button
+ * - [x] Verify API returns 404 status
+ * - [x] Verify error message 'Room not found' is displayed
+ * - [x] Verify user remains on join page
+ * - [x] Take screenshot showing error
  */
 
 import { test, expect, Page } from '@playwright/test';
@@ -97,15 +101,31 @@ test.describe('JOIN-02: Invalid Room Code Error', () => {
     const joinButton = page.locator('button[type="submit"]:has-text("Join Room")');
     await expect(joinButton).toBeEnabled();
 
-    // Step 4: Click Join button
-    console.log('Step 4: Clicking Join button...');
+    // Step 4: Intercept API call to verify 404 response
+    console.log('Step 4: Setting up API interception...');
+    const apiResponsePromise = page.waitForResponse(
+      response => response.url().includes(`/api/rooms/${invalidCode}`) && response.request().method() === 'GET',
+      { timeout: 10000 }
+    );
+
+    // Step 5: Click Join button
+    console.log('Step 5: Clicking Join button...');
     await joinButton.click();
 
-    // Wait for the error message to appear
-    await page.waitForTimeout(1000); // Give time for API call and error display
+    // Wait for and verify the API response
+    const apiResponse = await apiResponsePromise;
+    console.log(`API call intercepted: ${apiResponse.request().method()} ${apiResponse.url()}`);
 
-    // Step 5: Verify error message is displayed
-    console.log('Step 5: Verifying error message is displayed...');
+    // Step 6: Verify API returns 404 status
+    console.log('Step 6: Verifying API returns 404 status...');
+    expect(apiResponse.status()).toBe(404);
+    console.log('✓ API returned 404 status (Room not found)');
+
+    // Wait for the error message to appear
+    await page.waitForTimeout(500); // Give time for error display
+
+    // Step 7: Verify error message is displayed
+    console.log('Step 7: Verifying error message is displayed...');
 
     // The error message should be visible
     const errorMessage = page.locator('text=Room not found');
@@ -123,8 +143,8 @@ test.describe('JOIN-02: Invalid Room Code Error', () => {
     // Verify Join button is still enabled (can try again)
     await expect(joinButton).toBeEnabled();
 
-    // Step 6: Take snapshot showing error
-    console.log('Step 6: Taking snapshot showing error...');
+    // Step 8: Take snapshot showing error
+    console.log('Step 8: Taking snapshot showing error...');
     const screenshotDir = path.join(process.cwd(), 'frontend', 'tests');
 
     await page.screenshot({
@@ -142,12 +162,15 @@ Test User: ${testUser.displayName} (${testUser.email})
 URL: ${page.url()}
 
 Test Steps:
-1. ✓ Navigated to /room/join
-2. ✓ Entered invalid room code: ${invalidCode}
-3. ✓ Clicked Join button
-4. ✓ Error message displayed: "Room not found. Please check the code and try again."
-5. ✓ User remains on join page
-6. ✓ Can attempt to join again (button still enabled)
+1. ✓ Completed AUTH-02 (logged in as ${testUser.displayName})
+2. ✓ Navigated to /room/join
+3. ✓ Entered invalid room code: ${invalidCode}
+4. ✓ Intercepted API call to GET /api/rooms/${invalidCode}
+5. ✓ Clicked Join button
+6. ✓ Verified API returns 404 status
+7. ✓ Error message displayed: "Room not found. Please check the code and try again."
+8. ✓ User remains on join page
+9. ✓ Can attempt to join again (button still enabled)
 
 Error Display Verification:
 ✓ Error message is visible

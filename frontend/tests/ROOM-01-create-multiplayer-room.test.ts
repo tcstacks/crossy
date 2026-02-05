@@ -32,24 +32,27 @@ async function loginAsTestUser(page: Page): Promise<{ email: string; password: s
   // Navigate to landing page
   await page.goto(FRONTEND_URL);
 
-  // Open auth modal
-  const getStartedButton = page.locator('button:has-text("Get Started")').first();
-  await getStartedButton.click();
+  // Open auth modal by clicking the Login button in the header
+  const loginButton = page.locator('button:has-text("Login")').first();
+  await loginButton.click();
 
   // Wait for auth modal to appear
-  await page.waitForSelector('text=Welcome back!', { timeout: 5000 });
+  await page.waitForSelector('text=Welcome to Crossy!', { timeout: 5000 });
 
-  // Switch to Sign Up tab
-  const signUpTab = page.locator('button:has-text("Sign Up")');
-  await signUpTab.click();
+  // Switch to Register tab
+  const registerTab = page.locator('button:has-text("Register")');
+  await registerTab.click();
 
-  // Fill in registration form
-  await page.fill('input[type="email"]', testUser.email);
-  await page.fill('input[type="text"][placeholder*="display name" i]', testUser.displayName);
-  await page.fill('input[type="password"]', testUser.password);
+  // Wait for register form to be visible
+  await page.waitForSelector('input[placeholder*="username" i]');
+
+  // Fill in registration form fields in order using ID selectors from modal
+  await page.fill('#register-username', testUser.displayName);
+  await page.fill('#register-email', testUser.email);
+  await page.fill('#register-password', testUser.password);
 
   // Submit registration
-  const registerButton = page.locator('button[type="submit"]:has-text("Sign Up")');
+  const registerButton = page.locator('button:has-text("Register")').last();
   await registerButton.click();
 
   // Wait for successful registration and redirect

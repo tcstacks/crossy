@@ -66,6 +66,7 @@ function GameplayPage() {
   const [revealedCells, setRevealedCells] = useState<Set<string>>(new Set());
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [hintsUsed, setHintsUsed] = useState(0);
 
   const gridRef = useRef<HTMLDivElement>(null);
   const startTimeRef = useRef<number>(Date.now());
@@ -406,6 +407,9 @@ function GameplayPage() {
       // Track this cell as revealed
       const cellKey = `${row}-${col}`;
       setRevealedCells(prev => new Set(prev).add(cellKey));
+
+      // Increment hints counter
+      setHintsUsed(prev => prev + 1);
     }
   };
 
@@ -470,6 +474,7 @@ function GameplayPage() {
     setShowCheck(false);
     setCheckedCells(new Set());
     setRevealedCells(new Set());
+    setHintsUsed(0);
   };
 
   const isCellCorrect = (row: number, col: number) => {
@@ -580,6 +585,10 @@ function GameplayPage() {
               <div className="flex items-center gap-1.5 bg-[#F3F1FF] px-3 py-1.5 rounded-full">
                 <Clock className="w-4 h-4 text-[#7B61FF]" />
                 <span className="font-display text-sm text-[#6B5CA8]">{formatTime(timer)}</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-[#F3F1FF] px-3 py-1.5 rounded-full">
+                <Lightbulb className="w-4 h-4 text-[#FFA500]" />
+                <span className="font-display text-sm text-[#6B5CA8]">{hintsUsed}</span>
               </div>
               <div className="flex items-center gap-1.5 bg-[#F3F1FF] px-3 py-1.5 rounded-full">
                 <Flame className="w-4 h-4 text-[#FF4D6A]" />

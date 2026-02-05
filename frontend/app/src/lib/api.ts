@@ -69,6 +69,13 @@ apiClient.interceptors.request.use(
   }
 );
 
+// Auth state change listener for 401 errors
+let authStateListener: (() => void) | null = null;
+
+export const setAuthStateListener = (listener: (() => void) | null) => {
+  authStateListener = listener;
+};
+
 // Response interceptor - handle errors
 apiClient.interceptors.response.use(
   (response) => {
@@ -93,9 +100,13 @@ apiClient.interceptors.response.use(
       errors: error.response.data?.errors,
     };
 
-    // Handle unauthorized errors - clear token
+    // Handle unauthorized errors - clear token and notify auth context
     if (error.response.status === 401) {
       removeToken();
+      // Notify AuthContext to update state
+      if (authStateListener) {
+        authStateListener();
+      }
     }
 
     return Promise.reject(apiError);

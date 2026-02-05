@@ -314,20 +314,72 @@ function GameplayPage() {
       const maxCol = grid[0]?.length || 0;
       let newCol = col + 1;
       while (newCol < maxCol && grid[row][newCol]?.isBlocked) newCol++;
-      if (newCol < maxCol) setSelectedCell({ row, col: newCol });
+      if (newCol < maxCol) {
+        setSelectedCell({ row, col: newCol });
+        setDirection('across');
+        // Update active clue for new position and direction
+        const clue = cluesAcross.find(c =>
+          c.row === row &&
+          c.col <= newCol &&
+          newCol < c.col + c.answer.length
+        );
+        if (clue) {
+          setActiveClue({ ...clue, direction: 'across' });
+          setClueTab('across');
+        }
+      }
     } else if (e.key === 'ArrowLeft') {
       let newCol = col - 1;
       while (newCol >= 0 && grid[row][newCol]?.isBlocked) newCol--;
-      if (newCol >= 0) setSelectedCell({ row, col: newCol });
+      if (newCol >= 0) {
+        setSelectedCell({ row, col: newCol });
+        setDirection('across');
+        // Update active clue for new position and direction
+        const clue = cluesAcross.find(c =>
+          c.row === row &&
+          c.col <= newCol &&
+          newCol < c.col + c.answer.length
+        );
+        if (clue) {
+          setActiveClue({ ...clue, direction: 'across' });
+          setClueTab('across');
+        }
+      }
     } else if (e.key === 'ArrowDown') {
       const maxRow = grid.length || 0;
       let newRow = row + 1;
       while (newRow < maxRow && grid[newRow]?.[col]?.isBlocked) newRow++;
-      if (newRow < maxRow) setSelectedCell({ row: newRow, col });
+      if (newRow < maxRow) {
+        setSelectedCell({ row: newRow, col });
+        setDirection('down');
+        // Update active clue for new position and direction
+        const clue = cluesDown.find(c =>
+          c.col === col &&
+          c.row <= newRow &&
+          newRow < c.row + c.answer.length
+        );
+        if (clue) {
+          setActiveClue({ ...clue, direction: 'down' });
+          setClueTab('down');
+        }
+      }
     } else if (e.key === 'ArrowUp') {
       let newRow = row - 1;
       while (newRow >= 0 && grid[newRow]?.[col]?.isBlocked) newRow--;
-      if (newRow >= 0) setSelectedCell({ row: newRow, col });
+      if (newRow >= 0) {
+        setSelectedCell({ row: newRow, col });
+        setDirection('down');
+        // Update active clue for new position and direction
+        const clue = cluesDown.find(c =>
+          c.col === col &&
+          c.row <= newRow &&
+          newRow < c.row + c.answer.length
+        );
+        if (clue) {
+          setActiveClue({ ...clue, direction: 'down' });
+          setClueTab('down');
+        }
+      }
     }
   };
 

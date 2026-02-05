@@ -73,6 +73,20 @@ export interface PlayerFinishedPayload {
   score: number;
 }
 
+// Race Mode Progress
+export interface RaceProgress {
+  userId: string;
+  displayName: string;
+  progress: number; // 0-100 percentage
+  finishedAt?: string;
+  solveTime?: number;
+  rank?: number;
+}
+
+export interface RaceProgressPayload {
+  leaderboard: RaceProgress[];
+}
+
 // Chat Events
 export interface ChatMessage {
   id: string;

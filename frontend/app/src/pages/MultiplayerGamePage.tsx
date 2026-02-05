@@ -50,6 +50,7 @@ interface GridCell {
   correctLetter: string;
   isBlocked: boolean;
   number?: number;
+  filledBy?: string; // userId of the player who filled this cell
 }
 
 interface Clue {
@@ -214,6 +215,9 @@ function MultiplayerGamePage() {
           newGrid[payload.row][payload.col].letter = payload.value !== null
             ? String.fromCharCode(65 + payload.value)
             : '';
+          newGrid[payload.row][payload.col].filledBy = payload.value !== null
+            ? payload.userId
+            : undefined;
         }
         return newGrid;
       });
@@ -324,6 +328,7 @@ function MultiplayerGamePage() {
     if (e.key === 'Backspace') {
       const newGrid = [...grid];
       newGrid[row][col].letter = '';
+      newGrid[row][col].filledBy = undefined;
       setGrid(newGrid);
 
       // Send cell update
@@ -340,6 +345,7 @@ function MultiplayerGamePage() {
       const newGrid = [...grid];
       const letter = e.key.toUpperCase();
       newGrid[row][col].letter = letter;
+      newGrid[row][col].filledBy = currentUserId;
       setGrid(newGrid);
 
       // Send cell update
@@ -673,6 +679,14 @@ function MultiplayerGamePage() {
                         c => c.position.row === rowIndex && c.position.col === colIndex
                       );
 
+                      // Get the color of the player who filled this cell
+                      const filledByPlayerIndex = cell.filledBy
+                        ? players.findIndex(p => p.userId === cell.filledBy)
+                        : -1;
+                      const letterColor = filledByPlayerIndex >= 0
+                        ? getPlayerColor(filledByPlayerIndex)
+                        : undefined;
+
                       return (
                         <div
                           key={`${rowIndex}-${colIndex}`}
@@ -701,7 +715,12 @@ function MultiplayerGamePage() {
                               {cell.number}
                             </span>
                           )}
-                          <span className="relative z-10">{cell.letter}</span>
+                          <span
+                            className="relative z-10"
+                            style={letterColor ? { color: letterColor } : undefined}
+                          >
+                            {cell.letter}
+                          </span>
                           {otherPlayerCursor && (
                             <div
                               className="absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white"

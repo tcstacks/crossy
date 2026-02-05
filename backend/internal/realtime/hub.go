@@ -34,15 +34,16 @@ const (
 	MsgPlayerJoined     MessageType = "player_joined"
 	MsgPlayerLeft       MessageType = "player_left"
 	MsgPlayerReady      MessageType = "player_ready"
-	MsgCellUpdated      MessageType = "cell_updated"
-	MsgCursorMoved      MessageType = "cursor_moved"
+	MsgCellUpdated      MessageType = "cell:updated"      // Changed to colon format
+	MsgCursorMoved      MessageType = "cursor:moved"      // Changed to colon format
 	MsgNewMessage       MessageType = "new_message"
-	MsgGameStarted      MessageType = "game_started"
-	MsgPuzzleCompleted  MessageType = "puzzle_completed"
+	MsgGameStarted      MessageType = "game:started"       // Changed to colon format
+	MsgPuzzleCompleted  MessageType = "game:finished"      // Changed to colon format
 	MsgError            MessageType = "error"
-	MsgReactionAdded    MessageType = "reaction_added"
+	MsgReactionAdded    MessageType = "reaction:added"    // Changed to colon format
 	MsgRaceProgress     MessageType = "race_progress"     // Race mode: leaderboard update
-	MsgPlayerFinished   MessageType = "player_finished"   // Race mode: player completed puzzle
+	MsgPlayerFinished   MessageType = "player:finished"   // Changed to colon format
+	MsgPlayerProgress   MessageType = "player:progress"   // Player progress update
 	MsgTurnChanged      MessageType = "turn_changed"      // Relay mode: turn passed
 	MsgRoomDeleted      MessageType = "room_deleted"      // Room was deleted (e.g., host left)
 )
@@ -67,8 +68,15 @@ type CellUpdatePayload struct {
 }
 
 type CursorMovePayload struct {
-	X int `json:"x"`
-	Y int `json:"y"`
+	Cursor struct {
+		UserID   string `json:"userId"`
+		Username string `json:"username"`
+		Position struct {
+			Row int `json:"row"`
+			Col int `json:"col"`
+		} `json:"position"`
+		Color string `json:"color"`
+	} `json:"cursor"`
 }
 
 type SendMessagePayload struct {
@@ -132,11 +140,15 @@ type CellUpdatedPayload struct {
 }
 
 type CursorMovedPayload struct {
-	PlayerID    string `json:"playerId"`
-	DisplayName string `json:"displayName"`
-	X           int    `json:"x"`
-	Y           int    `json:"y"`
-	Color       string `json:"color"`
+	Cursor struct {
+		UserID   string `json:"userId"`
+		Username string `json:"username"`
+		Position struct {
+			Row int `json:"row"`
+			Col int `json:"col"`
+		} `json:"position"`
+		Color string `json:"color"`
+	} `json:"cursor"`
 }
 
 type NewMessagePayload struct {
@@ -287,9 +299,9 @@ func (h *Hub) HandleMessage(client *Client, msg *Message) {
 		h.handleJoinRoom(client, msg.Payload)
 	case MsgLeaveRoom:
 		h.handleLeaveRoom(client)
-	case MsgCellUpdate:
+	case MsgCellUpdate, "cell:update":
 		h.handleCellUpdate(client, msg.Payload)
-	case MsgCursorMove:
+	case MsgCursorMove, "cursor:move":
 		h.handleCursorMove(client, msg.Payload)
 	case MsgSendMessage:
 		h.handleSendMessage(client, msg.Payload)
@@ -301,9 +313,9 @@ func (h *Hub) HandleMessage(client *Client, msg *Message) {
 		h.handleRequestHint(client, msg.Payload)
 	case MsgStartGame:
 		h.handleStartGame(client)
-	case MsgSetReady:
+	case MsgSetReady, "player:ready":
 		h.handleSetReady(client, msg.Payload)
-	case MsgReaction:
+	case MsgReaction, "reaction:add":
 		h.handleReaction(client, msg.Payload)
 	case MsgPassTurn:
 		h.handlePassTurn(client)
@@ -622,23 +634,17 @@ func (h *Hub) handleCursorMove(client *Client, payload json.RawMessage) {
 	}
 
 	// Update cursor in database
-	h.db.UpdatePlayerCursor(client.UserID, client.RoomID, p.X, p.Y)
+	h.db.UpdatePlayerCursor(client.UserID, client.RoomID, p.Cursor.Position.Col, p.Cursor.Position.Row)
 
-	// Get player for color and name
-	players, _ := h.db.GetRoomPlayers(client.RoomID)
-	player := findPlayer(players, client.UserID)
-	if player == nil {
-		return
-	}
+	// Broadcast to other players (excluding sender)
+	var broadcastPayload CursorMovedPayload
+	broadcastPayload.Cursor.UserID = p.Cursor.UserID
+	broadcastPayload.Cursor.Username = p.Cursor.Username
+	broadcastPayload.Cursor.Position.Row = p.Cursor.Position.Row
+	broadcastPayload.Cursor.Position.Col = p.Cursor.Position.Col
+	broadcastPayload.Cursor.Color = p.Cursor.Color
 
-	// Broadcast to other players
-	h.broadcastToRoom(client.RoomID, client.ConnectionID, MsgCursorMoved, CursorMovedPayload{
-		PlayerID:    client.UserID,
-		DisplayName: player.DisplayName,
-		X:           p.X,
-		Y:           p.Y,
-		Color:       player.Color,
-	})
+	h.broadcastToRoom(client.RoomID, client.ConnectionID, MsgCursorMoved, broadcastPayload)
 }
 
 func (h *Hub) handleSendMessage(client *Client, payload json.RawMessage) {

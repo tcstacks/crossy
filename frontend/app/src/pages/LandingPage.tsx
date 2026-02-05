@@ -82,8 +82,12 @@ function Hero() {
   }, []);
 
   const handlePlayClick = () => {
+    navigate('/play');
+  };
+
+  const handlePlayWithFriendsClick = () => {
     if (isAuthenticated) {
-      navigate('/play');
+      navigate('/room/create');
     } else {
       setAuthModalOpen(true);
     }
@@ -146,7 +150,7 @@ function Hero() {
             </svg>
             Play Now
           </button>
-          <button onClick={() => navigate(isAuthenticated ? '/room/create' : '#')} onClickCapture={(e) => { if (!isAuthenticated) { e.preventDefault(); setAuthModalOpen(true); }}} className="crossy-button-secondary text-lg px-8 py-4">
+          <button onClick={handlePlayWithFriendsClick} className="crossy-button-secondary text-lg px-8 py-4">
             <Users className="w-5 h-5 mr-2" />
             Play with Friends
           </button>
@@ -167,10 +171,15 @@ function Hero() {
 // Daily Puzzle Section
 function DailyPuzzle() {
   const sectionRef = useRef<HTMLDivElement>(null);
-  const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [puzzle, setPuzzle] = useState<any>(null);
+  const [puzzle, setPuzzle] = useState<{
+    date?: string;
+    title?: string;
+    author?: string;
+    difficulty?: string;
+    gridWidth?: number;
+    gridHeight?: number;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -210,11 +219,7 @@ function DailyPuzzle() {
   }, []);
 
   const handlePlayClick = () => {
-    if (isAuthenticated) {
-      navigate('/play');
-    } else {
-      setAuthModalOpen(true);
-    }
+    navigate('/play');
   };
 
   // Format date as "Day, Month DD"
@@ -296,8 +301,6 @@ function DailyPuzzle() {
             </div>
           )}
         </div>
-
-        <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
       </div>
     </section>
   );

@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('LAND-01: Landing page hero section', () => {
   test('should display hero section with CTA buttons', async ({ page }) => {
     // Navigate to / (home page)
-    await page.goto('http://localhost:3000/');
+    await page.goto('/');
 
     // Wait for page to load
     await page.waitForSelector('section', { timeout: 10000 });
@@ -39,7 +39,7 @@ test.describe('LAND-01: Landing page hero section', () => {
 
   test('should display hero section content', async ({ page }) => {
     // Navigate to home page
-    await page.goto('http://localhost:3000/');
+    await page.goto('/');
 
     // Wait for page to load
     await page.waitForSelector('section', { timeout: 10000 });
@@ -66,9 +66,9 @@ test.describe('LAND-01: Landing page hero section', () => {
     console.log('✓ Both CTA buttons are in the hero section');
   });
 
-  test('Play Now button should be functional', async ({ page }) => {
+  test('Play Now button should navigate to /play', async ({ page }) => {
     // Navigate to home page
-    await page.goto('http://localhost:3000/');
+    await page.goto('/');
 
     // Wait for page to load
     await page.waitForSelector('button:has-text("Play Now")', { timeout: 10000 });
@@ -77,23 +77,22 @@ test.describe('LAND-01: Landing page hero section', () => {
     const playNowButton = page.locator('button:has-text("Play Now")').first();
     await playNowButton.click();
 
-    // Since user is not authenticated, auth modal should appear
-    // Wait for auth modal to appear (using a more specific selector)
-    const authModal = page.locator('[role="dialog"][data-slot="dialog-content"]').first();
-    await expect(authModal).toBeVisible({ timeout: 5000 });
+    // Verify navigation to /play
+    await page.waitForURL('**/play', { timeout: 5000 });
+    expect(page.url()).toContain('/play');
 
-    console.log('✓ Play Now button opens auth modal for unauthenticated users');
+    console.log('✓ Play Now button navigates to /play');
 
-    // Take snapshot
-    await page.screenshot({
-      path: 'frontend/tests/LAND-01-play-now-click.png',
-      fullPage: false
-    });
+    // Navigate back to /
+    await page.goto('/');
+    await page.waitForSelector('button:has-text("Play Now")', { timeout: 10000 });
+
+    console.log('✓ Navigated back to landing page');
   });
 
-  test('Play with Friends button should be functional', async ({ page }) => {
+  test('Play with Friends button should open auth modal for unauthenticated users', async ({ page }) => {
     // Navigate to home page
-    await page.goto('http://localhost:3000/');
+    await page.goto('/');
 
     // Wait for page to load
     await page.waitForSelector('button:has-text("Play with Friends")', { timeout: 10000 });
@@ -104,15 +103,17 @@ test.describe('LAND-01: Landing page hero section', () => {
 
     // Since user is not authenticated, auth modal should appear
     // Wait for auth modal to appear (using a more specific selector)
-    const authModal = page.locator('[role="dialog"][data-slot="dialog-content"]').first();
+    const authModal = page.locator('[role="dialog"]').first();
     await expect(authModal).toBeVisible({ timeout: 5000 });
 
     console.log('✓ Play with Friends button opens auth modal for unauthenticated users');
 
-    // Take snapshot
+    // Take screenshot of landing page
     await page.screenshot({
-      path: 'frontend/tests/LAND-01-play-with-friends-click.png',
-      fullPage: false
+      path: 'frontend/tests/LAND-01-landing-page.png',
+      fullPage: true
     });
+
+    console.log('✓ Screenshot of landing page taken');
   });
 });

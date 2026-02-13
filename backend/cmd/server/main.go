@@ -161,7 +161,7 @@ func main() {
 		}
 
 		// Return JSON instead of HTML for unknown API routes
-		apiGroup.NoRoute(func(c *gin.Context) {
+		router.NoRoute(func(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{
 				"error":   "Not Found",
 				"message": "API endpoint does not exist",

@@ -29,7 +29,9 @@ import type {
   ApiError,
 } from '../types/api';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+// Prefer same-origin by default (Vite dev server proxies `/api` to the Go backend),
+// so LAN clients don't need direct access to port 8080.
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 // Token management
 const TOKEN_KEY = 'auth_token';

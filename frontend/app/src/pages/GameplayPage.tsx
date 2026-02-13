@@ -65,6 +65,7 @@ function GameplayPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   const gridRef = useRef<HTMLDivElement>(null);
+  const mobileInputRef = useRef<HTMLInputElement>(null);
   const startTimeRef = useRef<number>(Date.now());
 
   // Fetch puzzle on mount (or when date param changes)
@@ -113,7 +114,7 @@ function GameplayPage() {
           letter: '',
           correctLetter: cell.letter || '',
           isBlocked: cell.letter === null,
-          number: cell.number
+          number: cell.number != null ? Number(cell.number) : undefined
         });
       }
       newGrid.push(rowCells);
@@ -123,21 +124,21 @@ function GameplayPage() {
 
     // Map clues from API format to UI format
     const mappedAcross = puzzleData.cluesAcross.map(c => ({
-      num: c.number,
+      num: Number(c.number),
       direction: 'across' as const,
       clue: c.text,
       answer: c.answer,
-      row: c.positionY,
-      col: c.positionX
+      row: Number(c.positionY),
+      col: Number(c.positionX)
     }));
 
     const mappedDown = puzzleData.cluesDown.map(c => ({
-      num: c.number,
+      num: Number(c.number),
       direction: 'down' as const,
       clue: c.text,
       answer: c.answer,
-      row: c.positionY,
-      col: c.positionX
+      row: Number(c.positionY),
+      col: Number(c.positionX)
     }));
 
     setCluesAcross(mappedAcross);
@@ -230,44 +231,282 @@ function GameplayPage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleCellClick = (row: number, col: number) => {
-    if (grid[row][col].isBlocked) return;
-    
-    // If clicking same cell, toggle direction
-    if (selectedCell?.row === row && selectedCell?.col === col) {
-      setDirection(d => d === 'across' ? 'down' : 'across');
-    }
-    
-    setSelectedCell({ row, col });
-    setShowCheck(false);
-    
-    // Find the active clue
-    const cellNum = grid[row][col].number;
-    if (cellNum) {
-      const clue = direction === 'across'
-        ? cluesAcross.find(c => c.num === cellNum && c.row === row)
-        : cluesDown.find(c => c.num === cellNum && c.col === col);
-      if (clue) setActiveClue(clue);
-    }
+  const getClueForCell = (row: number, col: number, clueDirection: 'across' | 'down') => {
+    const matchingClues = clueDirection === 'across' ? cluesAcross : cluesDown;
+    return matchingClues.find((clue) => {
+      const clueRow = Number(clue.row);
+      const clueCol = Number(clue.col);
+      const clueLen = clue.answer ? clue.answer.length : 0;
+
+      if (clueDirection === 'across') {
+        return (
+          clue.direction === 'across' &&
+          clueRow === row &&
+          col >= clueCol &&
+          col < clueCol + clueLen
+        );
+      }
+
+      return (
+        clue.direction === 'down' &&
+        clueCol === col &&
+        row >= clueRow &&
+        row < clueRow + clueLen
+      );
+    });
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const getClueForLineStart = (row: number, col: number, clueDirection: 'across' | 'down') => {
+    const matchingClues = clueDirection === 'across' ? cluesAcross : cluesDown;
+
+    if (clueDirection === 'across') {
+      let startCol = col;
+      for (let c = col - 1; c >= 0; c--) {
+        if (grid[row]?.[c]?.isBlocked) break;
+        if (grid[row]?.[c]?.number != null) {
+          startCol = c;
+        }
+      }
+
+      const startNumber = Number(grid[row]?.[startCol]?.number);
+      if (Number.isNaN(startNumber)) return null;
+
+      return matchingClues.find((clue) => Number(clue.num) === startNumber);
+    }
+
+    let startRow = row;
+    for (let r = row - 1; r >= 0; r--) {
+      if (grid[r]?.[col]?.isBlocked) break;
+      if (grid[r]?.[col]?.number != null) {
+        startRow = r;
+      }
+    }
+
+    const startNumber = Number(grid[startRow]?.[col]?.number);
+    if (Number.isNaN(startNumber)) return null;
+
+    return matchingClues.find((clue) => Number(clue.num) === startNumber);
+  };
+
+  const getClueForCellOrNumber = (row: number, col: number, clueDirection: 'across' | 'down') => {
+    const directClue = getClueForCell(row, col, clueDirection);
+    if (directClue) return directClue;
+
+    const cell = grid[row]?.[col];
+    const matchingClues = clueDirection === 'across' ? cluesAcross : cluesDown;
+    const cellNumber = cell?.number != null ? Number(cell.number) : null;
+
+    const lineNumberClue = cellNumber != null
+      ? matchingClues.find((clue) => Number(clue.num) === cellNumber)
+      : null;
+    if (lineNumberClue) return lineNumberClue;
+
+    return getClueForLineStart(row, col, clueDirection);
+  };
+
+  const getDisplayClueForSelection = (row: number, col: number, preferredDirection: 'across' | 'down') => {
+    const fallbackDirection = preferredDirection === 'across' ? 'down' : 'across';
+    return (
+      getClueForCellOrNumber(row, col, preferredDirection) ||
+      getClueForCellOrNumber(row, col, fallbackDirection) ||
+      (grid[row]?.[col]?.number
+        ? (
+          (preferredDirection === 'across' ? cluesAcross : cluesDown).find(
+            (clue) => Number(clue.num) === Number(grid[row][col].number)
+          ) ||
+          (fallbackDirection === 'across' ? cluesAcross : cluesDown).find(
+            (clue) => Number(clue.num) === Number(grid[row][col].number)
+          )
+        )
+        : null)
+    );
+  };
+
+  const getFallbackLineBounds = (row: number, col: number, clueDirection: 'across' | 'down') => {
+    if (!grid[row]?.[col] || grid[row][col].isBlocked) return null;
+
+    const maxRow = grid.length;
+    const maxCol = grid[0]?.length ?? 0;
+
+    if (clueDirection === 'across') {
+      let startCol = col;
+      let endCol = col;
+
+      for (let nextCol = col - 1; nextCol >= 0; nextCol--) {
+        if (grid[row][nextCol]?.isBlocked) break;
+        startCol = nextCol;
+      }
+
+      for (let nextCol = col + 1; nextCol < maxCol; nextCol++) {
+        if (grid[row][nextCol]?.isBlocked) break;
+        endCol = nextCol;
+      }
+
+      return { startCol, endCol, startRow: row, endRow: row };
+    }
+
+    let startRow = row;
+    let endRow = row;
+
+    for (let nextRow = row - 1; nextRow >= 0; nextRow--) {
+      if (grid[nextRow]?.[col]?.isBlocked) break;
+      startRow = nextRow;
+    }
+
+    for (let nextRow = row + 1; nextRow < maxRow; nextRow++) {
+      if (grid[nextRow]?.[col]?.isBlocked) break;
+      endRow = nextRow;
+    }
+
+    return { startCol: col, endCol: col, startRow, endRow };
+  };
+
+  const getPreviousCellInDirection = (row: number, col: number, clueDirection: 'across' | 'down') => {
+    if (clueDirection === 'across') {
+      for (let nextCol = col - 1; nextCol >= 0; nextCol--) {
+        if (!grid[row][nextCol]?.isBlocked) {
+          return { row, col: nextCol };
+        }
+      }
+      return null;
+    }
+
+    for (let nextRow = row - 1; nextRow >= 0; nextRow--) {
+      if (!grid[nextRow]?.[col]?.isBlocked) {
+        return { row: nextRow, col };
+      }
+    }
+    return null;
+  };
+
+  const isCellInActiveLine = (row: number, col: number) => {
+    if (!selectedCell) return false;
+
+    const lineDirection = activeClue?.direction || direction;
+    const fallbackDirection = lineDirection === 'across' ? 'down' : 'across';
+    const lineClue =
+      getClueForCell(selectedCell.row, selectedCell.col, lineDirection) ||
+      getClueForLineStart(selectedCell.row, selectedCell.col, lineDirection) ||
+      getClueForCell(selectedCell.row, selectedCell.col, fallbackDirection) ||
+      getClueForLineStart(selectedCell.row, selectedCell.col, fallbackDirection);
+
+    const resolvedDirection = lineClue?.direction || lineDirection;
+    if (!lineClue || !lineClue.answer) {
+      const lineBounds = getFallbackLineBounds(selectedCell.row, selectedCell.col, resolvedDirection);
+      if (!lineBounds) return false;
+
+      if (resolvedDirection === 'across') {
+        return (
+          row === selectedCell.row &&
+          col >= lineBounds.startCol &&
+          col <= lineBounds.endCol
+        );
+      }
+
+      return (
+        col === selectedCell.col &&
+        row >= lineBounds.startRow &&
+        row <= lineBounds.endRow
+      );
+    }
+
+    if (lineClue.direction === 'across') {
+      const clueRow = Number(lineClue.row);
+      const clueCol = Number(lineClue.col);
+      return (
+        clueRow === row &&
+        col >= clueCol &&
+        col < clueCol + lineClue.answer.length
+      );
+    }
+
+    const clueRow = Number(lineClue.row);
+    const clueCol = Number(lineClue.col);
+    return (
+      clueCol === col &&
+      row >= clueRow &&
+      row < clueRow + lineClue.answer.length
+    );
+  };
+
+  const resolvedActiveClue = activeClue
+    ? activeClue
+    : (selectedCell
+      ? getDisplayClueForSelection(selectedCell.row, selectedCell.col, direction)
+      : null);
+
+  const getNextDirectionForCell = (row: number, col: number, requestedDirection: 'across' | 'down') => {
+    const acrossClue = getClueForCellOrNumber(row, col, 'across');
+    const downClue = getClueForCellOrNumber(row, col, 'down');
+    const isCurrentCellSelected = selectedCell?.row === row && selectedCell?.col === col;
+    const currentDisplayDirection = activeClue?.direction || direction;
+    const hasBothDirections = Boolean(acrossClue && downClue);
+
+    if (isCurrentCellSelected && hasBothDirections && activeClue) {
+      return currentDisplayDirection === 'across' ? 'down' : 'across';
+    }
+
+    if (isCurrentCellSelected && requestedDirection === direction && hasBothDirections) {
+      return direction === 'across' ? 'down' : 'across';
+    }
+
+    return requestedDirection;
+  };
+
+  const handleCellClick = (row: number, col: number) => {
+    if (grid[row][col].isBlocked) return;
+
+    const nextDirection = selectedCell?.row === row && selectedCell?.col === col
+      ? direction === 'across' ? 'down' : 'across'
+      : direction;
+
+    const resolvedDirection = getNextDirectionForCell(row, col, nextDirection);
+    const fallbackDirection = resolvedDirection === 'across' ? 'down' : 'across';
+    let targetClue = getClueForCellOrNumber(row, col, resolvedDirection);
+    let targetDirection = resolvedDirection;
+    if (!targetClue) {
+      targetClue = getClueForCellOrNumber(row, col, fallbackDirection);
+      targetDirection = fallbackDirection;
+    }
+
+    setDirection(targetDirection);
+    setClueTab(targetDirection);
+    setActiveClue(targetClue ?? getDisplayClueForSelection(row, col, targetDirection) ?? null);
+    setSelectedCell({ row, col });
+    setShowCheck(false);
+
+    mobileInputRef.current?.focus({ preventScroll: true } as FocusOptions);
+  };
+
+  const handleCellInputKey = (key: string) => {
     if (!selectedCell) return;
-    
+
     const { row, col } = selectedCell;
-    
-    if (e.key === 'Backspace') {
-      const newGrid = [...grid];
+
+    if (key === 'Backspace') {
+      const newGrid = grid.map((r) => r.map((c) => ({ ...c })));
+      const previousCell = getPreviousCellInDirection(row, col, direction);
+
       newGrid[row][col].letter = '';
+      let nextCell = { row, col };
+
+      if (!grid[row][col].letter && previousCell) {
+        newGrid[previousCell.row][previousCell.col].letter = '';
+      }
+
+      if (previousCell) {
+        nextCell = previousCell;
+      }
+
       setGrid(newGrid);
+      setSelectedCell(nextCell);
       setShowCheck(false);
-    } else if (e.key.length === 1 && e.key.match(/[a-zA-Z]/)) {
+    } else if (key.length === 1 && key.match(/^[a-zA-Z]$/)) {
       const newGrid = [...grid];
-      newGrid[row][col].letter = e.key.toUpperCase();
+      newGrid[row][col].letter = key.toUpperCase();
       setGrid(newGrid);
       setShowCheck(false);
-      
-      // Auto-advance
+
       const maxCol = grid[0]?.length || 0;
       const maxRow = grid.length || 0;
       if (direction === 'across' && col < maxCol - 1 && !grid[row][col + 1]?.isBlocked) {
@@ -275,24 +514,58 @@ function GameplayPage() {
       } else if (direction === 'down' && row < maxRow - 1 && !grid[row + 1]?.[col]?.isBlocked) {
         setSelectedCell({ row: row + 1, col });
       }
-    } else if (e.key === 'ArrowRight') {
+    } else if (key === 'ArrowRight') {
       const maxCol = grid[0]?.length || 0;
       let newCol = col + 1;
       while (newCol < maxCol && grid[row][newCol]?.isBlocked) newCol++;
       if (newCol < maxCol) setSelectedCell({ row, col: newCol });
-    } else if (e.key === 'ArrowLeft') {
+    } else if (key === 'ArrowLeft') {
       let newCol = col - 1;
       while (newCol >= 0 && grid[row][newCol]?.isBlocked) newCol--;
       if (newCol >= 0) setSelectedCell({ row, col: newCol });
-    } else if (e.key === 'ArrowDown') {
+    } else if (key === 'ArrowDown') {
       const maxRow = grid.length || 0;
       let newRow = row + 1;
       while (newRow < maxRow && grid[newRow]?.[col]?.isBlocked) newRow++;
       if (newRow < maxRow) setSelectedCell({ row: newRow, col });
-    } else if (e.key === 'ArrowUp') {
+    } else if (key === 'ArrowUp') {
       let newRow = row - 1;
       while (newRow >= 0 && grid[newRow]?.[col]?.isBlocked) newRow--;
       if (newRow >= 0) setSelectedCell({ row: newRow, col });
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!selectedCell) return;
+    const key = e.key;
+
+    if (key === 'Backspace' || key.startsWith('Arrow')) {
+      e.preventDefault();
+    } else if (key.length !== 1 || !key.match(/^[a-zA-Z]$/)) {
+      return;
+    }
+
+    handleCellInputKey(key);
+  };
+
+  const handleMobileKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!selectedCell) return;
+    e.stopPropagation();
+
+    if (e.key === 'Backspace' || e.key.startsWith('Arrow')) {
+      e.preventDefault();
+      handleCellInputKey(e.key);
+    }
+  };
+
+  const handleMobileInput = (value: string) => {
+    if (!selectedCell) return;
+    const normalized = value.replace(/[^a-zA-Z]/g, '').slice(-1);
+    if (!normalized) return;
+    handleCellInputKey(normalized);
+
+    if (mobileInputRef.current) {
+      mobileInputRef.current.value = '';
     }
   };
 
@@ -446,23 +719,29 @@ function GameplayPage() {
         <div className="max-w-6xl mx-auto px-4 py-3">
           <div className="flex items-center gap-3">
             <button 
-              onClick={() => setDirection('across')}
+              onClick={() => {
+                setDirection('across');
+                setClueTab('across');
+              }}
               className={`px-3 py-1 rounded-full text-xs font-display font-semibold transition-colors ${
                 direction === 'across' ? 'bg-white text-[#7B61FF]' : 'bg-[#6B51EF] text-white/70'
               }`}
             >
-              {activeClue?.num || 1} ACROSS
+              {(resolvedActiveClue?.num || 1)} ACROSS
             </button>
             <button 
-              onClick={() => setDirection('down')}
+              onClick={() => {
+                setDirection('down');
+                setClueTab('down');
+              }}
               className={`px-3 py-1 rounded-full text-xs font-display font-semibold transition-colors ${
                 direction === 'down' ? 'bg-white text-[#7B61FF]' : 'bg-[#6B51EF] text-white/70'
               }`}
             >
-              {activeClue?.num || 1} DOWN
+              {(resolvedActiveClue?.num || 1)} DOWN
             </button>
             <span className="font-display text-white text-sm ml-2">
-              {activeClue?.clue || 'Feline pet that meows'}
+              {resolvedActiveClue?.clue || 'Feline pet that meows'}
             </span>
           </div>
         </div>
@@ -471,7 +750,7 @@ function GameplayPage() {
       {/* Main Game Area */}
       <main className="max-w-3xl mx-auto px-4 py-6">
         {/* Grid */}
-        <div className="flex justify-center mb-6 relative">
+        <div className="flex justify-center mb-6 relative w-full">
           {/* Crossy mascot peeking from top-right */}
           <img 
             src="/crossy-main.png" 
@@ -484,42 +763,70 @@ function GameplayPage() {
             ref={gridRef}
             tabIndex={0}
             onKeyDown={handleKeyDown}
-            className="relative bg-white rounded-2xl p-3 outline-none shadow-lg"
+            className="relative bg-white rounded-2xl p-3 outline-none shadow-lg w-full"
           >
+            <input
+              ref={mobileInputRef}
+                type="text"
+              inputMode="text"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              maxLength={1}
+              className="absolute left-0 top-0 w-10 h-10 opacity-0"
+              onKeyDown={handleMobileKeyDown}
+              onChange={(e) => handleMobileInput(e.target.value)}
+            />
             <div
-              className="grid gap-1"
-              style={{ gridTemplateColumns: `repeat(${puzzle?.gridWidth || 7}, 1fr)` }}
+              className="grid gap-1 w-full"
+              style={{
+                gridTemplateColumns: `repeat(${puzzle?.gridWidth || 7}, 1fr)`,
+                width: '100%',
+              }}
             >
               {grid.map((row, rowIndex) => (
-                row.map((cell, colIndex) => (
+                row.map((cell, colIndex) => {
+                  const isSelectedCell = selectedCell?.row === rowIndex && selectedCell?.col === colIndex;
+                  const isActiveLineCell = isCellInActiveLine(rowIndex, colIndex);
+                  return (
                   <div
                     key={`${rowIndex}-${colIndex}`}
                     onClick={() => handleCellClick(rowIndex, colIndex)}
+                    onTouchStart={(event) => {
+                      event.preventDefault();
+                      handleCellClick(rowIndex, colIndex);
+                    }}
                     className={`
-                      relative w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center
+                      relative w-full aspect-square flex items-center justify-center
                       text-base sm:text-lg font-display font-bold
                       rounded-lg border-2 cursor-pointer select-none
                       transition-all duration-150
                       ${cell.isBlocked 
                         ? 'bg-[#2A1E5C] border-[#2A1E5C]' 
-                        : selectedCell?.row === rowIndex && selectedCell?.col === colIndex
+                        : isSelectedCell
                           ? 'bg-[#7B61FF] border-[#7B61FF] text-white shadow-inner'
-                          : showCheck && checkedCells.has(`${rowIndex}-${colIndex}`)
-                            ? isCellCorrect(rowIndex, colIndex)
-                              ? 'bg-[#2ECC71] border-[#2ECC71] text-white'
-                              : 'bg-[#FF4D6A] border-[#FF4D6A] text-white'
+                            : showCheck && checkedCells.has(`${rowIndex}-${colIndex}`)
+                              ? isCellCorrect(rowIndex, colIndex)
+                                ? 'bg-[#2ECC71] border-[#2ECC71] text-white'
+                                : 'bg-[#FF4D6A] border-[#FF4D6A] text-white'
+                            : isActiveLineCell
+                              ? 'bg-[#EEE6FF] border-[#8A6BFA] ring-2 ring-[#8A6BFA]/55 text-[#2A1E5C] shadow-[inset_0_0_0_1px_rgba(138,107,250,0.35)]'
                             : 'bg-white border-[#7B61FF] text-[#2A1E5C] hover:bg-[#F3F1FF]'
                       }
                     `}
                   >
                     {cell.number && (
-                      <span className="absolute top-0.5 left-1 text-[8px] font-display font-bold text-[#7B61FF] leading-none">
+                      <span className={`absolute top-0.5 left-1 text-[22px] sm:text-[24px] font-display font-bold leading-none ${
+                        isSelectedCell ? 'text-white' : 'text-[#6F4EC2]'
+                      }`}>
                         {cell.number}
                       </span>
                     )}
                     <span className="relative z-10">{cell.letter}</span>
                   </div>
-                ))
+                  );
+                })
               ))}
             </div>
           </div>
@@ -564,7 +871,7 @@ function GameplayPage() {
                   setSelectedCell({ row: clue.row, col: clue.col });
                 }}
                 className={`w-full text-left p-3 rounded-xl transition-colors ${
-                  activeClue?.num === clue.num && activeClue?.direction === clueTab
+                  resolvedActiveClue?.num === clue.num && resolvedActiveClue?.direction === clueTab
                     ? 'bg-[#7B61FF]/10 border border-[#7B61FF]'
                     : 'bg-[#F3F1FF] hover:bg-[#ECE9FF]'
                 }`}

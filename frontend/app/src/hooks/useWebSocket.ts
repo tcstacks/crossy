@@ -23,8 +23,18 @@ export function useWebSocket({ roomCode, token, autoConnect = true }: UseWebSock
 
   // Get WebSocket URL from environment
   const getWebSocketUrl = useCallback(() => {
-    const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8080';
-    return `${wsUrl}/api/rooms/${roomCode}/ws?token=${token}`;
+    const envWs = import.meta.env.VITE_WS_URL;
+    if (envWs) {
+      return `${envWs}/api/rooms/${roomCode}/ws?token=${token}`;
+    }
+
+    // Same-origin default: LAN clients connect to Vite (port 3000) and Vite proxies WS to the backend.
+    if (typeof window !== 'undefined' && window.location) {
+      const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      return `${proto}://${window.location.host}/api/rooms/${roomCode}/ws?token=${token}`;
+    }
+
+    return `ws://localhost:3000/api/rooms/${roomCode}/ws?token=${token}`;
   }, [roomCode, token]);
 
   // Clear reconnection timeout

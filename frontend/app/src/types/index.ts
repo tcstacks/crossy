@@ -48,6 +48,8 @@ export type {
   CursorMovePayload,
   PlayerProgressPayload,
   PlayerFinishedPayload,
+  RaceProgress,
+  RaceProgressPayload,
   ChatMessage,
   ChatMessagePayload,
   TypingIndicatorPayload,

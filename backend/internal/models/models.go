@@ -132,6 +132,7 @@ type Player struct {
 	CursorY        *int    `json:"cursorY,omitempty"`
 	IsSpectator    bool    `json:"isSpectator"`
 	IsConnected    bool    `json:"isConnected"`
+	IsReady        bool    `json:"isReady"`
 	Contribution   float64 `json:"contribution"` // % of correct cells
 	Color          string  `json:"color"`        // cursor/highlight color
 	JoinedAt       time.Time `json:"joinedAt"`

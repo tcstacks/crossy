@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import { authApi, userApi, getToken, removeToken } from '../lib/api';
+import { authApi, userApi, getToken, removeToken, setAuthStateListener } from '../lib/api';
 import type { User, RegisterRequest, LoginRequest, GuestLoginRequest, ApiError } from '../types/api';
 
 interface AuthState {
@@ -40,6 +40,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAuthenticated: false,
     isLoading: true,
   });
+
+  // Handle 401 errors by clearing auth state
+  const handleUnauthorized = useCallback(() => {
+    setAuthState({
+      user: null,
+      token: null,
+      isAuthenticated: false,
+      isLoading: false,
+    });
+  }, []);
+
+  // Register listener for 401 errors from API client
+  useEffect(() => {
+    setAuthStateListener(handleUnauthorized);
+    return () => {
+      setAuthStateListener(null);
+    };
+  }, [handleUnauthorized]);
 
   // Initialize auth state from token on mount
   useEffect(() => {

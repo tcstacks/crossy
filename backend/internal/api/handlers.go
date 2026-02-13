@@ -20,13 +20,25 @@ import (
 type Handlers struct {
 	db          *db.Database
 	authService *auth.AuthService
+	hub         HubInterface
+}
+
+// HubInterface defines the methods needed from the Hub
+type HubInterface interface {
+	BroadcastToRoom(roomID, senderID string, messageType interface{}, payload interface{})
 }
 
 func NewHandlers(database *db.Database, authService *auth.AuthService) *Handlers {
 	return &Handlers{
 		db:          database,
 		authService: authService,
+		hub:         nil, // Will be set via SetHub
 	}
+}
+
+// SetHub sets the WebSocket hub for the handlers
+func (h *Handlers) SetHub(hub HubInterface) {
+	h.hub = hub
 }
 
 // Auth Handlers
@@ -861,6 +873,11 @@ func (h *Handlers) StartRoom(c *gin.Context) {
 		return
 	}
 
+	// Broadcast game started event via WebSocket
+	if h.hub != nil {
+		h.hub.BroadcastToRoom(room.ID, "", "game_started", nil)
+	}
+
 	c.JSON(http.StatusOK, gin.H{"message": "room started"})
 }
 
@@ -893,6 +910,51 @@ func (h *Handlers) CloseRoom(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "room closed"})
+}
+
+func (h *Handlers) SetPlayerReady(c *gin.Context) {
+	claims := middleware.GetAuthUser(c)
+	if claims == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	roomID := c.Param("id")
+
+	var req struct {
+		Ready bool `json:"ready"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	// Verify player is in the room
+	players, err := h.db.GetRoomPlayers(roomID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+		return
+	}
+
+	playerInRoom := false
+	for _, p := range players {
+		if p.UserID == claims.UserID {
+			playerInRoom = true
+			break
+		}
+	}
+
+	if !playerInRoom {
+		c.JSON(http.StatusForbidden, gin.H{"error": "not in room"})
+		return
+	}
+
+	if err := h.db.UpdatePlayerReady(claims.UserID, roomID, req.Ready); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update ready status"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"ready": req.Ready})
 }
 
 // Helper functions

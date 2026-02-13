@@ -100,8 +100,11 @@ function CreateRoomPage() {
 
       // Create the room
       const response = await roomApi.createRoom({
-        maxPlayers,
         puzzleId,
+        mode: gameMode,
+        config: {
+          maxPlayers,
+        },
       });
 
       // Navigate to room lobby

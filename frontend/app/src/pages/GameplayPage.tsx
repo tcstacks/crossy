@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import {
   Clock,
   Flame,
@@ -40,9 +40,11 @@ interface Clue {
 }
 
 function GameplayPage() {
-  // Get date from URL query parameters
+  // Get date from URL query parameters or puzzleId from location state
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const dateParam = searchParams.get('date');
+  const puzzleIdFromState = location.state?.puzzleId;
 
   // Puzzle data state
   const [puzzle, setPuzzle] = useState<Puzzle | null>(null);
@@ -61,23 +63,29 @@ function GameplayPage() {
   const [progress, setProgress] = useState(0);
   const [showCheck, setShowCheck] = useState(false);
   const [checkedCells, setCheckedCells] = useState<Set<string>>(new Set());
+  const [revealedCells, setRevealedCells] = useState<Set<string>>(new Set());
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [hintsUsed, setHintsUsed] = useState(0);
 
   const gridRef = useRef<HTMLDivElement>(null);
   const startTimeRef = useRef<number>(Date.now());
 
-  // Fetch puzzle on mount (or when date param changes)
+  // Fetch puzzle on mount (or when date param or puzzleId changes)
   useEffect(() => {
     const fetchPuzzle = async () => {
       try {
         setLoading(true);
         setError(null);
-        // If a date parameter is provided, fetch that specific puzzle from the archive
-        // Otherwise, fetch today's puzzle
-        const fetchedPuzzle = dateParam
-          ? await puzzleApi.getPuzzleByDate({ date: dateParam })
-          : await puzzleApi.getTodayPuzzle();
+        // Priority: puzzleId from state (Play Again) > date param > today's puzzle
+        let fetchedPuzzle: Puzzle;
+        if (puzzleIdFromState) {
+          fetchedPuzzle = await puzzleApi.getPuzzleById(puzzleIdFromState);
+        } else if (dateParam) {
+          fetchedPuzzle = await puzzleApi.getPuzzleByDate({ date: dateParam });
+        } else {
+          fetchedPuzzle = await puzzleApi.getTodayPuzzle();
+        }
         setPuzzle(fetchedPuzzle);
         initializeGridFromPuzzle(fetchedPuzzle);
         startTimeRef.current = Date.now();
@@ -93,7 +101,7 @@ function GameplayPage() {
     };
 
     fetchPuzzle();
-  }, [dateParam]);
+  }, [dateParam, puzzleIdFromState]);
 
   // Initialize grid from puzzle data
   const initializeGridFromPuzzle = (puzzleData: Puzzle) => {
@@ -149,9 +157,14 @@ function GameplayPage() {
   const retryLoadPuzzle = () => {
     setLoading(true);
     setError(null);
-    const puzzlePromise = dateParam
-      ? puzzleApi.getPuzzleByDate({ date: dateParam })
-      : puzzleApi.getTodayPuzzle();
+    let puzzlePromise: Promise<Puzzle>;
+    if (puzzleIdFromState) {
+      puzzlePromise = puzzleApi.getPuzzleById(puzzleIdFromState);
+    } else if (dateParam) {
+      puzzlePromise = puzzleApi.getPuzzleByDate({ date: dateParam });
+    } else {
+      puzzlePromise = puzzleApi.getTodayPuzzle();
+    }
     puzzlePromise
       .then(fetchedPuzzle => {
         setPuzzle(fetchedPuzzle);
@@ -232,22 +245,34 @@ function GameplayPage() {
 
   const handleCellClick = (row: number, col: number) => {
     if (grid[row][col].isBlocked) return;
-    
+
     // If clicking same cell, toggle direction
+    let newDirection = direction;
     if (selectedCell?.row === row && selectedCell?.col === col) {
-      setDirection(d => d === 'across' ? 'down' : 'across');
+      newDirection = direction === 'across' ? 'down' : 'across';
+      setDirection(newDirection);
     }
-    
+
     setSelectedCell({ row, col });
     setShowCheck(false);
-    
-    // Find the active clue
-    const cellNum = grid[row][col].number;
-    if (cellNum) {
-      const clue = direction === 'across'
-        ? cluesAcross.find(c => c.num === cellNum && c.row === row)
-        : cluesDown.find(c => c.num === cellNum && c.col === col);
-      if (clue) setActiveClue(clue);
+
+    // Find the active clue based on the new direction
+    // Look for the clue that contains this cell, regardless of whether it has a number
+    const clue = newDirection === 'across'
+      ? cluesAcross.find(c =>
+          c.row === row &&
+          c.col <= col &&
+          col < c.col + c.answer.length
+        )
+      : cluesDown.find(c =>
+          c.col === col &&
+          c.row <= row &&
+          row < c.row + c.answer.length
+        );
+    if (clue) {
+      setActiveClue({ ...clue, direction: newDirection });
+      // Auto-switch the clue tab to match the direction
+      setClueTab(newDirection);
     }
   };
 
@@ -261,6 +286,17 @@ function GameplayPage() {
       newGrid[row][col].letter = '';
       setGrid(newGrid);
       setShowCheck(false);
+
+      // Move cursor back after deleting
+      if (direction === 'across') {
+        let newCol = col - 1;
+        while (newCol >= 0 && grid[row][newCol]?.isBlocked) newCol--;
+        if (newCol >= 0) setSelectedCell({ row, col: newCol });
+      } else if (direction === 'down') {
+        let newRow = row - 1;
+        while (newRow >= 0 && grid[newRow]?.[col]?.isBlocked) newRow--;
+        if (newRow >= 0) setSelectedCell({ row: newRow, col });
+      }
     } else if (e.key.length === 1 && e.key.match(/[a-zA-Z]/)) {
       const newGrid = [...grid];
       newGrid[row][col].letter = e.key.toUpperCase();
@@ -279,20 +315,72 @@ function GameplayPage() {
       const maxCol = grid[0]?.length || 0;
       let newCol = col + 1;
       while (newCol < maxCol && grid[row][newCol]?.isBlocked) newCol++;
-      if (newCol < maxCol) setSelectedCell({ row, col: newCol });
+      if (newCol < maxCol) {
+        setSelectedCell({ row, col: newCol });
+        setDirection('across');
+        // Update active clue for new position and direction
+        const clue = cluesAcross.find(c =>
+          c.row === row &&
+          c.col <= newCol &&
+          newCol < c.col + c.answer.length
+        );
+        if (clue) {
+          setActiveClue({ ...clue, direction: 'across' });
+          setClueTab('across');
+        }
+      }
     } else if (e.key === 'ArrowLeft') {
       let newCol = col - 1;
       while (newCol >= 0 && grid[row][newCol]?.isBlocked) newCol--;
-      if (newCol >= 0) setSelectedCell({ row, col: newCol });
+      if (newCol >= 0) {
+        setSelectedCell({ row, col: newCol });
+        setDirection('across');
+        // Update active clue for new position and direction
+        const clue = cluesAcross.find(c =>
+          c.row === row &&
+          c.col <= newCol &&
+          newCol < c.col + c.answer.length
+        );
+        if (clue) {
+          setActiveClue({ ...clue, direction: 'across' });
+          setClueTab('across');
+        }
+      }
     } else if (e.key === 'ArrowDown') {
       const maxRow = grid.length || 0;
       let newRow = row + 1;
       while (newRow < maxRow && grid[newRow]?.[col]?.isBlocked) newRow++;
-      if (newRow < maxRow) setSelectedCell({ row: newRow, col });
+      if (newRow < maxRow) {
+        setSelectedCell({ row: newRow, col });
+        setDirection('down');
+        // Update active clue for new position and direction
+        const clue = cluesDown.find(c =>
+          c.col === col &&
+          c.row <= newRow &&
+          newRow < c.row + c.answer.length
+        );
+        if (clue) {
+          setActiveClue({ ...clue, direction: 'down' });
+          setClueTab('down');
+        }
+      }
     } else if (e.key === 'ArrowUp') {
       let newRow = row - 1;
       while (newRow >= 0 && grid[newRow]?.[col]?.isBlocked) newRow--;
-      if (newRow >= 0) setSelectedCell({ row: newRow, col });
+      if (newRow >= 0) {
+        setSelectedCell({ row: newRow, col });
+        setDirection('down');
+        // Update active clue for new position and direction
+        const clue = cluesDown.find(c =>
+          c.col === col &&
+          c.row <= newRow &&
+          newRow < c.row + c.answer.length
+        );
+        if (clue) {
+          setActiveClue({ ...clue, direction: 'down' });
+          setClueTab('down');
+        }
+      }
     }
   };
 
@@ -315,50 +403,117 @@ function GameplayPage() {
       const newGrid = [...grid];
       newGrid[row][col].letter = newGrid[row][col].correctLetter;
       setGrid(newGrid);
+
+      // Track this cell as revealed
+      const cellKey = `${row}-${col}`;
+      setRevealedCells(prev => new Set(prev).add(cellKey));
+
+      // Increment hints counter
+      setHintsUsed(prev => prev + 1);
     }
   };
 
   const revealWord = () => {
-    if (!activeClue) return;
+    if (!selectedCell) return;
     const newGrid = [...grid];
+    const newRevealed = new Set(revealedCells);
 
-    if (activeClue.direction === 'across' || direction === 'across') {
-      // Find the across clue for selected cell
-      const acrossClue = cluesAcross.find(c =>
-        c.row === activeClue.row && c.col <= (selectedCell?.col || c.col) &&
-        (selectedCell?.col || c.col) < c.col + c.answer.length
-      );
-      if (acrossClue) {
-        for (let i = 0; i < acrossClue.answer.length; i++) {
-          newGrid[acrossClue.row][acrossClue.col + i].letter = acrossClue.answer[i];
-        }
+    if (direction === 'across') {
+      // Find the start and end of the word in the across direction
+      const row = selectedCell.row;
+      let startCol = selectedCell.col;
+      let endCol = selectedCell.col;
+
+      // Find start of word
+      while (startCol > 0 && !newGrid[row][startCol - 1].isBlocked) {
+        startCol--;
+      }
+
+      // Find end of word
+      while (endCol < newGrid[row].length - 1 && !newGrid[row][endCol + 1].isBlocked) {
+        endCol++;
+      }
+
+      // Reveal all letters in the word
+      for (let col = startCol; col <= endCol; col++) {
+        newGrid[row][col].letter = newGrid[row][col].correctLetter;
+        newRevealed.add(`${row}-${col}`);
       }
     } else {
-      const downClue = cluesDown.find(c =>
-        c.col === activeClue.col && c.row <= (selectedCell?.row || c.row) &&
-        (selectedCell?.row || c.row) < c.row + c.answer.length
-      );
-      if (downClue) {
-        for (let i = 0; i < downClue.answer.length; i++) {
-          newGrid[downClue.row + i][downClue.col].letter = downClue.answer[i];
-        }
+      // Find the start and end of the word in the down direction
+      const col = selectedCell.col;
+      let startRow = selectedCell.row;
+      let endRow = selectedCell.row;
+
+      // Find start of word
+      while (startRow > 0 && !newGrid[startRow - 1][col].isBlocked) {
+        startRow--;
+      }
+
+      // Find end of word
+      while (endRow < newGrid.length - 1 && !newGrid[endRow + 1][col].isBlocked) {
+        endRow++;
+      }
+
+      // Reveal all letters in the word
+      for (let row = startRow; row <= endRow; row++) {
+        newGrid[row][col].letter = newGrid[row][col].correctLetter;
+        newRevealed.add(`${row}-${col}`);
       }
     }
+
     setGrid(newGrid);
+    setRevealedCells(newRevealed);
+    setHintsUsed(prev => prev + 1);
   };
 
   const resetGrid = () => {
-    const newGrid = grid.map(row => 
+    const newGrid = grid.map(row =>
       row.map(cell => ({ ...cell, letter: '' }))
     );
     setGrid(newGrid);
     setShowCheck(false);
     setCheckedCells(new Set());
+    setRevealedCells(new Set());
+    setHintsUsed(0);
   };
 
   const isCellCorrect = (row: number, col: number) => {
     return grid[row][col].letter === grid[row][col].correctLetter;
   };
+
+  // Get all cells in the current word
+  const currentWordCells = useMemo(() => {
+    const wordCells = new Set<string>();
+    if (!selectedCell) return wordCells;
+
+    if (direction === 'across') {
+      // Find the across word containing the selected cell
+      const acrossClue = cluesAcross.find(c =>
+        c.row === selectedCell.row &&
+        c.col <= selectedCell.col &&
+        selectedCell.col < c.col + c.answer.length
+      );
+      if (acrossClue) {
+        for (let i = 0; i < acrossClue.answer.length; i++) {
+          wordCells.add(`${acrossClue.row}-${acrossClue.col + i}`);
+        }
+      }
+    } else {
+      // Find the down word containing the selected cell
+      const downClue = cluesDown.find(c =>
+        c.col === selectedCell.col &&
+        c.row <= selectedCell.row &&
+        selectedCell.row < c.row + c.answer.length
+      );
+      if (downClue) {
+        for (let i = 0; i < downClue.answer.length; i++) {
+          wordCells.add(`${downClue.row + i}-${downClue.col}`);
+        }
+      }
+    }
+    return wordCells;
+  }, [selectedCell, direction, cluesAcross, cluesDown]);
 
   // Loading state
   if (loading) {
@@ -433,6 +588,10 @@ function GameplayPage() {
                 <span className="font-display text-sm text-[#6B5CA8]">{formatTime(timer)}</span>
               </div>
               <div className="flex items-center gap-1.5 bg-[#F3F1FF] px-3 py-1.5 rounded-full">
+                <Lightbulb className="w-4 h-4 text-[#FFA500]" />
+                <span className="font-display text-sm text-[#6B5CA8]">{hintsUsed}</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-[#F3F1FF] px-3 py-1.5 rounded-full">
                 <Flame className="w-4 h-4 text-[#FF4D6A]" />
                 <span className="font-display text-sm text-[#6B5CA8]">12</span>
               </div>
@@ -445,16 +604,22 @@ function GameplayPage() {
       <div className="bg-[#7B61FF]">
         <div className="max-w-6xl mx-auto px-4 py-3">
           <div className="flex items-center gap-3">
-            <button 
-              onClick={() => setDirection('across')}
+            <button
+              onClick={() => {
+                setDirection('across');
+                setClueTab('across');
+              }}
               className={`px-3 py-1 rounded-full text-xs font-display font-semibold transition-colors ${
                 direction === 'across' ? 'bg-white text-[#7B61FF]' : 'bg-[#6B51EF] text-white/70'
               }`}
             >
               {activeClue?.num || 1} ACROSS
             </button>
-            <button 
-              onClick={() => setDirection('down')}
+            <button
+              onClick={() => {
+                setDirection('down');
+                setClueTab('down');
+              }}
               className={`px-3 py-1 rounded-full text-xs font-display font-semibold transition-colors ${
                 direction === 'down' ? 'bg-white text-[#7B61FF]' : 'bg-[#6B51EF] text-white/70'
               }`}
@@ -487,6 +652,7 @@ function GameplayPage() {
             className="relative bg-white rounded-2xl p-3 outline-none shadow-lg"
           >
             <div
+              data-testid="crossword-grid"
               className="grid gap-1"
               style={{ gridTemplateColumns: `repeat(${puzzle?.gridWidth || 7}, 1fr)` }}
             >
@@ -500,15 +666,19 @@ function GameplayPage() {
                       text-base sm:text-lg font-display font-bold
                       rounded-lg border-2 cursor-pointer select-none
                       transition-all duration-150
-                      ${cell.isBlocked 
-                        ? 'bg-[#2A1E5C] border-[#2A1E5C]' 
+                      ${cell.isBlocked
+                        ? 'bg-[#2A1E5C] border-[#2A1E5C]'
                         : selectedCell?.row === rowIndex && selectedCell?.col === colIndex
                           ? 'bg-[#7B61FF] border-[#7B61FF] text-white shadow-inner'
                           : showCheck && checkedCells.has(`${rowIndex}-${colIndex}`)
                             ? isCellCorrect(rowIndex, colIndex)
                               ? 'bg-[#2ECC71] border-[#2ECC71] text-white'
                               : 'bg-[#FF4D6A] border-[#FF4D6A] text-white'
-                            : 'bg-white border-[#7B61FF] text-[#2A1E5C] hover:bg-[#F3F1FF]'
+                            : revealedCells.has(`${rowIndex}-${colIndex}`)
+                              ? 'bg-[#FFE5B4] border-[#FFA500] text-[#2A1E5C]'
+                              : currentWordCells.has(`${rowIndex}-${colIndex}`)
+                                ? 'bg-[#E8E3FF] border-[#7B61FF] text-[#2A1E5C]'
+                                : 'bg-white border-[#7B61FF] text-[#2A1E5C] hover:bg-[#F3F1FF]'
                       }
                     `}
                   >
@@ -592,12 +762,12 @@ function GameplayPage() {
             <Lightbulb className="w-4 h-4" />
             Letter
           </button>
-          <button 
+          <button
             onClick={revealWord}
             className="flex items-center gap-2 px-5 py-2.5 bg-white text-[#2A1E5C] font-display font-semibold rounded-xl border-2 border-[#2A1E5C] shadow-[0_4px_0_#2A1E5C] hover:shadow-[0_2px_0_#2A1E5C] hover:translate-y-[2px] transition-all"
           >
             <Eye className="w-4 h-4" />
-            Word
+            Reveal Word
           </button>
           <button 
             onClick={resetGrid}

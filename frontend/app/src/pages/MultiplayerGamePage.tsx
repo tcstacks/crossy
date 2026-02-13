@@ -28,6 +28,8 @@ import type {
   TypingIndicatorPayload,
   Reaction,
   ReactionPayload,
+  RaceProgress,
+  RaceProgressPayload,
 } from '../types';
 
 // Player colors for visual distinction
@@ -50,6 +52,7 @@ interface GridCell {
   correctLetter: string;
   isBlocked: boolean;
   number?: number;
+  filledBy?: string; // userId of the player who filled this cell
 }
 
 interface Clue {
@@ -84,6 +87,7 @@ function MultiplayerGamePage() {
   const [timer, setTimer] = useState(0);
   const [playerCursors, setPlayerCursors] = useState<PlayerCursor[]>([]);
   const [playerProgress, setPlayerProgress] = useState<Map<string, PlayerProgressPayload>>(new Map());
+  const [raceLeaderboard, setRaceLeaderboard] = useState<RaceProgress[]>([]);
   const [showWinnerModal, setShowWinnerModal] = useState(false);
   const [winner, setWinner] = useState<{ userId?: string; username?: string } | null>(null);
 
@@ -198,6 +202,12 @@ function MultiplayerGamePage() {
       return;
     }
 
+    // Room state received (initial sync)
+    const unsubscribeRoomState = on('room_state', (payload) => {
+      console.log('Received room_state message:', payload);
+      // Room state is already loaded via HTTP, but this confirms WebSocket sync
+    });
+
     // Cell updated by another player
     const unsubscribeCellUpdated = on<CellUpdatePayload>('cell:updated', (payload) => {
       if (payload.userId === currentUserId) return; // Ignore own updates
@@ -208,6 +218,9 @@ function MultiplayerGamePage() {
           newGrid[payload.row][payload.col].letter = payload.value !== null
             ? String.fromCharCode(65 + payload.value)
             : '';
+          newGrid[payload.row][payload.col].filledBy = payload.value !== null
+            ? payload.userId
+            : undefined;
         }
         return newGrid;
       });
@@ -251,12 +264,20 @@ function MultiplayerGamePage() {
       }, 1500);
     });
 
+    // Race progress updated (Race mode only)
+    const unsubscribeRaceProgress = on<RaceProgressPayload>('race_progress', (payload) => {
+      console.log('Race progress received:', payload);
+      setRaceLeaderboard(payload.leaderboard);
+    });
+
     return () => {
+      unsubscribeRoomState();
       unsubscribeCellUpdated();
       unsubscribeCursorMoved();
       unsubscribePlayerProgress();
       unsubscribePuzzleCompleted();
       unsubscribeReactionAdded();
+      unsubscribeRaceProgress();
     };
   }, [roomCode, connectionState, on, currentUserId]);
 
@@ -317,6 +338,7 @@ function MultiplayerGamePage() {
     if (e.key === 'Backspace') {
       const newGrid = [...grid];
       newGrid[row][col].letter = '';
+      newGrid[row][col].filledBy = undefined;
       setGrid(newGrid);
 
       // Send cell update
@@ -333,6 +355,7 @@ function MultiplayerGamePage() {
       const newGrid = [...grid];
       const letter = e.key.toUpperCase();
       newGrid[row][col].letter = letter;
+      newGrid[row][col].filledBy = currentUserId;
       setGrid(newGrid);
 
       // Send cell update
@@ -666,6 +689,14 @@ function MultiplayerGamePage() {
                         c => c.position.row === rowIndex && c.position.col === colIndex
                       );
 
+                      // Get the color of the player who filled this cell
+                      const filledByPlayerIndex = cell.filledBy
+                        ? players.findIndex(p => p.userId === cell.filledBy)
+                        : -1;
+                      const letterColor = filledByPlayerIndex >= 0
+                        ? getPlayerColor(filledByPlayerIndex)
+                        : undefined;
+
                       return (
                         <div
                           key={`${rowIndex}-${colIndex}`}
@@ -694,7 +725,12 @@ function MultiplayerGamePage() {
                               {cell.number}
                             </span>
                           )}
-                          <span className="relative z-10">{cell.letter}</span>
+                          <span
+                            className="relative z-10"
+                            style={letterColor ? { color: letterColor } : undefined}
+                          >
+                            {cell.letter}
+                          </span>
                           {otherPlayerCursor && (
                             <div
                               className="absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white"
@@ -725,65 +761,159 @@ function MultiplayerGamePage() {
           <div className="space-y-4">
             <div className="crossy-card p-4">
               <div className="flex items-center gap-2 mb-4">
-                <Users className="w-5 h-5 text-[#7B61FF]" />
+                {room?.mode === 'race' ? (
+                  <Trophy className="w-5 h-5 text-[#7B61FF]" />
+                ) : (
+                  <Users className="w-5 h-5 text-[#7B61FF]" />
+                )}
                 <h2 className="font-display font-semibold text-[#2A1E5C]">
-                  Players ({players.length})
+                  {room?.mode === 'race' ? 'Race Leaderboard' : `Players (${players.length})`}
                 </h2>
               </div>
               <div className="space-y-3">
-                {players.map((player, index) => {
-                  const progress = getPlayerProgress(player.userId);
-                  const isCurrentPlayer = player.userId === currentUserId;
+                {room?.mode === 'race' && raceLeaderboard.length > 0 ? (
+                  // Race mode: Show sorted leaderboard with rankings
+                  [...raceLeaderboard]
+                    .sort((a, b) => {
+                      // Sort by: finished first, then by progress
+                      if (a.finishedAt && !b.finishedAt) return -1;
+                      if (!a.finishedAt && b.finishedAt) return 1;
+                      if (a.rank && b.rank) return a.rank - b.rank;
+                      return b.progress - a.progress;
+                    })
+                    .map((racePlayer, index) => {
+                      const player = players.find(p => p.userId === racePlayer.userId);
+                      const isCurrentPlayer = racePlayer.userId === currentUserId;
+                      const playerIndex = players.findIndex(p => p.userId === racePlayer.userId);
 
-                  return (
-                    <div
-                      key={player.userId}
-                      className={`p-3 rounded-xl border-2 transition-all ${
-                        isCurrentPlayer
-                          ? 'bg-[#7B61FF]/10 border-[#7B61FF]'
-                          : 'bg-[#F3F1FF] border-[#ECE9FF]'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 mb-2">
-                        {/* Player Avatar */}
+                      return (
                         <div
-                          className="w-10 h-10 rounded-full flex items-center justify-center font-display font-bold text-white text-sm"
-                          style={{ backgroundColor: getPlayerColor(index) }}
+                          key={racePlayer.userId}
+                          className={`p-3 rounded-xl border-2 transition-all ${
+                            isCurrentPlayer
+                              ? 'bg-[#7B61FF]/10 border-[#7B61FF]'
+                              : racePlayer.finishedAt
+                              ? 'bg-[#6BCF7F]/10 border-[#6BCF7F]'
+                              : 'bg-[#F3F1FF] border-[#ECE9FF]'
+                          }`}
                         >
-                          {player.username.charAt(0).toUpperCase()}
+                          <div className="flex items-center gap-3 mb-2">
+                            {/* Rank Badge */}
+                            {racePlayer.rank && (
+                              <div className="w-8 h-8 rounded-full bg-[#FFD93D] border-2 border-[#2A1E5C] flex items-center justify-center font-display font-bold text-[#2A1E5C] text-sm">
+                                {racePlayer.rank}
+                              </div>
+                            )}
+                            {!racePlayer.rank && (
+                              <div className="w-8 h-8 rounded-full bg-[#ECE9FF] flex items-center justify-center font-display font-bold text-[#6B5CA8] text-sm">
+                                {index + 1}
+                              </div>
+                            )}
+
+                            {/* Player Avatar */}
+                            <div
+                              className="w-10 h-10 rounded-full flex items-center justify-center font-display font-bold text-white text-sm"
+                              style={{ backgroundColor: getPlayerColor(playerIndex) }}
+                            >
+                              {racePlayer.displayName.charAt(0).toUpperCase()}
+                            </div>
+
+                            {/* Player Info */}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-display font-semibold text-[#2A1E5C] truncate">
+                                {racePlayer.displayName}
+                                {isCurrentPlayer && ' (You)'}
+                              </p>
+                              <p className="font-display text-xs text-[#6B5CA8]">
+                                {racePlayer.finishedAt
+                                  ? `Finished in ${racePlayer.solveTime}s`
+                                  : `${Math.round(racePlayer.progress)}% complete`
+                                }
+                              </p>
+                            </div>
+
+                            {/* Status Indicator */}
+                            {racePlayer.finishedAt ? (
+                              <Trophy className="w-5 h-5 text-[#6BCF7F]" />
+                            ) : (
+                              <div
+                                className="w-3 h-3 rounded-full"
+                                style={{ backgroundColor: getPlayerColor(playerIndex) }}
+                              />
+                            )}
+                          </div>
+
+                          {/* Progress Bar */}
+                          {!racePlayer.finishedAt && (
+                            <div className="h-2 bg-[#F3F1FF] rounded-full overflow-hidden">
+                              <div
+                                className="h-full rounded-full transition-all duration-300"
+                                style={{
+                                  width: `${racePlayer.progress}%`,
+                                  backgroundColor: getPlayerColor(playerIndex)
+                                }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                ) : (
+                  // Collaborative/Relay mode: Show regular player list
+                  players.map((player, index) => {
+                    const progress = getPlayerProgress(player.userId);
+                    const isCurrentPlayer = player.userId === currentUserId;
+
+                    return (
+                      <div
+                        key={player.userId}
+                        className={`p-3 rounded-xl border-2 transition-all ${
+                          isCurrentPlayer
+                            ? 'bg-[#7B61FF]/10 border-[#7B61FF]'
+                            : 'bg-[#F3F1FF] border-[#ECE9FF]'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 mb-2">
+                          {/* Player Avatar */}
+                          <div
+                            className="w-10 h-10 rounded-full flex items-center justify-center font-display font-bold text-white text-sm"
+                            style={{ backgroundColor: getPlayerColor(index) }}
+                          >
+                            {player.username.charAt(0).toUpperCase()}
+                          </div>
+
+                          {/* Player Info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-display font-semibold text-[#2A1E5C] truncate">
+                              {player.username}
+                              {isCurrentPlayer && ' (You)'}
+                            </p>
+                            <p className="font-display text-xs text-[#6B5CA8]">
+                              {progress}% complete
+                            </p>
+                          </div>
+
+                          {/* Status Indicator */}
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: getPlayerColor(index) }}
+                          />
                         </div>
 
-                        {/* Player Info */}
-                        <div className="flex-1 min-w-0">
-                          <p className="font-display font-semibold text-[#2A1E5C] truncate">
-                            {player.username}
-                            {isCurrentPlayer && ' (You)'}
-                          </p>
-                          <p className="font-display text-xs text-[#6B5CA8]">
-                            {progress}% complete
-                          </p>
+                        {/* Progress Bar */}
+                        <div className="h-2 bg-[#F3F1FF] rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-300"
+                            style={{
+                              width: `${progress}%`,
+                              backgroundColor: getPlayerColor(index)
+                            }}
+                          />
                         </div>
-
-                        {/* Status Indicator */}
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: getPlayerColor(index) }}
-                        />
                       </div>
-
-                      {/* Progress Bar */}
-                      <div className="h-2 bg-[#F3F1FF] rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all duration-300"
-                          style={{
-                            width: `${progress}%`,
-                            backgroundColor: getPlayerColor(index)
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </div>
 

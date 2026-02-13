@@ -69,6 +69,13 @@ apiClient.interceptors.request.use(
   }
 );
 
+// Auth state change listener for 401 errors
+let authStateListener: (() => void) | null = null;
+
+export const setAuthStateListener = (listener: (() => void) | null) => {
+  authStateListener = listener;
+};
+
 // Response interceptor - handle errors
 apiClient.interceptors.response.use(
   (response) => {
@@ -85,15 +92,21 @@ apiClient.interceptors.response.use(
     }
 
     // Handle API errors
+    // Backend returns either { message: string } or { error: string }
+    const errorMessage = error.response.data?.message || error.response.data?.error || 'An unexpected error occurred';
     const apiError: ApiError = {
-      message: error.response.data?.message || 'An unexpected error occurred',
+      message: errorMessage,
       statusCode: error.response.status,
       errors: error.response.data?.errors,
     };
 
-    // Handle unauthorized errors - clear token
+    // Handle unauthorized errors - clear token and notify auth context
     if (error.response.status === 401) {
       removeToken();
+      // Notify AuthContext to update state
+      if (authStateListener) {
+        authStateListener();
+      }
     }
 
     return Promise.reject(apiError);
@@ -254,6 +267,16 @@ export const roomApi = {
    */
   startRoom: async (data: StartRoomRequest): Promise<Room> => {
     const response = await apiClient.post<Room>(`/api/rooms/${data.roomId}/start`);
+    return response.data;
+  },
+
+  /**
+   * Set player ready status
+   */
+  setPlayerReady: async (data: { roomId: string; ready: boolean }): Promise<{ ready: boolean }> => {
+    const response = await apiClient.post<{ ready: boolean }>(`/api/rooms/${data.roomId}/ready`, {
+      ready: data.ready,
+    });
     return response.data;
   },
 

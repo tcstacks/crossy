@@ -63,6 +63,11 @@ func main() {
 	if database != nil {
 		hub = realtime.NewHub(database)
 		go hub.Run()
+
+		// Connect hub to handlers for WebSocket broadcasting
+		if handlers != nil {
+			handlers.SetHub(hub)
+		}
 	}
 
 	// Setup Gin router
@@ -142,6 +147,7 @@ func main() {
 				roomsGroup.GET("/:code", handlers.GetRoomByCode)
 				roomsGroup.POST("/join", handlers.JoinRoomByCode)
 				roomsGroup.POST("/:id/join", handlers.JoinRoom)
+				roomsGroup.POST("/:id/ready", handlers.SetPlayerReady)
 				roomsGroup.POST("/:id/start", handlers.StartRoom)
 				roomsGroup.DELETE("/:id", handlers.CloseRoom)
 			} else {

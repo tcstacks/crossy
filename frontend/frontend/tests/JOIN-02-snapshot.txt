@@ -1,0 +1,32 @@
+
+JOIN-02 Test Snapshot - Invalid Room Code Error
+================================================
+
+Test User: TestUser1770264267478 (testuser_1770264267478@example.com)
+URL: http://localhost:5173/room/join
+
+Test Steps:
+1. ✓ Completed AUTH-02 (logged in as TestUser1770264267478)
+2. ✓ Navigated to /room/join
+3. ✓ Entered invalid room code: XXXXXX
+4. ✓ Intercepted API call to GET /api/rooms/XXXXXX
+5. ✓ Clicked Join button
+6. ✓ Verified API returns 404 status
+7. ✓ Error message displayed: "Room not found. Please check the code and try again."
+8. ✓ User remains on join page
+9. ✓ Can attempt to join again (button still enabled)
+
+Error Display Verification:
+✓ Error message is visible
+✓ Error card has proper styling (red border/background)
+✓ Error message is user-friendly and actionable
+✓ No navigation occurred (stayed on /room/join)
+✓ Form remains usable for retry
+
+Invalid Room Code Tested: XXXXXX
+Expected Behavior: Show "Room not found" error
+Actual Behavior: Error displayed correctly
+
+All acceptance criteria verified successfully!
+
+Test completed at: 2026-02-05T04:04:29.451Z

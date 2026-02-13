@@ -10,7 +10,7 @@ import {
 import { roomApi, getToken } from '../lib/api';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { Header } from '@/components/Header';
-import type { Room, RoomPlayer, PlayerJoinedPayload, PlayerLeftPayload, GameStartedPayload, RoomClosedPayload } from '../types';
+import type { Room, RoomPlayer, PlayerJoinedPayload, PlayerLeftPayload, PlayerReadyPayload, GameStartedPayload, RoomClosedPayload } from '../types';
 
 // Player colors for visual distinction
 const PLAYER_COLORS = [
@@ -34,6 +34,8 @@ function RoomLobbyPage() {
   const [error, setError] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
   const [leavingRoom, setLeavingRoom] = useState(false);
+  const [isReady, setIsReady] = useState(false);
+  const [togglingReady, setTogglingReady] = useState(false);
 
   const token = getToken();
 
@@ -65,6 +67,8 @@ function RoomLobbyPage() {
         const hostPlayer = roomData.players.find(p => p.isHost);
         if (hostPlayer) {
           setCurrentUserId(hostPlayer.userId);
+          // Set initial ready status
+          setIsReady(hostPlayer.isReady);
         }
       } catch (err: unknown) {
         console.error('Failed to fetch room:', err);
@@ -102,6 +106,17 @@ function RoomLobbyPage() {
       setPlayers(prev => prev.filter(p => p.userId !== payload.userId));
     });
 
+    // Player ready
+    const unsubscribePlayerReady = on<PlayerReadyPayload>('player:ready', (payload) => {
+      setPlayers(prev => prev.map(p =>
+        p.userId === payload.userId ? { ...p, isReady: payload.isReady } : p
+      ));
+      // Update local ready state if it's the current user
+      if (payload.userId === currentUserId) {
+        setIsReady(payload.isReady);
+      }
+    });
+
     // Game started
     const unsubscribeGameStarted = on<GameStartedPayload>('game:started', () => {
       // Navigate to gameplay page
@@ -121,6 +136,7 @@ function RoomLobbyPage() {
     return () => {
       unsubscribePlayerJoined();
       unsubscribePlayerLeft();
+      unsubscribePlayerReady();
       unsubscribeGameStarted();
       unsubscribeRoomClosed();
     };
@@ -135,6 +151,26 @@ function RoomLobbyPage() {
       setTimeout(() => setCopySuccess(false), 2000);
     } catch (err) {
       console.error('Failed to copy code:', err);
+    }
+  };
+
+  const handleToggleReady = async () => {
+    if (!room || !currentUserId) return;
+
+    setTogglingReady(true);
+
+    try {
+      const newReadyState = !isReady;
+      await roomApi.setPlayerReady({ roomId: room.id, ready: newReadyState });
+      // The state will be updated via WebSocket event
+    } catch (err: unknown) {
+      console.error('Failed to toggle ready:', err);
+      const errorMessage = err && typeof err === 'object' && 'message' in err
+        ? (err as { message: string }).message
+        : 'Failed to update ready status. Please try again.';
+      setError(errorMessage);
+    } finally {
+      setTogglingReady(false);
     }
   };
 
@@ -323,11 +359,17 @@ function RoomLobbyPage() {
                   </p>
                 </div>
 
-                {/* Status Indicator */}
-                <div
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: getPlayerColor(index) }}
-                />
+                {/* Ready Status Indicator */}
+                {player.isReady ? (
+                  <div className="flex items-center gap-2 px-3 py-1 bg-[#6BCF7F] text-white font-display font-semibold text-sm rounded-lg">
+                    <Check className="w-4 h-4" />
+                    Ready
+                  </div>
+                ) : (
+                  <div className="px-3 py-1 bg-[#F3F1FF] text-[#6B5CA8] font-display text-sm rounded-lg">
+                    Not Ready
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -367,6 +409,33 @@ function RoomLobbyPage() {
 
         {/* Action Buttons */}
         <div className="space-y-3">
+          {/* Ready Toggle Button */}
+          <button
+            onClick={handleToggleReady}
+            disabled={togglingReady}
+            className={`w-full py-4 font-display font-bold text-lg rounded-xl border-2 transition-all flex items-center justify-center gap-2 ${
+              isReady
+                ? 'bg-[#6BCF7F] text-white border-[#2A1E5C] shadow-[0_4px_0_#2A1E5C] hover:shadow-[0_2px_0_#2A1E5C] hover:translate-y-[2px]'
+                : 'bg-[#7B61FF] text-white border-[#2A1E5C] shadow-[0_4px_0_#2A1E5C] hover:shadow-[0_2px_0_#2A1E5C] hover:translate-y-[2px]'
+            } disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-[0_4px_0_#2A1E5C] disabled:hover:translate-y-0`}
+          >
+            {togglingReady ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Updating...
+              </>
+            ) : isReady ? (
+              <>
+                <Check className="w-5 h-5" />
+                Ready - Click to Unready
+              </>
+            ) : (
+              <>
+                Ready Up
+              </>
+            )}
+          </button>
+
           {isHost ? (
             <button
               onClick={handleStartGame}

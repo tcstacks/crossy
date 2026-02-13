@@ -1487,7 +1487,7 @@
         "Take screenshot of game start"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "ROOM-01",
@@ -1528,7 +1528,8 @@
           ]
         },
         "playwrightTest": "tests/e2e/lobby.spec.ts#startGame"
-      }
+      },
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "WS-01",
@@ -1542,7 +1543,7 @@
         "Take screenshot of connected game"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "LOBBY-03"
@@ -1578,7 +1579,8 @@
           ]
         },
         "playwrightTest": "tests/e2e/websocket.spec.ts#connection"
-      }
+      },
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "WS-02",
@@ -1594,7 +1596,7 @@
         "Take screenshot of synced cell"
       ],
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "WS-01",
@@ -1629,7 +1631,8 @@
           ]
         },
         "playwrightTest": "tests/e2e/websocket.spec.ts#cellSync"
-      }
+      },
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "WS-03",
@@ -1643,7 +1646,7 @@
         "Take screenshot showing player cursors"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "WS-01"
@@ -1675,7 +1678,8 @@
           ]
         },
         "playwrightTest": "tests/e2e/websocket.spec.ts#cursors"
-      }
+      },
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "WS-04",
@@ -1691,7 +1695,7 @@
         "Take screenshot of chat"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "WS-01"
@@ -1725,7 +1729,8 @@
           ]
         },
         "playwrightTest": "tests/e2e/websocket.spec.ts#chat"
-      }
+      },
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "WS-05",
@@ -1740,7 +1745,7 @@
         "Take screenshot showing race leaderboard"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [
         "ROOM-02",
@@ -1773,7 +1778,8 @@
           ]
         },
         "playwrightTest": "tests/e2e/websocket.spec.ts#raceProgress"
-      }
+      },
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "NAV-01",
@@ -1873,7 +1879,7 @@
         "Take screenshot of 404 page"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [],
       "metadata": {
@@ -1894,7 +1900,8 @@
           "state": []
         },
         "playwrightTest": "tests/e2e/navigation.spec.ts#notFound"
-      }
+      },
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "ERR-01",
@@ -1911,7 +1918,7 @@
         "Take screenshot of error state"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [],
       "metadata": {
@@ -1935,7 +1942,8 @@
           ]
         },
         "playwrightTest": "tests/e2e/errors.spec.ts#networkError"
-      }
+      },
+      "completionNotes": "Completed by agent"
     },
     {
       "id": "ERR-02",
@@ -2046,7 +2054,7 @@
         "Take screenshot of puzzle preview"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": "",
       "dependsOn": [],
       "metadata": {
@@ -2078,7 +2086,8 @@
           ]
         },
         "playwrightTest": "tests/e2e/landing.spec.ts#dailyPreview"
-      }
+      },
+      "completionNotes": "Completed by agent"
     }
   ],
   "metadata": {
@@ -2107,6 +2116,6 @@
       "Error Handling": 2,
       "Landing Page": 2
     },
-    "updatedAt": "2026-02-05T04:12:56.029Z"
+    "updatedAt": "2026-02-05T05:09:33.872Z"
   }
 }

@@ -154,6 +154,15 @@ func main() {
 			}
 		}
 
+		// Return JSON instead of HTML for unknown API routes
+		apiGroup.NoRoute(func(c *gin.Context) {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error":   "Not Found",
+				"message": "API endpoint does not exist",
+				"path":    c.Request.URL.Path,
+			})
+		})
+
 		// Note: Admin puzzle management is handled by the separate admin CLI tool
 		// Run: go run ./cmd/admin --help for puzzle generation and management
 	}

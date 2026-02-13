@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { MessageSquare, Send, ChevronRight } from 'lucide-react';
-import type { ChatMessage, ChatMessagePayload, TypingIndicatorPayload } from '../types/websocket';
+import type { ChatMessage, ChatMessagePayload } from '../types/websocket';
 
 interface ChatPanelProps {
   roomCode: string;
@@ -21,10 +21,8 @@ export function ChatPanel({
   const [inputValue, setInputValue] = useState('');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const typingTimeoutRef = useRef<number | null>(null);
 
   // Auto-scroll to newest message
   const scrollToBottom = () => {
@@ -39,11 +37,17 @@ export function ChatPanel({
 
   // Listen for new chat messages
   useEffect(() => {
-    const unsubscribe = on<ChatMessagePayload>('chat:message', (payload) => {
-      setMessages((prev) => [...prev, payload.message]);
+    const unsubscribe = on<ChatMessagePayload>('new_message', (payload) => {
+      setMessages((prev) => [...prev, {
+        id: payload.id,
+        userId: payload.userId,
+        displayName: payload.displayName,
+        text: payload.text,
+        createdAt: payload.createdAt,
+      }]);
 
       // Increment unread count if collapsed and not own message
-      if (isCollapsed && payload.message.userId !== currentUserId) {
+      if (isCollapsed && payload.userId !== currentUserId) {
         setUnreadCount((prev) => prev + 1);
       }
     });
@@ -51,42 +55,9 @@ export function ChatPanel({
     return unsubscribe;
   }, [on, isCollapsed, currentUserId]);
 
-  // Listen for typing indicators
-  useEffect(() => {
-    const unsubscribe = on<TypingIndicatorPayload>('chat:typing', (payload) => {
-      // Ignore own typing indicator
-      if (payload.userId === currentUserId) return;
-
-      setTypingUsers((prev) => {
-        const newSet = new Set(prev);
-        if (payload.isTyping) {
-          newSet.add(payload.username);
-        } else {
-          newSet.delete(payload.username);
-        }
-        return newSet;
-      });
-    });
-
-    return unsubscribe;
-  }, [on, currentUserId]);
-
   // Handle input change with typing indicator
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
-
-    // Send typing indicator
-    onTyping(true);
-
-    // Clear existing timeout
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-
-    // Set new timeout to stop typing indicator
-    typingTimeoutRef.current = setTimeout(() => {
-      onTyping(false);
-    }, 1000);
   };
 
   // Handle send message
@@ -95,11 +66,6 @@ export function ChatPanel({
 
     onSendMessage(inputValue.trim());
     setInputValue('');
-
-    // Stop typing indicator
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
     onTyping(false);
 
     // Focus input after sending
@@ -123,22 +89,13 @@ export function ChatPanel({
   };
 
   // Format timestamp
-  const formatTimestamp = (timestamp: number) => {
+  const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit',
       hour12: true
     });
-  };
-
-  // Get typing indicator text
-  const getTypingText = () => {
-    const users = Array.from(typingUsers);
-    if (users.length === 0) return null;
-    if (users.length === 1) return `${users[0]} is typing...`;
-    if (users.length === 2) return `${users[0]} and ${users[1]} are typing...`;
-    return `${users.length} people are typing...`;
   };
 
   if (isCollapsed) {
@@ -200,10 +157,10 @@ export function ChatPanel({
                   <div className={`max-w-[80%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
                     <div className="flex items-center gap-1.5 mb-1">
                       <span className="font-display text-xs font-semibold text-[#6B5CA8]">
-                        {isOwn ? 'You' : msg.username}
+                        {isOwn ? 'You' : msg.displayName}
                       </span>
                       <span className="font-display text-xs text-[#6B5CA8]/60">
-                        {formatTimestamp(msg.timestamp)}
+                        {formatTimestamp(msg.createdAt)}
                       </span>
                     </div>
                     <div
@@ -213,7 +170,7 @@ export function ChatPanel({
                           : 'bg-[#F3F1FF] text-[#2A1E5C] border border-[#ECE9FF]'
                       }`}
                     >
-                      {msg.message}
+                      {msg.text}
                     </div>
                   </div>
                 </div>
@@ -223,15 +180,6 @@ export function ChatPanel({
           </>
         )}
       </div>
-
-      {/* Typing Indicator */}
-      {getTypingText() && (
-        <div className="px-4 py-2 border-t border-[#ECE9FF]">
-          <p className="font-display text-xs text-[#6B5CA8] italic">
-            {getTypingText()}
-          </p>
-        </div>
-      )}
 
       {/* Input */}
       <div className="p-4 border-t border-[#ECE9FF]">

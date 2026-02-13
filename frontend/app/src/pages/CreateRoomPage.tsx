@@ -98,10 +98,21 @@ function CreateRoomPage() {
         puzzleId = randomPuzzle.id;
       }
 
+      if (!puzzleId) {
+        throw new Error('No puzzle available to start a room');
+      }
+
       // Create the room
       const response = await roomApi.createRoom({
-        maxPlayers,
         puzzleId,
+        mode: gameMode,
+        config: {
+          maxPlayers,
+          isPublic: false,
+          spectatorMode: false,
+          timerMode: 'none',
+          hintsEnabled: false,
+        },
       });
 
       // Navigate to room lobby

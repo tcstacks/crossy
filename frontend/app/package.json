@@ -11,7 +11,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "test:multiplayer:smoke": "node scripts/test-multiplayer-smoke.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

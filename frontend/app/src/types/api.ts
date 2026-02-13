@@ -36,6 +36,7 @@ export interface UserStats {
   bestTime: number;
   currentStreak: number;
   longestStreak: number;
+  multiplayerWins?: number;
   lastPlayedAt: string;
 }
 
@@ -47,14 +48,18 @@ export interface PuzzleHistory {
   timeTaken: number;
   moveCount: number;
   solved: boolean;
+  accuracy?: number;
+  hintsUsed?: number;
 }
 
 export interface SavePuzzleHistoryRequest {
   puzzleId: string;
-  completedAt: string;
   timeTaken: number;
-  moveCount: number;
   solved: boolean;
+  completedAt?: string;
+  moveCount?: number;
+  accuracy?: number;
+  hintsUsed?: number;
 }
 
 // Puzzle Types
@@ -118,35 +123,64 @@ export interface PuzzleArchiveResponse {
 }
 
 // Room Types
+export type RoomMode = 'collaborative' | 'race' | 'relay';
+export type RoomBackendState = 'lobby' | 'active' | 'completed' | 'closed';
+export type RoomDisplayState = 'waiting' | 'playing' | 'finished' | 'closed';
+
+export interface RoomConfig {
+  maxPlayers: number;
+  isPublic: boolean;
+  spectatorMode: boolean;
+  timerMode: 'none' | 'countdown' | 'stopwatch';
+  timerSeconds?: number;
+  hintsEnabled: boolean;
+}
+
 export interface Room {
   id: string;
   code: string;
   hostId: string;
   puzzleId: string;
-  status: 'waiting' | 'playing' | 'finished' | 'closed';
+  status: RoomDisplayState;
   players: RoomPlayer[];
   maxPlayers: number;
+  state: RoomBackendState;
+  mode: RoomMode;
+  config: RoomConfig;
   createdAt: string;
   startedAt?: string;
   finishedAt?: string;
+  endedAt?: string;
 }
 
 export interface RoomPlayer {
   userId: string;
   username: string;
+  displayName: string;
   isHost: boolean;
+  isSpectator?: boolean;
+  isConnected?: boolean;
+  contribution?: number;
+  color?: string;
   isReady: boolean;
   score?: number;
   finishedAt?: string;
 }
 
 export interface CreateRoomRequest {
-  maxPlayers?: number;
-  puzzleId?: string;
+  puzzleId: string;
+  mode: RoomMode;
+  config: RoomConfig;
 }
 
 export interface CreateRoomResponse {
   room: Room;
+  player: RoomPlayer;
+}
+
+export interface GetRoomByCodeResponse {
+  room: Room;
+  players: RoomPlayer[];
 }
 
 export interface GetRoomByCodeRequest {
@@ -155,10 +189,16 @@ export interface GetRoomByCodeRequest {
 
 export interface JoinRoomRequest {
   code: string;
+  displayName?: string;
+  isSpectator?: boolean;
 }
 
 export interface JoinRoomResponse {
   room: Room;
+  players: RoomPlayer[];
+  player: RoomPlayer;
+  puzzle?: Puzzle;
+  gridState?: unknown;
 }
 
 export interface StartRoomRequest {

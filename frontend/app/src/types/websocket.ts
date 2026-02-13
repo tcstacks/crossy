@@ -13,15 +13,19 @@ export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'err
 export type MessageHandler<T = unknown> = (payload: T) => void;
 
 // Room Events
+export interface JoinRoomPayload {
+  roomCode: string;
+  displayName: string;
+  isSpectator: boolean;
+}
+
 export interface PlayerJoinedPayload {
   player: RoomPlayer;
-  roomId: string;
 }
 
 export interface PlayerLeftPayload {
   userId: string;
-  username: string;
-  roomId: string;
+  displayName: string;
 }
 
 export interface PlayerReadyPayload {
@@ -30,33 +34,43 @@ export interface PlayerReadyPayload {
 }
 
 export interface GameStartedPayload {
-  roomId: string;
-  puzzleId: string;
-  startTime: number;
+  [key: string]: unknown;
+}
+
+export interface PuzzleCompletedPlayer {
+  userId: string;
+  displayName: string;
+  contribution: number;
+  color?: string;
 }
 
 export interface GameFinishedPayload {
-  roomId: string;
-  winnerId?: string;
-  winnerUsername?: string;
-  finishTime: number;
+  solveTime: number;
+  players: PuzzleCompletedPlayer[];
+  completedAt: string;
 }
 
 export interface RoomClosedPayload {
-  roomId: string;
   reason?: string;
 }
 
 // Game Events
 export interface CellUpdatePayload {
-  userId: string;
-  row: number;
-  col: number;
-  value: number | null;
+  x: number;
+  y: number;
+  value: string;
+  playerId?: string;
+  color?: string;
+  isRevealed?: boolean;
+  isCorrect?: boolean;
 }
 
 export interface CursorMovePayload {
-  cursor: PlayerCursor;
+  playerId: string;
+  displayName: string;
+  x: number;
+  y: number;
+  color: string;
 }
 
 export interface PlayerProgressPayload {
@@ -68,23 +82,21 @@ export interface PlayerProgressPayload {
 
 export interface PlayerFinishedPayload {
   userId: string;
-  username: string;
+  displayName: string;
   finishTime: number;
-  score: number;
+  rank: number;
 }
 
 // Chat Events
 export interface ChatMessage {
   id: string;
   userId: string;
-  username: string;
-  message: string;
-  timestamp: number;
+  displayName: string;
+  text: string;
+  createdAt: string;
 }
 
-export interface ChatMessagePayload {
-  message: ChatMessage;
-}
+export type ChatMessagePayload = ChatMessage;
 
 export interface TypingIndicatorPayload {
   userId: string;
@@ -96,15 +108,17 @@ export interface TypingIndicatorPayload {
 export interface Reaction {
   id: string;
   userId: string;
-  username: string;
+  username?: string;
   emoji: string;
-  cellRow?: number;
-  cellCol?: number;
+  clueId: string;
   timestamp: number;
 }
 
 export interface ReactionPayload {
-  reaction: Reaction;
+  userId: string;
+  clueId: string;
+  emoji: string;
+  action: 'added' | 'removed';
 }
 
 // Clue Events
@@ -145,43 +159,42 @@ export interface ErrorPayload {
 
 // Sync Events
 export interface SyncStatePayload {
-  grid: GridCell[][];
-  playerCursors: PlayerCursor[];
+  room: unknown;
   players: RoomPlayer[];
+  playerCursors: PlayerCursor[];
+  grid: GridCell[][];
   elapsedTime: number;
 }
 
 // Outbound Message Types
 export type OutboundMessageType =
-  | 'player:ready'
-  | 'game:start'
-  | 'cell:update'
-  | 'cursor:move'
-  | 'chat:message'
-  | 'chat:typing'
-  | 'reaction:add'
-  | 'hint:request'
-  | 'sync:request';
+  | 'join_room'
+  | 'leave_room'
+  | 'cell_update'
+  | 'cursor_move'
+  | 'send_message'
+  | 'request_hint'
+  | 'start_game'
+  | 'reaction'
+  | 'pass_turn';
 
 // Inbound Message Types
 export type InboundMessageType =
-  | 'player:joined'
-  | 'player:left'
-  | 'player:ready'
-  | 'game:started'
-  | 'game:finished'
-  | 'room:closed'
-  | 'cell:updated'
-  | 'cursor:moved'
-  | 'player:progress'
-  | 'player:finished'
-  | 'chat:message'
-  | 'chat:typing'
-  | 'reaction:added'
-  | 'clue:revealed'
-  | 'hint:provided'
+  | 'room_state'
+  | 'player_joined'
+  | 'player_left'
+  | 'player_ready'
+  | 'cell_updated'
+  | 'cursor_moved'
+  | 'game_started'
+  | 'puzzle_completed'
+  | 'room_deleted'
   | 'error'
-  | 'sync:state';
+  | 'new_message'
+  | 'reaction_added'
+  | 'race_progress'
+  | 'player_finished'
+  | 'turn_changed';
 
 // Union type for all message types
 export type MessageType = OutboundMessageType | InboundMessageType;

@@ -342,6 +342,61 @@ func (d *Database) GetTodayPuzzle() (*models.Puzzle, error) {
 	return d.GetPuzzleByDate(today)
 }
 
+// PublishNextDraftForDate publishes the next available draft puzzle for a given date.
+// It prefers overdue scheduled drafts (date <= release date), then null-date drafts.
+// Returns whether a puzzle was published, the puzzle title, and the final publication date.
+func (d *Database) PublishNextDraftForDate(targetDate string) (bool, string, string, error) {
+	// Don't double publish for the same day.
+	var existingID string
+	if err := d.DB.QueryRow(`
+		SELECT id FROM puzzles
+		WHERE status = 'published' AND date = $1
+		LIMIT 1
+	`, targetDate).Scan(&existingID); err == nil {
+		return false, "", "", nil
+	} else if err != sql.ErrNoRows {
+		return false, "", "", err
+	}
+
+	// Prefer dated drafts that are due for release.
+	var draftID, draftTitle string
+	err := d.DB.QueryRow(`
+		SELECT id, title FROM puzzles
+		WHERE status = 'draft' AND date IS NOT NULL AND date <= $1
+		ORDER BY date ASC, created_at ASC
+		LIMIT 1
+	`, targetDate).Scan(&draftID, &draftTitle)
+
+	// If no due dated draft exists, fall back to undated drafts (oldest first).
+	if err == sql.ErrNoRows {
+		err = d.DB.QueryRow(`
+			SELECT id, title FROM puzzles
+			WHERE status = 'draft' AND date IS NULL
+			ORDER BY created_at ASC
+			LIMIT 1
+		`).Scan(&draftID, &draftTitle)
+	}
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, "", "", nil
+		}
+		return false, "", "", err
+	}
+
+	_, err = d.DB.Exec(`
+		UPDATE puzzles
+		SET status = 'published',
+			published_at = CURRENT_TIMESTAMP,
+			date = COALESCE(date, $2::date)
+		WHERE id = $1
+	`, draftID, targetDate)
+	if err != nil {
+		return false, "", "", err
+	}
+
+	return true, draftTitle, targetDate, nil
+}
+
 func (d *Database) GetPuzzleArchive(status string, limit, offset int) ([]*models.Puzzle, error) {
 	query := `
 		SELECT id, date, title, author, difficulty, grid_width, grid_height,

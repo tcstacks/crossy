@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 
 interface ConfettiPiece {
   id: number;
@@ -22,42 +22,42 @@ const COLORS = [
 
 const SHAPES = ['square', 'circle', 'rectangle'] as const;
 
+const pseudoRandom = (seed: number): number => {
+  const value = Math.sin(seed * 12.9898) * 43758.5453;
+  return value - Math.floor(value);
+};
+
 interface ConfettiProps {
   isActive: boolean;
   pieceCount?: number;
 }
 
 export function Confetti({ isActive, pieceCount = 60 }: ConfettiProps) {
-  const [pieces, setPieces] = useState<ConfettiPiece[]>([]);
+  const pieces = useMemo(() => {
+    if (!isActive) return [];
 
-  useEffect(() => {
-    if (!isActive) {
-      setPieces([]);
-      return;
-    }
-
-    // Generate confetti pieces
-    const newPieces: ConfettiPiece[] = [];
+    const generated: ConfettiPiece[] = [];
     for (let i = 0; i < pieceCount; i++) {
-      newPieces.push({
+      const seed = (i + 1) * (pieceCount + 7);
+      const spread = pseudoRandom(seed + 1);
+      const colorPick = pseudoRandom(seed + 2);
+      const rotationPick = pseudoRandom(seed + 3);
+      const scalePick = pseudoRandom(seed + 4);
+      const shapePick = pseudoRandom(seed + 5);
+      const delayPick = pseudoRandom(seed + 6);
+
+      generated.push({
         id: i,
-        x: 50 + (Math.random() - 0.5) * 20, // Center with spread
+        x: 50 + (spread - 0.5) * 20,
         y: 50,
-        color: COLORS[Math.floor(Math.random() * COLORS.length)],
-        rotation: Math.random() * 360,
-        scale: 0.5 + Math.random() * 0.5,
-        shape: SHAPES[Math.floor(Math.random() * SHAPES.length)],
-        delay: Math.random() * 0.3,
+        color: COLORS[Math.floor(colorPick * COLORS.length)],
+        rotation: rotationPick * 360,
+        scale: 0.5 + scalePick * 0.5,
+        shape: SHAPES[Math.floor(shapePick * SHAPES.length)],
+        delay: delayPick * 0.3,
       });
     }
-    setPieces(newPieces);
-
-    // Clean up after animation
-    const timeout = setTimeout(() => {
-      setPieces([]);
-    }, 3500);
-
-    return () => clearTimeout(timeout);
+    return generated;
   }, [isActive, pieceCount]);
 
   if (!isActive || pieces.length === 0) return null;

@@ -75,6 +75,7 @@ function HistoryPage() {
 
   // Format time from seconds to readable format
   const formatTime = (seconds: number) => {
+    if (!Number.isFinite(seconds) || seconds <= 0) return 'N/A';
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -92,6 +93,9 @@ function HistoryPage() {
 
   // Calculate accuracy (for now, 100% if solved, 0% if not)
   const calculateAccuracy = (entry: PuzzleHistory) => {
+    if (typeof entry.accuracy === 'number') {
+      return Math.round(entry.accuracy);
+    }
     return entry.solved ? 100 : 0;
   };
 

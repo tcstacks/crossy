@@ -9,6 +9,7 @@ import {
   Smile,
 } from 'lucide-react';
 import { roomApi, puzzleApi, getToken } from '../lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { Skeleton } from '../components/ui/skeleton';
 import { ChatPanel } from '../components/ChatPanel';
@@ -19,15 +20,18 @@ import type {
   Puzzle,
   Room,
   RoomPlayer,
+  JoinRoomPayload,
+  PlayerJoinedPayload,
+  PlayerLeftPayload,
   CellUpdatePayload,
   CursorMovePayload,
   PlayerProgressPayload,
   GameFinishedPayload,
-  PlayerCursor,
   ChatMessagePayload,
-  TypingIndicatorPayload,
+  PlayerCursor,
   Reaction,
   ReactionPayload,
+  RoomClosedPayload,
 } from '../types';
 
 // Player colors for visual distinction
@@ -64,13 +68,15 @@ interface Clue {
 function MultiplayerGamePage() {
   const navigate = useNavigate();
   const { roomCode } = useParams<{ roomCode: string }>();
-  const token = getToken();
+  const { token, user, isLoading: authLoading } = useAuth();
+  const resolvedToken = token || getToken();
 
   // Room and game state
   const [room, setRoom] = useState<Room | null>(null);
   const [puzzle, setPuzzle] = useState<Puzzle | null>(null);
   const [players, setPlayers] = useState<RoomPlayer[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [hasJoinedRoom, setHasJoinedRoom] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -86,12 +92,19 @@ function MultiplayerGamePage() {
   const [playerProgress, setPlayerProgress] = useState<Map<string, PlayerProgressPayload>>(new Map());
   const [showWinnerModal, setShowWinnerModal] = useState(false);
   const [winner, setWinner] = useState<{ userId?: string; username?: string } | null>(null);
+  const [chatBubbles, setChatBubbles] = useState<Array<{
+    id: string;
+    displayName: string;
+    text: string;
+  }>>([]);
 
   // Reaction state
   const [reactions, setReactions] = useState<Reaction[]>([]);
   const [isReactionPickerOpen, setIsReactionPickerOpen] = useState(false);
   const [lastReactionTime, setLastReactionTime] = useState(0);
   const [reactionCooldown, setReactionCooldown] = useState(false);
+  const [showMetaPanel, setShowMetaPanel] = useState(false);
+  const [metaPanel, setMetaPanel] = useState<'players' | 'chat'>('players');
 
   const gridRef = useRef<HTMLDivElement>(null);
   const startTimeRef = useRef<number>(Date.now());
@@ -100,53 +113,25 @@ function MultiplayerGamePage() {
   // Initialize WebSocket connection
   const { connectionState, sendMessage, on } = useWebSocket({
     roomCode: roomCode || '',
-    token: token || '',
-    autoConnect: !!roomCode && !!token,
+    token: resolvedToken || '',
+    autoConnect: !!roomCode && !!resolvedToken,
   });
 
-  // Fetch initial room and puzzle data
-  useEffect(() => {
-    const fetchGameData = async () => {
-      if (!roomCode || !token) {
-        navigate('/', { state: { showAuth: true } });
-        return;
-      }
-
-      try {
-        setLoading(true);
-
-        // Fetch room data
-        const roomData = await roomApi.getRoomByCode({ code: roomCode });
-        setRoom(roomData);
-        setPlayers(roomData.players);
-
-        // Get current user ID
-        const hostPlayer = roomData.players.find(p => p.isHost);
-        if (hostPlayer) {
-          setCurrentUserId(hostPlayer.userId);
-        }
-
-        // Fetch puzzle data
-        const puzzleData = await puzzleApi.getPuzzleById(roomData.puzzleId);
-        setPuzzle(puzzleData);
-        initializeGridFromPuzzle(puzzleData);
-        startTimeRef.current = Date.now();
-      } catch (err: unknown) {
-        console.error('Failed to fetch game data:', err);
-        const errorMessage = err && typeof err === 'object' && 'message' in err
-          ? (err as { message: string }).message
-          : 'Failed to load game. Please try again.';
-        setError(errorMessage);
-      } finally {
-        setLoading(false);
-      }
+  const normalizePlayer = useCallback((player: RoomPlayer): RoomPlayer => {
+    const displayName = player.displayName || player.username || 'Player';
+    return {
+      ...player,
+      username: player.username || displayName,
+      displayName,
+      isHost: player.isHost ?? (room?.hostId ? player.userId === room.hostId : false),
+      isReady: player.isReady ?? false,
+      isConnected: player.isConnected ?? true,
+      contribution: player.contribution ?? 0,
     };
-
-    fetchGameData();
-  }, [roomCode, token, navigate]);
+  }, [room?.hostId]);
 
   // Initialize grid from puzzle data
-  const initializeGridFromPuzzle = (puzzleData: Puzzle) => {
+  const initializeGridFromPuzzle = useCallback((puzzleData: Puzzle) => {
     const newGrid: GridCell[][] = [];
     const puzzleGrid = puzzleData.grid as import('../types/api').GridCell[][];
 
@@ -190,7 +175,65 @@ function MultiplayerGamePage() {
     setCluesAcross(mappedAcross);
     setCluesDown(mappedDown);
     setActiveClue(mappedAcross[0] || null);
-  };
+  }, []);
+
+  // Fetch initial room and puzzle data
+  useEffect(() => {
+    const fetchGameData = async () => {
+      if (authLoading) {
+        return;
+      }
+
+      if (!roomCode || !resolvedToken) {
+        navigate('/', { state: { showAuth: true } });
+        return;
+      }
+
+      if (!user) {
+        navigate('/', { state: { showAuth: true } });
+        return;
+      }
+
+      try {
+        setLoading(true);
+
+        // Fetch room and set user data
+        const [roomData] = await Promise.all([
+          roomApi.getRoomByCode({ code: roomCode }),
+        ]);
+        let effectiveRoom = roomData;
+        const isCurrentUserInRoom = roomData.players.some((player) => player.userId === user.id);
+        if (!isCurrentUserInRoom && roomData.status !== 'finished' && roomData.status !== 'closed') {
+          const joinResponse = await roomApi.joinRoom({
+            code: roomCode,
+            displayName: user.displayName,
+            isSpectator: false,
+          });
+          effectiveRoom = joinResponse.room;
+        }
+
+        setRoom(effectiveRoom);
+        setPlayers(effectiveRoom.players.map(normalizePlayer));
+        setCurrentUserId(user.id);
+
+        // Fetch puzzle data
+        const puzzleData = await puzzleApi.getPuzzleById(effectiveRoom.puzzleId);
+        setPuzzle(puzzleData);
+        initializeGridFromPuzzle(puzzleData);
+        startTimeRef.current = Date.now();
+      } catch (err: unknown) {
+        console.error('Failed to fetch game data:', err);
+        const errorMessage = err && typeof err === 'object' && 'message' in err
+          ? (err as { message: string }).message
+          : 'Failed to load game. Please try again.';
+        setError(errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGameData();
+  }, [roomCode, resolvedToken, user?.id, authLoading, navigate, normalizePlayer, initializeGridFromPuzzle]);
 
   // WebSocket event handlers
   useEffect(() => {
@@ -198,67 +241,152 @@ function MultiplayerGamePage() {
       return;
     }
 
-    // Cell updated by another player
-    const unsubscribeCellUpdated = on<CellUpdatePayload>('cell:updated', (payload) => {
-      if (payload.userId === currentUserId) return; // Ignore own updates
+    const unsubscribeRoomState = on<{ players?: RoomPlayer[] }>('room_state', (payload) => {
+      setHasJoinedRoom(true);
+      if (Array.isArray(payload.players)) {
+        setPlayers(payload.players.map((player) => normalizePlayer(player as RoomPlayer)));
+      }
+    });
+
+    const unsubscribeCellUpdated = on<CellUpdatePayload>('cell_updated', (payload) => {
+      if (payload.playerId === currentUserId) return; // Ignore own updates
 
       setGrid(prevGrid => {
         const newGrid = [...prevGrid];
-        if (newGrid[payload.row] && newGrid[payload.row][payload.col]) {
-          newGrid[payload.row][payload.col].letter = payload.value !== null
-            ? String.fromCharCode(65 + payload.value)
+        if (newGrid[payload.y] && newGrid[payload.y][payload.x]) {
+          newGrid[payload.y][payload.x].letter = payload.value
+            ? payload.value.toUpperCase()
             : '';
         }
         return newGrid;
       });
     });
 
-    // Cursor moved by another player
-    const unsubscribeCursorMoved = on<CursorMovePayload>('cursor:moved', (payload) => {
-      if (payload.cursor.userId === currentUserId) return; // Ignore own cursor
+    const unsubscribeCursorMoved = on<CursorMovePayload>('cursor_moved', (payload) => {
+      if (payload.playerId === currentUserId) return; // Ignore own cursor
 
       setPlayerCursors(prev => {
-        const filtered = prev.filter(c => c.userId !== payload.cursor.userId);
-        return [...filtered, payload.cursor];
+        const filtered = prev.filter(c => c.userId !== payload.playerId);
+        return [...filtered, {
+          userId: payload.playerId,
+          username: payload.displayName,
+          position: { row: payload.y, col: payload.x },
+          color: payload.color,
+        }];
       });
     });
 
-    // Player progress updated
-    const unsubscribePlayerProgress = on<PlayerProgressPayload>('player:progress', (payload) => {
-      setPlayerProgress(prev => {
-        const newMap = new Map(prev);
-        newMap.set(payload.userId, payload);
-        return newMap;
+    const unsubscribePlayerJoined = on<PlayerJoinedPayload>('player_joined', (payload) => {
+      setPlayers(prev => {
+        if (prev.some(p => p.userId === payload.player.userId)) {
+          return prev;
+        }
+        return [...prev, normalizePlayer(payload.player as RoomPlayer)];
       });
     });
 
-    // Puzzle completed
-    const unsubscribePuzzleCompleted = on<GameFinishedPayload>('game:finished', (payload) => {
+    const unsubscribePlayerLeft = on<PlayerLeftPayload>('player_left', (payload) => {
+      setPlayers(prev => prev.filter((p) => p.userId !== payload.userId));
+    });
+
+    const unsubscribeRoomDeleted = on<RoomClosedPayload>('room_deleted', () => {
+      navigate('/', {
+        state: { message: 'The room has been closed by the host.' },
+      });
+    });
+
+    const unsubscribePuzzleCompleted = on<GameFinishedPayload>('puzzle_completed', (payload) => {
+      const winnerEntry = [...payload.players].sort((a, b) => b.contribution - a.contribution)[0];
       setWinner({
-        userId: payload.winnerId,
-        username: payload.winnerUsername,
+        userId: winnerEntry?.userId,
+        username: winnerEntry?.displayName,
       });
       setShowWinnerModal(true);
     });
 
-    // Reaction added
-    const unsubscribeReactionAdded = on<ReactionPayload>('reaction:added', (payload) => {
-      setReactions((prev) => [...prev, payload.reaction]);
+    const unsubscribeReactionAdded = on<ReactionPayload>('reaction_added', (payload) => {
+      if (payload.action !== 'added' || !payload.emoji) return;
 
-      // Remove reaction after it's done animating
+      const player = players.find(p => p.userId === payload.userId);
+
+      const reaction: Reaction = {
+        id: `${payload.userId}-${payload.clueId}-${Date.now()}`,
+        userId: payload.userId,
+        username: player ? (player.username || player.displayName) : 'Unknown',
+        emoji: payload.emoji,
+        clueId: payload.clueId,
+        timestamp: Date.now(),
+      };
+
+      setReactions((prev) => [...prev, reaction]);
+
       setTimeout(() => {
-        setReactions((prev) => prev.filter((r) => r.id !== payload.reaction.id));
+        setReactions((prev) => prev.filter((r) => r.id !== reaction.id));
       }, 1500);
     });
 
+    const unsubscribeNewMessage = on<ChatMessagePayload>('new_message', (payload) => {
+      const bubble = {
+        id: payload.id,
+        displayName: payload.displayName,
+        text: payload.text,
+      };
+
+      setChatBubbles((prev) => {
+        const next = [...prev, bubble];
+        return next.length > 3 ? next.slice(next.length - 3) : next;
+      });
+
+      setTimeout(() => {
+        setChatBubbles((prev) => prev.filter((item) => item.id !== bubble.id));
+      }, 4500);
+    });
+
     return () => {
+      unsubscribeRoomState();
       unsubscribeCellUpdated();
       unsubscribeCursorMoved();
-      unsubscribePlayerProgress();
+      unsubscribePlayerJoined();
+      unsubscribePlayerLeft();
+      unsubscribeRoomDeleted();
       unsubscribePuzzleCompleted();
       unsubscribeReactionAdded();
+      unsubscribeNewMessage();
     };
-  }, [roomCode, connectionState, on, currentUserId]);
+  }, [roomCode, connectionState, on, currentUserId, navigate, players, normalizePlayer]);
+
+  useEffect(() => {
+    if (connectionState !== 'connected') {
+      setHasJoinedRoom(false);
+      return;
+    }
+  }, [connectionState, roomCode]);
+
+  // Join room over WebSocket for real-time updates
+  useEffect(() => {
+    if (!roomCode || connectionState !== 'connected' || !user?.displayName || hasJoinedRoom) {
+      return;
+    }
+
+    const sendJoin = () => {
+      sendMessage<JoinRoomPayload>('join_room', {
+        roomCode,
+        displayName: user.displayName,
+        isSpectator: false,
+      });
+    };
+
+    sendJoin();
+    const retryId = window.setInterval(() => {
+      if (!hasJoinedRoom) {
+        sendJoin();
+      }
+    }, 1000);
+
+    return () => {
+      window.clearInterval(retryId);
+    };
+  }, [roomCode, connectionState, user?.displayName, hasJoinedRoom, sendMessage]);
 
   // Timer effect
   useEffect(() => {
@@ -276,6 +404,14 @@ function MultiplayerGamePage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const currentClueHint = activeClue?.clue || 'Select a square to activate a hint.';
+  const currentCluePosition = selectedCell
+    ? `Row ${selectedCell.row + 1} · Col ${selectedCell.col + 1}`
+    : 'No square selected';
+  const currentClueLabel = activeClue
+    ? `${activeClue.direction === 'down' ? 'Down' : 'Across'} #${activeClue.num}`
+    : 'Select a clue';
+
   const handleCellClick = (row: number, col: number) => {
     if (grid[row][col].isBlocked) return;
 
@@ -289,13 +425,12 @@ function MultiplayerGamePage() {
     // Send cursor move to other players
     if (currentUserId) {
       const playerIndex = players.findIndex(p => p.userId === currentUserId);
-      sendMessage<CursorMovePayload>('cursor:move', {
-        cursor: {
-          userId: currentUserId,
-          username: players.find(p => p.userId === currentUserId)?.username || 'Unknown',
-          position: { row, col },
-          color: getPlayerColor(playerIndex),
-        }
+      sendMessage<CursorMovePayload>('cursor_move', {
+        playerId: currentUserId,
+        displayName: players.find(p => p.userId === currentUserId)?.displayName || 'Unknown',
+        x: col,
+        y: row,
+        color: getPlayerColor(playerIndex),
       });
     }
 
@@ -320,11 +455,10 @@ function MultiplayerGamePage() {
       setGrid(newGrid);
 
       // Send cell update
-      sendMessage<CellUpdatePayload>('cell:update', {
-        userId: currentUserId,
-        row,
-        col,
-        value: null,
+      sendMessage<CellUpdatePayload>('cell_update', {
+        x: col,
+        y: row,
+        value: '',
       });
 
       // Update progress
@@ -336,12 +470,10 @@ function MultiplayerGamePage() {
       setGrid(newGrid);
 
       // Send cell update
-      const value = letter.charCodeAt(0) - 65; // Convert A-Z to 0-25
-      sendMessage<CellUpdatePayload>('cell:update', {
-        userId: currentUserId,
-        row,
-        col,
-        value,
+      sendMessage<CellUpdatePayload>('cell_update', {
+        x: col,
+        y: row,
+        value: letter,
       });
 
       // Update progress
@@ -400,15 +532,27 @@ function MultiplayerGamePage() {
     if (!currentUserId) return;
 
     const playerIndex = players.findIndex(p => p.userId === currentUserId);
-    sendMessage<CursorMovePayload>('cursor:move', {
-      cursor: {
-        userId: currentUserId,
-        username: players.find(p => p.userId === currentUserId)?.username || 'Unknown',
-        position: cell,
-        color: getPlayerColor(playerIndex),
-      }
+    sendMessage<CursorMovePayload>('cursor_move', {
+      playerId: currentUserId,
+      displayName: players.find(p => p.userId === currentUserId)?.displayName || 'Unknown',
+      x: cell.col,
+      y: cell.row,
+      color: getPlayerColor(playerIndex),
     });
   }, [currentUserId, players, sendMessage]);
+
+  const handleClueSelect = useCallback((clue: Clue) => {
+    const nextDirection = clue.direction || 'across';
+    setDirection(nextDirection);
+    setActiveClue(clue);
+
+    if (grid[clue.row]?.[clue.col] && !grid[clue.row][clue.col].isBlocked) {
+      const targetCell = { row: clue.row, col: clue.col };
+      setSelectedCell(targetCell);
+      moveCursor(targetCell);
+      gridRef.current?.focus();
+    }
+  }, [grid, moveCursor]);
 
   const updateProgress = useCallback((currentGrid: GridCell[][]) => {
     if (!currentUserId) return;
@@ -418,19 +562,31 @@ function MultiplayerGamePage() {
     const correctCells = currentGrid.flat().filter(c => !c.isBlocked && c.letter === c.correctLetter).length;
     const progressPercent = Math.round((filledCells / totalCells) * 100);
 
-    sendMessage<PlayerProgressPayload>('player:progress', {
-      userId: currentUserId,
-      filledCells,
-      correctCells,
-      progressPercent,
+    setPlayerProgress((prev) => {
+      const newMap = new Map(prev);
+      newMap.set(currentUserId, {
+        userId: currentUserId,
+        filledCells,
+        correctCells,
+        progressPercent,
+      });
+      return newMap;
     });
-  }, [currentUserId, sendMessage]);
+  }, [currentUserId]);
 
   const handleLeaveGame = async () => {
-    if (!room) return;
+    if (!room || !currentUserId) return;
 
     try {
-      await roomApi.closeRoom({ roomId: room.id });
+      if (connectionState === 'connected' && hasJoinedRoom) {
+        sendMessage<Record<string, never>>('leave_room', {});
+        navigate('/');
+        return;
+      }
+
+      if (room.hostId === currentUserId) {
+        await roomApi.closeRoom({ roomId: room.id });
+      }
       navigate('/');
     } catch (err: unknown) {
       console.error('Failed to leave game:', err);
@@ -451,26 +607,12 @@ function MultiplayerGamePage() {
   const handleSendChatMessage = useCallback((message: string) => {
     if (!currentUserId || !roomCode) return;
 
-    sendMessage<ChatMessagePayload>('chat:message', {
-      message: {
-        id: `${currentUserId}-${Date.now()}`,
-        userId: currentUserId,
-        username: players.find(p => p.userId === currentUserId)?.username || 'Unknown',
-        message,
-        timestamp: Date.now(),
-      }
+    sendMessage<{ text: string }>('send_message', {
+      text: message,
     });
-  }, [currentUserId, roomCode, players, sendMessage]);
+  }, [currentUserId, roomCode, sendMessage]);
 
-  const handleTyping = useCallback((isTyping: boolean) => {
-    if (!currentUserId) return;
-
-    sendMessage<TypingIndicatorPayload>('chat:typing', {
-      userId: currentUserId,
-      username: players.find(p => p.userId === currentUserId)?.username || 'Unknown',
-      isTyping,
-    });
-  }, [currentUserId, players, sendMessage]);
+  const handleTyping = useCallback(() => {}, []);
 
   // Reaction handlers
   const handleReactionSelect = useCallback((emoji: string) => {
@@ -481,15 +623,14 @@ function MultiplayerGamePage() {
       return; // Still in cooldown
     }
 
-    const reaction: Reaction = {
-      id: `${currentUserId}-${now}`,
-      userId: currentUserId,
-      username: players.find(p => p.userId === currentUserId)?.username || 'Unknown',
-      emoji,
-      timestamp: now,
-    };
+    const clueId = activeClue
+      ? `${activeClue.direction || 'across'}-${activeClue.num}`
+      : `${currentUserId}-general`;
 
-    sendMessage<ReactionPayload>('reaction:add', { reaction });
+    sendMessage<{ clueId: string; emoji: string }>('reaction', {
+      clueId,
+      emoji,
+    });
 
     // Set cooldown
     setLastReactionTime(now);
@@ -498,7 +639,7 @@ function MultiplayerGamePage() {
     setTimeout(() => {
       setReactionCooldown(false);
     }, REACTION_COOLDOWN_MS);
-  }, [currentUserId, players, sendMessage, reactionCooldown, lastReactionTime, REACTION_COOLDOWN_MS]);
+  }, [currentUserId, sendMessage, reactionCooldown, lastReactionTime]);
 
   const toggleReactionPicker = () => {
     setIsReactionPickerOpen(!isReactionPickerOpen);
@@ -555,25 +696,77 @@ function MultiplayerGamePage() {
       {/* Reaction Animations */}
       <ReactionAnimation reactions={reactions} />
 
+      <style>{`
+        @keyframes chatBubblePop {
+          0% {
+            opacity: 0;
+            transform: translateY(-18px) scale(0.85) rotate(-1.5deg);
+          }
+          55% {
+            opacity: 1;
+            transform: translateY(4px) scale(1.03) rotate(1.5deg);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1) rotate(0deg);
+          }
+        }
+
+        @keyframes chatBubbleFade {
+          0%, 12% {
+            opacity: 1;
+            transform: translateX(0) scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: translateX(10px) scale(0.97);
+          }
+        }
+
+        .chat-bubble-enter {
+          animation: chatBubblePop 360ms cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .chat-bubble-exit {
+          animation: chatBubbleFade 1200ms cubic-bezier(0.22, 1, 0.36, 1) 2.3s forwards;
+        }
+      `}</style>
+
+      <div className="pointer-events-none fixed right-6 top-28 z-50 flex w-[min(92vw,24rem)] flex-col gap-2 sm:right-8">
+        {chatBubbles.map((message) => (
+          <div
+            key={message.id}
+            className="chat-bubble-enter chat-bubble-exit pointer-events-auto relative bg-[#2A1E5C] text-white rounded-2xl border-2 border-white/30 px-4 py-2.5 shadow-[0_10px_25px_rgba(42,30,92,0.2)]"
+          >
+            <div className="font-display text-xs font-semibold text-[#D6CBFF] mb-0.5">
+              {message.displayName}
+            </div>
+            <p className="font-display text-sm leading-tight">{message.text}</p>
+          </div>
+        ))}
+      </div>
+
       <Header />
       <div className="h-16" />
 
-      {/* Title Bar */}
+      {/* Focused Gameplay Header */}
       <div className="bg-white border-b border-[#ECE9FF]">
-        <div className="max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+        <div className="max-w-[1600px] mx-auto px-4 py-2">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div>
-              <h1 className="font-display font-bold text-xl text-[#2A1E5C]">
+              <p className="font-display text-xs uppercase tracking-wide text-[#6B5CA8]">Multiplayer Solve</p>
+              <h1 className="font-display font-bold text-lg sm:text-xl text-[#2A1E5C]">
                 {puzzle?.title || 'Multiplayer Crossword'}
               </h1>
-              <p className="font-display text-sm text-[#6B5CA8]">
-                Room: {roomCode} • {players.length} Players
+              <p className="font-display text-xs text-[#6B5CA8]">
+                Room {roomCode} • {players.length} players
               </p>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-1.5 bg-[#F3F1FF] px-3 py-1.5 rounded-full">
-                <Clock className="w-4 h-4 text-[#7B61FF]" />
-                <span className="font-display text-sm text-[#6B5CA8]">{formatTime(timer)}</span>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1.5 bg-[#F3F1FF] px-2.5 py-1 rounded-full">
+                  <Clock className="w-4 h-4 text-[#7B61FF]" />
+                <span className="font-display text-xs text-[#6B5CA8]">{formatTime(timer)}</span>
               </div>
               <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${
                 connectionState === 'connected' ? 'bg-[#6BCF7F]/20' : 'bg-[#FF4D6A]/20'
@@ -604,61 +797,65 @@ function MultiplayerGamePage() {
                   onReactionSelect={handleReactionSelect}
                 />
               </div>
+              <button
+                onClick={() => setShowMetaPanel((open) => !open)}
+                className={`px-3 py-1.5 rounded-lg font-display text-xs sm:text-sm font-semibold border transition-colors ${
+                  showMetaPanel
+                    ? 'bg-[#7B61FF] text-white border-[#7B61FF]'
+                    : 'bg-white text-[#6B5CA8] border-[#ECE9FF] hover:bg-[#F3F1FF]'
+                }`}
+              >
+                <Users className="w-4 h-4 inline-block mr-1.5 align-middle" />
+                {showMetaPanel ? 'Close room panel' : 'Players'}
+              </button>
+              <button
+                onClick={handleLeaveGame}
+                className="flex items-center gap-2 px-3 py-1.5 bg-white text-[#FF4D6A] font-display font-semibold rounded-lg border-2 border-[#FF4D6A] hover:bg-[#FF4D6A]/10 transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                Leave
+              </button>
             </div>
           </div>
         </div>
       </div>
 
       {/* Current Clue Bar */}
-      <div className="bg-[#7B61FF]">
-        <div className="max-w-6xl mx-auto px-4 py-3">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setDirection('across')}
-              className={`px-3 py-1 rounded-full text-xs font-display font-semibold transition-colors ${
-                direction === 'across' ? 'bg-white text-[#7B61FF]' : 'bg-[#6B51EF] text-white/70'
-              }`}
-            >
-              {activeClue?.num || 1} ACROSS
-            </button>
-            <button
-              onClick={() => setDirection('down')}
-              className={`px-3 py-1 rounded-full text-xs font-display font-semibold transition-colors ${
-                direction === 'down' ? 'bg-white text-[#7B61FF]' : 'bg-[#6B51EF] text-white/70'
-              }`}
-            >
-              {activeClue?.num || 1} DOWN
-            </button>
-            <span className="font-display text-white text-sm ml-2">
-              {activeClue?.clue || 'Select a cell to see the clue'}
-            </span>
+      <div className="bg-[#7B61FF] border-y border-[#6A53E8]">
+        <div className="max-w-[1320px] mx-auto px-4 py-2.5">
+          <div className="flex flex-col gap-1.5 sm:gap-0 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-display text-[10px] uppercase tracking-[0.14em] text-white/80">
+                {currentClueLabel}
+              </p>
+              <p className="font-display font-semibold text-sm text-white leading-tight">
+                {currentClueHint}
+              </p>
+            </div>
+            <p className="font-display text-xs text-white/80">
+              {currentCluePosition}
+            </p>
           </div>
         </div>
       </div>
 
       {/* Main Game Area */}
-      <main className="max-w-6xl mx-auto px-4 py-6">
-        <div className="grid lg:grid-cols-[1fr_300px_350px] gap-6">
-          {/* Grid Container */}
-          <div>
-            <div className="flex justify-center mb-6 relative">
-              {/* Crossy mascot peeking from top-right */}
-              <img
-                src="/crossy-main.png"
-                alt="Crossy"
-                className="absolute -top-4 -right-2 w-12 h-12 sm:w-14 sm:h-14 z-20"
-              />
-
-              {/* Grid Container */}
+      <main className="max-w-[1320px] mx-auto px-4 py-4">
+        <section className="space-y-3 max-w-[860px] mx-auto">
+          <div className="crossy-card p-2 sm:p-3">
+            <div className="flex justify-center">
               <div
                 ref={gridRef}
                 tabIndex={0}
                 onKeyDown={handleKeyDown}
-                className="relative bg-white rounded-2xl p-3 outline-none shadow-lg"
+                className="relative bg-white rounded-2xl p-1.5 sm:p-2 outline-none border-2 border-[#ECE9FF] w-full max-w-[86vw] sm:max-w-full"
               >
                 <div
-                  className="grid gap-1"
-                  style={{ gridTemplateColumns: `repeat(${puzzle?.gridWidth || 7}, 1fr)` }}
+                  className="grid gap-1 sm:gap-1.5 w-full mx-auto"
+                  style={{
+                    gridTemplateColumns: `repeat(${puzzle?.gridWidth || 7}, minmax(0, 1fr))`,
+                    width: 'min(100%, 56rem)',
+                  }}
                 >
                   {grid.map((row, rowIndex) => (
                     row.map((cell, colIndex) => {
@@ -671,17 +868,16 @@ function MultiplayerGamePage() {
                           key={`${rowIndex}-${colIndex}`}
                           onClick={() => handleCellClick(rowIndex, colIndex)}
                           className={`
-                            relative w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center
-                            text-base sm:text-lg font-display font-bold
-                            rounded-lg border-2 cursor-pointer select-none
+                            relative aspect-square w-full rounded-md border-2 cursor-pointer select-none
+                            flex items-center justify-center font-display font-bold
                             transition-all duration-150
                             ${cell.isBlocked
-                              ? 'bg-[#2A1E5C] border-[#2A1E5C]'
+                              ? 'bg-[#2A1E5C] border-[#2A1E5C] text-transparent'
                               : selectedCell?.row === rowIndex && selectedCell?.col === colIndex
-                                ? 'bg-[#7B61FF] border-[#7B61FF] text-white shadow-inner'
+                                ? 'bg-[#7B61FF] border-[#7B61FF] text-white shadow-inner text-[clamp(1rem,2vw,1.5rem)]'
                                 : otherPlayerCursor
-                                  ? `border-[${otherPlayerCursor.color}] bg-[${otherPlayerCursor.color}]/10`
-                                  : 'bg-white border-[#7B61FF] text-[#2A1E5C] hover:bg-[#F3F1FF]'
+                                  ? 'text-[#2A1E5C] text-[clamp(1rem,2vw,1.5rem)]'
+                                  : 'bg-white border-[#7B61FF] text-[#2A1E5C] hover:bg-[#F3F1FF] text-[clamp(1rem,2vw,1.5rem)]'
                             }
                           `}
                           style={otherPlayerCursor ? {
@@ -694,7 +890,7 @@ function MultiplayerGamePage() {
                               {cell.number}
                             </span>
                           )}
-                          <span className="relative z-10">{cell.letter}</span>
+                          <span className="relative z-10 leading-none">{cell.letter}</span>
                           {otherPlayerCursor && (
                             <div
                               className="absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white"
@@ -708,29 +904,114 @@ function MultiplayerGamePage() {
                 </div>
               </div>
             </div>
-
-            {/* Leave Game Button */}
-            <div className="flex justify-center">
-              <button
-                onClick={handleLeaveGame}
-                className="flex items-center gap-2 px-5 py-2.5 bg-white text-[#FF4D6A] font-display font-semibold rounded-xl border-2 border-[#FF4D6A] hover:bg-[#FF4D6A]/10 transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                Leave Game
-              </button>
-            </div>
           </div>
 
-          {/* Player List Sidebar */}
-          <div className="space-y-4">
-            <div className="crossy-card p-4">
-              <div className="flex items-center gap-2 mb-4">
-                <Users className="w-5 h-5 text-[#7B61FF]" />
-                <h2 className="font-display font-semibold text-[#2A1E5C]">
+          <div className="crossy-card p-2 sm:p-3">
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <button
+                onClick={() => setDirection('across')}
+                className={`px-2.5 py-1.5 rounded-full text-xs font-display font-semibold transition-colors ${
+                  direction === 'across' ? 'bg-[#7B61FF] text-white' : 'bg-[#F3F1FF] text-[#6B5CA8]'
+                }`}
+              >
+                Across
+              </button>
+              <button
+                onClick={() => setDirection('down')}
+                className={`px-2.5 py-1.5 rounded-full text-xs font-display font-semibold transition-colors ${
+                  direction === 'down' ? 'bg-[#7B61FF] text-white' : 'bg-[#F3F1FF] text-[#6B5CA8]'
+                }`}
+              >
+                Down
+              </button>
+            </div>
+            <p className="font-display text-sm text-[#2A1E5C] mb-1.5">
+              {activeClue?.num || 1} · {activeClue?.clue || 'Select a square to activate a clue.'}
+            </p>
+            <div className="space-y-1 max-h-36 overflow-auto pr-1">
+              {(direction === 'across' ? cluesAcross : cluesDown).map((clue) => (
+                <button
+                  key={`${direction}-${clue.num}-${clue.row}-${clue.col}`}
+                  onClick={() => handleClueSelect(clue)}
+                  className={`w-full text-left px-2.5 py-1.5 rounded-lg border transition-colors ${
+                    activeClue?.direction === direction && activeClue?.num === clue.num
+                      ? 'bg-[#7B61FF]/10 border-[#7B61FF] text-[#2A1E5C]'
+                      : 'bg-white border-[#ECE9FF] text-[#6B5CA8] hover:bg-[#F3F1FF]'
+                  }`}
+                >
+                  <span className="font-display font-semibold text-xs mr-1">{clue.num}.</span>
+                  <span className="font-display text-sm">{clue.clue}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <div
+        className={`fixed inset-0 bg-black/25 z-30 transition-opacity duration-150 ${
+          showMetaPanel ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={() => setShowMetaPanel(false)}
+      />
+
+      <aside
+        className={`fixed z-40 top-20 right-3 w-[min(92vw,22rem)] sm:w-[20rem] md:w-[23rem] transition-all duration-200 ${
+          showMetaPanel
+            ? 'opacity-100 translate-y-0 pointer-events-auto'
+            : 'opacity-0 -translate-y-2 pointer-events-none'
+        }`}
+      >
+        <div className="crossy-card p-2.5">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-[#7B61FF]" />
+              <h2 className="font-display font-semibold text-[#2A1E5C] text-sm">
+                Room details
+              </h2>
+            </div>
+            <button
+              onClick={() => setShowMetaPanel(false)}
+              className="text-[#6B5CA8] text-xs font-semibold py-1 px-2 border border-[#ECE9FF] rounded-md bg-white hover:bg-[#F3F1FF]"
+            >
+              Close
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <button
+              type="button"
+              onClick={() => setMetaPanel('players')}
+              className={`px-3 py-2 rounded-lg font-display text-sm font-semibold border transition-colors ${
+                metaPanel === 'players'
+                  ? 'bg-[#7B61FF] text-white border-[#7B61FF]'
+                  : 'bg-white text-[#6B5CA8] border-[#ECE9FF] hover:bg-[#F3F1FF]'
+              }`}
+            >
+              Players
+            </button>
+            <button
+              type="button"
+              onClick={() => setMetaPanel('chat')}
+              className={`px-3 py-2 rounded-lg font-display text-sm font-semibold border transition-colors ${
+                metaPanel === 'chat'
+                  ? 'bg-[#7B61FF] text-white border-[#7B61FF]'
+                  : 'bg-white text-[#6B5CA8] border-[#ECE9FF] hover:bg-[#F3F1FF]'
+              }`}
+            >
+              Chat
+            </button>
+          </div>
+
+          {metaPanel === 'players' ? (
+            <div className="max-h-[22rem]">
+              <div className="flex items-center gap-2 mb-3">
+                <h3 className="font-display font-semibold text-[#2A1E5C]">
                   Players ({players.length})
-                </h2>
+                </h3>
               </div>
-              <div className="space-y-3">
+
+              <div className="space-y-2">
                 {players.map((player, index) => {
                   const progress = getPlayerProgress(player.userId);
                   const isCurrentPlayer = player.userId === currentUserId;
@@ -738,24 +1019,21 @@ function MultiplayerGamePage() {
                   return (
                     <div
                       key={player.userId}
-                      className={`p-3 rounded-xl border-2 transition-all ${
+                      className={`p-2.5 rounded-xl border-2 transition-all ${
                         isCurrentPlayer
                           ? 'bg-[#7B61FF]/10 border-[#7B61FF]'
                           : 'bg-[#F3F1FF] border-[#ECE9FF]'
                       }`}
                     >
                       <div className="flex items-center gap-3 mb-2">
-                        {/* Player Avatar */}
                         <div
-                          className="w-10 h-10 rounded-full flex items-center justify-center font-display font-bold text-white text-sm"
+                          className="w-9 h-9 rounded-full flex items-center justify-center font-display font-bold text-white text-xs"
                           style={{ backgroundColor: getPlayerColor(index) }}
                         >
                           {player.username.charAt(0).toUpperCase()}
                         </div>
-
-                        {/* Player Info */}
                         <div className="flex-1 min-w-0">
-                          <p className="font-display font-semibold text-[#2A1E5C] truncate">
+                          <p className="font-display font-semibold text-xs text-[#2A1E5C] truncate">
                             {player.username}
                             {isCurrentPlayer && ' (You)'}
                           </p>
@@ -763,16 +1041,8 @@ function MultiplayerGamePage() {
                             {progress}% complete
                           </p>
                         </div>
-
-                        {/* Status Indicator */}
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: getPlayerColor(index) }}
-                        />
                       </div>
-
-                      {/* Progress Bar */}
-                      <div className="h-2 bg-[#F3F1FF] rounded-full overflow-hidden">
+                      <div className="h-2 bg-white rounded-full overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all duration-300"
                           style={{
@@ -786,33 +1056,19 @@ function MultiplayerGamePage() {
                 })}
               </div>
             </div>
-
-            {/* Crossy with speech bubble */}
-            <div className="flex justify-center">
-              <div className="flex items-end gap-3">
-                <div className="relative bg-white px-4 py-2 rounded-2xl border-2 border-[#2A1E5C] shadow-[0_4px_0_#2A1E5C]">
-                  <p className="font-display text-xs text-[#2A1E5C]">
-                    Race to finish!
-                  </p>
-                  <div className="absolute -bottom-2 right-4 w-4 h-4 bg-white border-r-2 border-b-2 border-[#2A1E5C] transform rotate-45" />
-                </div>
-                <img src="/crossy-main.png" alt="Crossy" className="w-12 h-12" />
-              </div>
+          ) : (
+            <div className="h-[22rem]">
+              <ChatPanel
+                roomCode={roomCode || ''}
+                currentUserId={currentUserId}
+                onSendMessage={handleSendChatMessage}
+                onTyping={handleTyping}
+                on={on}
+              />
             </div>
-          </div>
-
-          {/* Chat Panel */}
-          <div className="hidden lg:block h-[600px]">
-            <ChatPanel
-              roomCode={roomCode || ''}
-              currentUserId={currentUserId}
-              onSendMessage={handleSendChatMessage}
-              onTyping={handleTyping}
-              on={on}
-            />
-          </div>
+          )}
         </div>
-      </main>
+      </aside>
 
       {/* Winner Modal */}
       {showWinnerModal && (

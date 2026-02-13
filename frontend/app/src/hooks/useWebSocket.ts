@@ -82,6 +82,10 @@ export function useWebSocket({ roomCode, token, autoConnect = true }: UseWebSock
       wsRef.current = ws;
 
       ws.onopen = () => {
+        if (wsRef.current !== ws) {
+          return;
+        }
+
         if (!isMountedRef.current) {
           ws.close();
           return;
@@ -94,6 +98,10 @@ export function useWebSocket({ roomCode, token, autoConnect = true }: UseWebSock
       };
 
       ws.onmessage = (event) => {
+        if (wsRef.current !== ws) {
+          return;
+        }
+
         try {
           const message: WebSocketMessage = JSON.parse(event.data);
           const handlers = messageHandlersRef.current.get(message.type);
@@ -113,11 +121,19 @@ export function useWebSocket({ roomCode, token, autoConnect = true }: UseWebSock
       };
 
       ws.onerror = (error) => {
+        if (wsRef.current !== ws) {
+          return;
+        }
+
         console.error('WebSocket error:', error);
         setConnectionState('error');
       };
 
       ws.onclose = (event) => {
+        if (wsRef.current !== ws) {
+          return;
+        }
+
         if (!isMountedRef.current) {
           return;
         }

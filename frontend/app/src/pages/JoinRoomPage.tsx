@@ -92,7 +92,7 @@ function JoinRoomPage() {
   const handleJoinRoom = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const code = roomCode.join('');
+    const code = roomCode.join('').toUpperCase();
     if (code.length !== 6) {
       setError('Please enter a complete 6-character room code');
       return;
@@ -106,10 +106,10 @@ function JoinRoomPage() {
       await roomApi.getRoomByCode({ code });
 
       // Then join the room
-      await roomApi.joinRoom({ code });
+      const response = await roomApi.joinRoom({ code });
 
       // Navigate to room lobby
-      navigate(`/room/${code}`);
+      navigate(`/room/${response.room.code}`);
     } catch (err: unknown) {
       console.error('Failed to join room:', err);
 
@@ -223,7 +223,7 @@ function JoinRoomPage() {
 
           {/* Create Room Link */}
           <Link
-            to="/create-room"
+            to="/room/create"
             className="block w-full py-4 bg-white text-[#7B61FF] font-display font-bold text-lg rounded-xl border-2 border-[#7B61FF] hover:bg-[#F3F1FF] transition-colors text-center"
           >
             Create Room Instead

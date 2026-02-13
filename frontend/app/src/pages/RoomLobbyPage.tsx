@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   Copy,
@@ -8,9 +8,18 @@ import {
   Check,
 } from 'lucide-react';
 import { roomApi, getToken } from '../lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { Header } from '@/components/Header';
-import type { Room, RoomPlayer, PlayerJoinedPayload, PlayerLeftPayload, GameStartedPayload, RoomClosedPayload } from '../types';
+import type {
+  Room,
+  RoomPlayer,
+  JoinRoomPayload,
+  PlayerJoinedPayload,
+  PlayerLeftPayload,
+  GameStartedPayload,
+  RoomClosedPayload,
+} from '../types';
 
 // Player colors for visual distinction
 const PLAYER_COLORS = [
@@ -27,45 +36,69 @@ const PLAYER_COLORS = [
 function RoomLobbyPage() {
   const navigate = useNavigate();
   const { roomCode } = useParams<{ roomCode: string }>();
+  const { token, user, isLoading: authLoading } = useAuth();
+  const resolvedToken = token || getToken();
   const [room, setRoom] = useState<Room | null>(null);
   const [players, setPlayers] = useState<RoomPlayer[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [hasJoinedRoom, setHasJoinedRoom] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copySuccess, setCopySuccess] = useState(false);
   const [leavingRoom, setLeavingRoom] = useState(false);
 
-  const token = getToken();
+  const normalizePlayer = useCallback((player: RoomPlayer, hostId?: string): RoomPlayer => ({
+    ...player,
+    username: player.username || player.displayName || 'Player',
+    displayName: player.displayName || player.username || 'Player',
+    isHost: player.userId === (hostId || room?.hostId),
+    isReady: player.isReady ?? false,
+  }), [room?.hostId]);
 
   // Initialize WebSocket connection
-  const { connectionState, on } = useWebSocket({
+  const { connectionState, on, sendMessage } = useWebSocket({
     roomCode: roomCode || '',
-    token: token || '',
-    autoConnect: !!roomCode && !!token,
+    token: resolvedToken || '',
+    autoConnect: !!roomCode && !!resolvedToken,
   });
 
   // Fetch initial room data
   useEffect(() => {
-    const fetchRoomData = async () => {
-      if (!roomCode || !token) {
+  const fetchRoomData = async () => {
+      if (authLoading) {
+        return;
+      }
+
+      if (!roomCode || !resolvedToken) {
+        navigate('/', { state: { showAuth: true } });
+        return;
+      }
+
+      if (!user) {
         navigate('/', { state: { showAuth: true } });
         return;
       }
 
       try {
         setLoading(true);
-        const roomData = await roomApi.getRoomByCode({ code: roomCode });
-        setRoom(roomData);
-        setPlayers(roomData.players);
+        const [roomData] = await Promise.all([
+          roomApi.getRoomByCode({ code: roomCode }),
+        ]);
 
-        // Get current user ID from room data
-        // The current user is the one who just joined/created the room
-        // We'll identify them by checking who has the current token
-        // For now, we'll use a simple approach - the last player or host
-        const hostPlayer = roomData.players.find(p => p.isHost);
-        if (hostPlayer) {
-          setCurrentUserId(hostPlayer.userId);
+        let effectiveRoom = roomData;
+        const isCurrentUserInRoom = roomData.players.some((player) => player.userId === user.id);
+        if (!isCurrentUserInRoom && roomData.status === 'waiting') {
+          const joinResponse = await roomApi.joinRoom({
+            code: roomCode,
+            displayName: user.displayName,
+            isSpectator: false,
+          });
+          effectiveRoom = joinResponse.room;
         }
+
+        setRoom(effectiveRoom);
+        setPlayers(effectiveRoom.players.map((player) => normalizePlayer(player, effectiveRoom.hostId)));
+        setCurrentUserId(user.id);
       } catch (err: unknown) {
         console.error('Failed to fetch room:', err);
         const errorMessage = err && typeof err === 'object' && 'message' in err
@@ -78,7 +111,7 @@ function RoomLobbyPage() {
     };
 
     fetchRoomData();
-  }, [roomCode, token, navigate]);
+  }, [roomCode, resolvedToken, user?.id, authLoading, navigate, normalizePlayer]);
 
   // WebSocket event handlers
   useEffect(() => {
@@ -86,30 +119,40 @@ function RoomLobbyPage() {
       return;
     }
 
+    // Joined room state snapshot
+    const unsubscribeRoomState = on<{ players?: RoomPlayer[] }>('room_state', (payload) => {
+      setHasJoinedRoom(true);
+
+      if (Array.isArray(payload.players)) {
+        setPlayers(payload.players.map((player) => normalizePlayer(player)));
+      }
+    });
+
     // Player joined
-    const unsubscribePlayerJoined = on<PlayerJoinedPayload>('player:joined', (payload) => {
+    const unsubscribePlayerJoined = on<PlayerJoinedPayload>('player_joined', (payload) => {
       setPlayers(prev => {
         // Avoid duplicates
         if (prev.some(p => p.userId === payload.player.userId)) {
           return prev;
         }
-        return [...prev, payload.player];
+        const normalizedPlayer = normalizePlayer(payload.player);
+        return [...prev, normalizedPlayer];
       });
     });
 
     // Player left
-    const unsubscribePlayerLeft = on<PlayerLeftPayload>('player:left', (payload) => {
+    const unsubscribePlayerLeft = on<PlayerLeftPayload>('player_left', (payload) => {
       setPlayers(prev => prev.filter(p => p.userId !== payload.userId));
     });
 
     // Game started
-    const unsubscribeGameStarted = on<GameStartedPayload>('game:started', () => {
+    const unsubscribeGameStarted = on<GameStartedPayload>('game_started', () => {
       // Navigate to gameplay page
       navigate(`/room/${roomCode}/play`);
     });
 
     // Room closed
-    const unsubscribeRoomClosed = on<RoomClosedPayload>('room:closed', (payload) => {
+    const unsubscribeRoomClosed = on<RoomClosedPayload>('room_deleted', (payload) => {
       // Navigate back to home with message
       navigate('/', {
         state: {
@@ -119,12 +162,51 @@ function RoomLobbyPage() {
     });
 
     return () => {
+      unsubscribeRoomState();
       unsubscribePlayerJoined();
       unsubscribePlayerLeft();
       unsubscribeGameStarted();
       unsubscribeRoomClosed();
     };
-  }, [roomCode, connectionState, on, navigate]);
+  }, [roomCode, connectionState, on, navigate, normalizePlayer]);
+
+  useEffect(() => {
+    if (connectionState !== 'connected') {
+      setHasJoinedRoom(false);
+      return;
+    }
+  }, [connectionState, roomCode]);
+
+  useEffect(() => {
+    if (!roomCode || connectionState !== 'connected' || !user?.displayName || hasJoinedRoom) {
+      return;
+    }
+
+    const sendJoin = () => {
+      sendMessage<JoinRoomPayload>('join_room', {
+        roomCode,
+        displayName: user.displayName,
+        isSpectator: false,
+      });
+    };
+
+    sendJoin();
+    const retryId = window.setInterval(() => {
+      if (!hasJoinedRoom) {
+        sendJoin();
+      }
+    }, 1000);
+
+    return () => {
+      window.clearInterval(retryId);
+    };
+  }, [roomCode, connectionState, user?.displayName, hasJoinedRoom, sendMessage]);
+
+  useEffect(() => {
+    if (room?.status === 'playing' && roomCode) {
+      navigate(`/room/${roomCode}/play`);
+    }
+  }, [room?.status, roomCode, navigate]);
 
   const handleCopyCode = async () => {
     if (!roomCode) return;
@@ -139,15 +221,21 @@ function RoomLobbyPage() {
   };
 
   const handleStartGame = async () => {
-    if (!room || !currentUserId) return;
-
-    // Check if current user is host
-    const isHost = players.find(p => p.userId === currentUserId)?.isHost;
-    if (!isHost) return;
+    if (!room || !currentUserId || room.hostId !== currentUserId) return;
+    if (room.status !== 'waiting') {
+      setError('Game already started.');
+      return;
+    }
 
     try {
+      if (connectionState === 'connected' && hasJoinedRoom) {
+        sendMessage<Record<string, never>>('start_game', {});
+        return;
+      }
+
+      // Fallback for disconnected websocket sessions.
       await roomApi.startRoom({ roomId: room.id });
-      // The navigation will happen via WebSocket event
+      navigate(`/room/${roomCode}/play`);
     } catch (err: unknown) {
       console.error('Failed to start game:', err);
       const errorMessage = err && typeof err === 'object' && 'message' in err
@@ -163,10 +251,14 @@ function RoomLobbyPage() {
     setLeavingRoom(true);
 
     try {
-      const isHost = players.find(p => p.userId === currentUserId)?.isHost;
+      if (connectionState === 'connected' && hasJoinedRoom) {
+        sendMessage<Record<string, never>>('leave_room', {});
+        navigate('/');
+        return;
+      }
 
-      if (isHost) {
-        // Close the room if host
+      if (room.hostId === currentUserId) {
+        // Fallback path if websocket is unavailable.
         await roomApi.closeRoom({ roomId: room.id });
       }
 
@@ -186,7 +278,7 @@ function RoomLobbyPage() {
     return PLAYER_COLORS[index % PLAYER_COLORS.length];
   };
 
-  const isHost = currentUserId && players.find(p => p.userId === currentUserId)?.isHost;
+  const isCurrentUserHost = Boolean(currentUserId && room?.hostId === currentUserId);
 
   if (loading) {
     return (
@@ -367,17 +459,22 @@ function RoomLobbyPage() {
 
         {/* Action Buttons */}
         <div className="space-y-3">
-          {isHost ? (
+          {isCurrentUserHost ? (
             <button
               onClick={handleStartGame}
-              disabled={players.length < 2}
+              disabled={
+                players.length < 2 ||
+                room?.status !== 'waiting' ||
+                connectionState !== 'connected' ||
+                !hasJoinedRoom
+              }
               className="w-full py-4 bg-[#7B61FF] text-white font-display font-bold text-lg rounded-xl border-2 border-[#2A1E5C] shadow-[0_4px_0_#2A1E5C] hover:shadow-[0_2px_0_#2A1E5C] hover:translate-y-[2px] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-[0_4px_0_#2A1E5C] disabled:hover:translate-y-0"
             >
-              Start Game
+              {room?.status === 'waiting' ? 'Start Game' : 'Game In Progress'}
             </button>
           ) : (
             <div className="w-full py-4 bg-[#F3F1FF] text-[#6B5CA8] font-display font-bold text-lg rounded-xl border-2 border-[#ECE9FF] text-center">
-              Waiting for host to start...
+              {room?.status === 'waiting' ? 'Waiting for host to start...' : 'Game in progress...'}
             </div>
           )}
 
@@ -405,7 +502,7 @@ function RoomLobbyPage() {
           <div className="flex items-end gap-3">
             <div className="relative bg-white px-5 py-3 rounded-2xl border-2 border-[#2A1E5C] shadow-[0_4px_0_#2A1E5C]">
               <p className="font-display text-sm text-[#2A1E5C]">
-                {isHost
+                {isCurrentUserHost
                   ? 'Start when everyone is ready!'
                   : 'Get ready for some crossword fun!'}
               </p>

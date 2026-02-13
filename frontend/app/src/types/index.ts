@@ -38,6 +38,7 @@ export type {
   WebSocketMessage,
   ConnectionState,
   MessageHandler,
+  JoinRoomPayload,
   PlayerJoinedPayload,
   PlayerLeftPayload,
   PlayerReadyPayload,

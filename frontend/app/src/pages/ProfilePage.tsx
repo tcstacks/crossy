@@ -238,7 +238,7 @@ function ProfilePage() {
                   <span className="font-display text-sm text-[#6B5CA8]">Multiplayer Wins</span>
                 </div>
                 <p className="font-display font-bold text-3xl text-[#2A1E5C]">
-                  0
+                  {stats?.multiplayerWins || 0}
                 </p>
               </div>
             </div>

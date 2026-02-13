@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -46,6 +47,9 @@ func main() {
 
 		// Seed sample puzzle if needed
 		seedSamplePuzzle(database)
+
+		// Start daily release scheduler (8 AM by default)
+		go runDailyPuzzleReleaseScheduler(database)
 	}
 
 	// Initialize services
@@ -124,11 +128,13 @@ func main() {
 				puzzlesGroup.GET("/today", handlers.GetTodayPuzzle)
 				puzzlesGroup.GET("/archive", handlers.GetPuzzleArchive)
 				puzzlesGroup.GET("/random", handlers.GetRandomPuzzle)
+				puzzlesGroup.GET("/id/:id", handlers.GetPuzzleByID)
 				puzzlesGroup.GET("/:date", handlers.GetPuzzleByDate)
 			} else {
 				puzzlesGroup.GET("/today", demoPuzzleHandler)
 				puzzlesGroup.GET("/archive", demoArchiveHandler)
 				puzzlesGroup.GET("/random", demoPuzzleHandler)
+				puzzlesGroup.GET("/id/:id", demoPuzzleHandler)
 				puzzlesGroup.GET("/:date", demoPuzzleHandler)
 			}
 		}
@@ -226,6 +232,64 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func getEnvInt(key string, defaultValue int) int {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	releaseHour, err := strconv.Atoi(value)
+	if err != nil {
+		return defaultValue
+	}
+	return releaseHour
+}
+
+func nextReleaseTime(now time.Time, hour, minute int) time.Time {
+	target := time.Date(now.Year(), now.Month(), now.Day(), hour, minute, 0, 0, now.Location())
+	if !target.After(now) {
+		target = target.Add(24 * time.Hour)
+	}
+	return target
+}
+
+func runDailyPuzzleReleaseScheduler(database *db.Database) {
+	releaseHour := getEnvInt("DAILY_PUZZLE_RELEASE_HOUR", 8)
+	releaseMinute := getEnvInt("DAILY_PUZZLE_RELEASE_MINUTE", 0)
+
+	// If we boot after today's release time, run immediately for today
+	now := time.Now()
+	todayRelease := time.Date(now.Year(), now.Month(), now.Day(), releaseHour, releaseMinute, 0, 0, now.Location())
+	if now.After(todayRelease) {
+		if err := publishDailyPuzzle(database); err != nil {
+			log.Printf("Failed to run daily release: %v", err)
+		}
+	}
+
+	for {
+		next := nextReleaseTime(time.Now(), releaseHour, releaseMinute)
+		timer := time.NewTimer(time.Until(next))
+		<-timer.C
+
+		if err := publishDailyPuzzle(database); err != nil {
+			log.Printf("Failed to run daily release: %v", err)
+		}
+	}
+}
+
+func publishDailyPuzzle(database *db.Database) error {
+	date := time.Now().Format("2006-01-02")
+	published, puzzleTitle, puzzleDate, err := database.PublishNextDraftForDate(date)
+	if err != nil {
+		return err
+	}
+	if published {
+		log.Printf("Published puzzle \"%s\" for %s", puzzleTitle, puzzleDate)
+	} else {
+		log.Printf("No draft puzzle available for %s", date)
+	}
+	return nil
 }
 
 func seedSamplePuzzle(database *db.Database) {

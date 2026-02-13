@@ -1,10 +1,11 @@
-import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ReactNode } from 'react';
 import { AuthProvider, useAuth } from './AuthContext';
 import { authApi, userApi, getToken, removeToken } from '../lib/api';
 import type { User, AuthResponse, ApiError } from '../types/api';
+import type { Mock } from 'vitest';
+import type { ReactNode } from 'react';
 
 // Mock the API module
 vi.mock('../lib/api', () => ({

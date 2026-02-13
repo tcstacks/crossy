@@ -43,6 +43,8 @@ const (
 	MsgRoomDeleted      MessageType = "room_deleted"      // Room was deleted (e.g., host left)
 )
 
+const hostDisconnectGracePeriod = 2 * time.Second
+
 // Message represents a WebSocket message
 type Message struct {
 	Type    MessageType     `json:"type"`
@@ -1419,7 +1421,7 @@ func (h *Hub) removeClientFromRoom(client *Client) {
 	isEmpty := len(hubRoom.Clients) == 0
 	hubRoom.mutex.Unlock()
 
-	// Check if user has any other connections in this room
+	// Check if user has any other active connections in this room.
 	hasOtherConnections := false
 	hubRoom.mutex.RLock()
 	for _, c := range hubRoom.Clients {
@@ -1429,6 +1431,12 @@ func (h *Hub) removeClientFromRoom(client *Client) {
 		}
 	}
 	hubRoom.mutex.RUnlock()
+
+	// During reconnects, a replacement socket may already be registered but not yet rejoined to the room.
+	// If the user still has a potential room websocket connection, treat them as connected.
+	if !hasOtherConnections {
+		hasOtherConnections = h.hasPotentialRoomConnection(client.UserID, roomID, client.ConnectionID)
+	}
 
 	// Only update connection status if no other tabs are connected
 	if !hasOtherConnections {
@@ -1446,32 +1454,9 @@ func (h *Hub) removeClientFromRoom(client *Client) {
 		isHost := room != nil && room.HostID == client.UserID
 
 		if isHost {
-			// Host is leaving - delete the room and notify all players
-			log.Printf("removeClientFromRoom: host is leaving, deleting room %s", roomID)
-
-			// Broadcast room_deleted to all remaining clients
-			h.broadcastToRoom(roomID, "", MsgRoomDeleted, RoomDeletedPayload{
-				Reason: "host_left",
-			})
-
-			// Delete room from database
-			if err := h.db.DeleteRoom(roomID); err != nil {
-				log.Printf("removeClientFromRoom: failed to delete room: %v", err)
-			}
-
-			// Clean up hub room
-			h.mutex.Lock()
-			delete(h.rooms, roomID)
-			h.mutex.Unlock()
-
-			// Close all client connections in this room
-			hubRoom.mutex.RLock()
-			for _, c := range hubRoom.Clients {
-				if c.ConnectionID != client.ConnectionID {
-					c.RoomID = ""
-				}
-			}
-			hubRoom.mutex.RUnlock()
+			// Host websocket disconnected. Delay deletion briefly to allow reconnect/rejoin.
+			log.Printf("removeClientFromRoom: host disconnected, scheduling deletion check for room %s", roomID)
+			go h.deleteRoomIfHostStillDisconnected(roomID, client.UserID)
 		} else {
 			// Regular player leaving - just notify others
 			h.broadcastToRoom(roomID, client.ConnectionID, MsgPlayerLeft, PlayerLeftPayload{
@@ -1489,6 +1474,82 @@ func (h *Hub) removeClientFromRoom(client *Client) {
 	}
 
 	client.RoomID = ""
+}
+
+func (h *Hub) hasPotentialRoomConnection(userID, roomID, excludeConnectionID string) bool {
+	h.mutex.RLock()
+	connIDs := append([]string(nil), h.userConnections[userID]...)
+	h.mutex.RUnlock()
+
+	for _, connID := range connIDs {
+		if connID == excludeConnectionID {
+			continue
+		}
+
+		h.mutex.RLock()
+		c, ok := h.clients[connID]
+		h.mutex.RUnlock()
+		if !ok {
+			continue
+		}
+
+		// Same room connection OR freshly connected socket waiting to rejoin.
+		if c.RoomID == roomID || c.RoomID == "" {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (h *Hub) deleteRoomIfHostStillDisconnected(roomID, hostUserID string) {
+	time.Sleep(hostDisconnectGracePeriod)
+
+	if h.hasPotentialRoomConnection(hostUserID, roomID, "") {
+		return
+	}
+
+	room, err := h.db.GetRoomByID(roomID)
+	if err != nil || room == nil {
+		return
+	}
+	if room.HostID != hostUserID {
+		return
+	}
+
+	players, err := h.db.GetRoomPlayers(roomID)
+	if err == nil {
+		for _, p := range players {
+			if p.UserID == hostUserID && p.IsConnected {
+				return
+			}
+		}
+	}
+
+	log.Printf("deleteRoomIfHostStillDisconnected: deleting room %s after host disconnect grace period", roomID)
+
+	h.broadcastToRoom(roomID, "", MsgRoomDeleted, RoomDeletedPayload{
+		Reason: "host_left",
+	})
+
+	if err := h.db.DeleteRoom(roomID); err != nil {
+		log.Printf("deleteRoomIfHostStillDisconnected: failed to delete room: %v", err)
+	}
+
+	h.mutex.Lock()
+	hubRoom, exists := h.rooms[roomID]
+	if exists {
+		delete(h.rooms, roomID)
+	}
+	h.mutex.Unlock()
+
+	if exists {
+		hubRoom.mutex.RLock()
+		for _, c := range hubRoom.Clients {
+			c.RoomID = ""
+		}
+		hubRoom.mutex.RUnlock()
+	}
 }
 
 func (h *Hub) sendToClient(client *Client, msgType MessageType, payload interface{}) {

@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import axios from 'axios';
-import { puzzleApi } from './api';
 
 // Create a mock for axios
 vi.mock('axios', async () => {

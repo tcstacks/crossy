@@ -53,7 +53,7 @@ function App() {
         }
       />
       <Route
-        path="/room/:code"
+        path="/room/:roomCode"
         element={
           <ProtectedRoute>
             <RoomLobbyPage />
@@ -61,7 +61,7 @@ function App() {
         }
       />
       <Route
-        path="/room/:code/play"
+        path="/room/:roomCode/play"
         element={
           <ProtectedRoute>
             <MultiplayerGamePage />

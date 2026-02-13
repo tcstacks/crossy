@@ -1,8 +1,11 @@
-import { render, RenderOptions, RenderResult } from '@testing-library/react';
+/* eslint-disable react-refresh/only-export-components */
+
+import { render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
-import { ReactElement, ReactNode } from 'react';
+import type { RenderOptions, RenderResult } from '@testing-library/react';
+import type { ReactElement, ReactNode } from 'react';
 
 /**
  * Creates a new QueryClient configured for testing

@@ -333,6 +333,46 @@ func (h *Handlers) GetTodayPuzzle(c *gin.Context) {
 	c.JSON(http.StatusOK, sanitizedPuzzle)
 }
 
+func (h *Handlers) GetPuzzleByID(c *gin.Context) {
+	id := c.Param("id")
+	ctx := context.Background()
+	cacheKey := "puzzle:id:" + id
+
+	// Try to get from cache first
+	if h.db.Redis != nil {
+		cached, err := h.db.Redis.Get(ctx, cacheKey).Result()
+		if err == nil && cached != "" {
+			var puzzle models.Puzzle
+			if json.Unmarshal([]byte(cached), &puzzle) == nil {
+				c.JSON(http.StatusOK, &puzzle)
+				return
+			}
+		}
+	}
+
+	// Cache miss - fetch from database
+	puzzle, err := h.db.GetPuzzleByID(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
+		return
+	}
+	if puzzle == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "puzzle not found"})
+		return
+	}
+
+	sanitizedPuzzle := sanitizePuzzleForClient(puzzle)
+
+	// Cache for 24 hours (puzzles don't change after publication)
+	if h.db.Redis != nil {
+		if data, err := json.Marshal(sanitizedPuzzle); err == nil {
+			h.db.Redis.Set(ctx, cacheKey, data, 24*time.Hour)
+		}
+	}
+
+	c.JSON(http.StatusOK, sanitizedPuzzle)
+}
+
 func (h *Handlers) GetPuzzleByDate(c *gin.Context) {
 	date := c.Param("date")
 	ctx := context.Background()
